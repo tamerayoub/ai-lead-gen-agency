@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Phone, Mail, MessageSquare, Search, Filter, CheckCircle, Clock } from "lucide-react";
+import { Bot, Phone, Mail, MessageSquare, Search, Filter, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -36,7 +36,7 @@ const channelColors = {
 const statusIcons = {
   success: CheckCircle,
   pending: Clock,
-  failed: Clock,
+  failed: XCircle,
 };
 
 export default function AIActivityCenter() {
@@ -48,7 +48,9 @@ export default function AIActivityCenter() {
     queryKey: ["/api/ai-activity"],
     select: (data: any[]) => data.map(activity => ({
       ...activity,
-      timestamp: formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true }),
+      timestamp: activity.createdAt 
+        ? formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })
+        : activity.timestamp || 'Unknown time',
     }))
   });
 
@@ -98,7 +100,10 @@ export default function AIActivityCenter() {
                 </p>
               )}
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <StatusIcon className={`h-3 w-3 ${activity.status === 'success' ? 'text-status-success' : ''}`} />
+                <StatusIcon className={`h-3 w-3 ${
+                  activity.status === 'success' ? 'text-status-success' : 
+                  activity.status === 'failed' ? 'text-destructive' : ''
+                }`} />
                 <span>{activity.status}</span>
                 <span>•</span>
                 <span data-testid={`text-timestamp-${activity.id}`}>{activity.timestamp}</span>
