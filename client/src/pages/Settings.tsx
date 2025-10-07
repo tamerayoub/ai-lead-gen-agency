@@ -40,19 +40,26 @@ export default function Settings() {
   const [pmsApiKey, setPmsApiKey] = useState("");
 
   const { data: responseSettings } = useQuery({ 
-    queryKey: ["/api/ai-settings", "responses"],
-    onSuccess: (data: any) => {
+    queryKey: ["/api/ai-settings/responses"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai-settings/responses");
+      if (!res.ok) return [];
+      const data = await res.json();
       if (data?.length > 0) {
         const settings = data.reduce((acc: any, s: any) => ({ ...acc, [s.key]: s.value }), {});
         setGreetingTemplate(settings.greeting_template || "");
         setFollowupTemplate(settings.followup_template || "");
       }
+      return data;
     }
   });
   
   const { data: qualificationSettings } = useQuery({ 
-    queryKey: ["/api/ai-settings", "qualification"],
-    onSuccess: (data: any) => {
+    queryKey: ["/api/ai-settings/qualification"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai-settings/qualification");
+      if (!res.ok) return [];
+      const data = await res.json();
       if (data?.length > 0) {
         const settings = data.reduce((acc: any, s: any) => ({ ...acc, [s.key]: s.value }), {});
         setMinIncome(settings.min_income || "");
@@ -60,60 +67,91 @@ export default function Settings() {
         setPetsAllowed(settings.pets_allowed === "true");
         setRequireRefs(settings.require_refs === "true");
       }
+      return data;
     }
   });
 
   const { data: twilioConfig } = useQuery({ 
-    queryKey: ["/api/integrations", "twilio"],
-    onSuccess: (data: any) => {
+    queryKey: ["/api/integrations/twilio"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/twilio");
+      if (!res.ok) return null;
+      const data = await res.json();
       if (data) {
         setTwilioSid(data.config?.accountSid || "");
         setTwilioToken(data.config?.authToken || "");
         setTwilioPhone(data.config?.phoneNumber || "");
       }
+      return data;
     }
   });
 
   const saveSettingMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/ai-settings", "POST", data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({ title: "Settings saved successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-settings"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/ai-settings/${variables.category}`] });
+    },
+    onError: () => {
+      toast({ title: "Failed to save settings", variant: "destructive" });
     },
   });
 
   const saveIntegrationMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/integrations", "POST", data),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({ title: "Integration saved successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/integrations/${variables.service}`] });
+    },
+    onError: () => {
+      toast({ title: "Failed to save integration", variant: "destructive" });
     },
   });
 
-  const saveTemplates = () => {
-    saveSettingMutation.mutate({ category: "responses", key: "greeting_template", value: greetingTemplate });
-    saveSettingMutation.mutate({ category: "responses", key: "followup_template", value: followupTemplate });
+  const saveTemplates = async () => {
+    try {
+      await saveSettingMutation.mutateAsync({ category: "responses", key: "greeting_template", value: greetingTemplate });
+      await saveSettingMutation.mutateAsync({ category: "responses", key: "followup_template", value: followupTemplate });
+      toast({ title: "Templates saved successfully" });
+    } catch (error) {
+      toast({ title: "Failed to save templates", variant: "destructive" });
+    }
   };
 
-  const saveCriteria = () => {
-    saveSettingMutation.mutate({ category: "qualification", key: "min_income", value: minIncome });
-    saveSettingMutation.mutate({ category: "qualification", key: "credit_score", value: creditScore });
-    saveSettingMutation.mutate({ category: "qualification", key: "pets_allowed", value: petsAllowed.toString() });
-    saveSettingMutation.mutate({ category: "qualification", key: "require_refs", value: requireRefs.toString() });
+  const saveCriteria = async () => {
+    try {
+      await saveSettingMutation.mutateAsync({ category: "qualification", key: "min_income", value: minIncome });
+      await saveSettingMutation.mutateAsync({ category: "qualification", key: "credit_score", value: creditScore });
+      await saveSettingMutation.mutateAsync({ category: "qualification", key: "pets_allowed", value: petsAllowed.toString() });
+      await saveSettingMutation.mutateAsync({ category: "qualification", key: "require_refs", value: requireRefs.toString() });
+      toast({ title: "Qualification criteria saved successfully" });
+    } catch (error) {
+      toast({ title: "Failed to save criteria", variant: "destructive" });
+    }
   };
 
-  const saveBehavior = () => {
-    saveSettingMutation.mutate({ category: "behavior", key: "response_tone", value: responseTone });
-    saveSettingMutation.mutate({ category: "behavior", key: "response_speed", value: responseSpeed });
-    saveSettingMutation.mutate({ category: "behavior", key: "include_details", value: includeDetails.toString() });
-    saveSettingMutation.mutate({ category: "behavior", key: "suggest_tours", value: suggestTours.toString() });
+  const saveBehavior = async () => {
+    try {
+      await saveSettingMutation.mutateAsync({ category: "behavior", key: "response_tone", value: responseTone });
+      await saveSettingMutation.mutateAsync({ category: "behavior", key: "response_speed", value: responseSpeed });
+      await saveSettingMutation.mutateAsync({ category: "behavior", key: "include_details", value: includeDetails.toString() });
+      await saveSettingMutation.mutateAsync({ category: "behavior", key: "suggest_tours", value: suggestTours.toString() });
+      toast({ title: "Response behavior saved successfully" });
+    } catch (error) {
+      toast({ title: "Failed to save behavior", variant: "destructive" });
+    }
   };
 
-  const saveAutomation = () => {
-    saveSettingMutation.mutate({ category: "automation", key: "auto_respond", value: autoRespond.toString() });
-    saveSettingMutation.mutate({ category: "automation", key: "followup_24h", value: followup24h.toString() });
-    saveSettingMutation.mutate({ category: "automation", key: "auto_send_app", value: autoSendApp.toString() });
-    saveSettingMutation.mutate({ category: "automation", key: "max_followups", value: maxFollowups });
+  const saveAutomation = async () => {
+    try {
+      await saveSettingMutation.mutateAsync({ category: "automation", key: "auto_respond", value: autoRespond.toString() });
+      await saveSettingMutation.mutateAsync({ category: "automation", key: "followup_24h", value: followup24h.toString() });
+      await saveSettingMutation.mutateAsync({ category: "automation", key: "auto_send_app", value: autoSendApp.toString() });
+      await saveSettingMutation.mutateAsync({ category: "automation", key: "max_followups", value: maxFollowups });
+      toast({ title: "Automation rules saved successfully" });
+    } catch (error) {
+      toast({ title: "Failed to save automation", variant: "destructive" });
+    }
   };
 
   const saveTwilio = () => {
