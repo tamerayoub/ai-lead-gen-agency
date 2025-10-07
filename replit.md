@@ -30,6 +30,15 @@ Preferred communication style: Simple, everyday language.
 - Local React state for UI-specific concerns
 - Custom hooks for shared logic (useIsMobile, useToast, useTheme)
 
+**Key Pages:**
+- Dashboard - Overview stats, recent leads, and AI activity feed
+- Leads - Lead management with pipeline and list views
+- Properties - Property portfolio management
+- Analytics - Charts and performance metrics
+- AI Training - Response templates and qualification criteria
+- **AI Activity Center** - Unified real-time monitoring of all AI communications across email, SMS, and phone
+- Settings - System configuration and integrations
+
 **Key Design Decisions:**
 - Component-based architecture with reusable UI primitives in `/components/ui`
 - Feature-specific components in `/components` (LeadCard, PropertyCard, ConversationTimeline, etc.)
@@ -47,11 +56,13 @@ Preferred communication style: Simple, everyday language.
 - RESTful endpoints organized by resource:
   - `/api/leads` - Lead CRUD operations with status filtering
   - `/api/properties` - Property portfolio management
-  - `/api/ai-settings` - AI configuration by category
+  - `/api/ai-settings/:category` - AI configuration by category (responses, qualification, behavior, automation)
   - `/api/analytics` - Performance metrics and trends
-  - `/api/ai-activity` - AI interaction logging
+  - `/api/ai-activity` - AI interaction logging across all channels
+  - `/api/integrations/:service` - Integration configuration (gmail, outlook, twilio, buildium, appfolio, etc.)
 - Request validation using Zod schemas derived from Drizzle tables
 - Consistent error handling with status codes
+- Generic integration endpoint supports multiple service types
 
 **Development Environment:**
 - Vite integration for development with middleware mode
@@ -105,9 +116,16 @@ Preferred communication style: Simple, everyday language.
 - Tone and speed preferences for AI responses
 
 **Communication Channels:**
-- Email, SMS, and Phone support indicated in schema
+- **Multi-Channel Support:** Email, SMS, and Phone
+- **AI Activity Center:** Centralized real-time monitoring hub
+  - Unified view of all AI communications across channels
+  - Real-time search and filtering by channel, status, and lead name
+  - Tabbed interface for channel-specific views (All, Email, SMS, Phone)
+  - Visual indicators: channel icons, AI badges, status colors
+  - Activity cards show full context: lead info, action, message preview, timestamp
+  - Status tracking: success (green), pending (yellow), failed (red)
 - AI-generated flag on conversations and notes
-- Channel-specific handling in UI components (icons, formatting)
+- Channel-specific handling in UI components (icons, formatting, color coding)
 
 **Pre-qualification Logic:**
 - Qualification scores stored on leads
@@ -168,12 +186,25 @@ Preferred communication style: Simple, everyday language.
   - Helper functions in `server/twilio.ts` for sending SMS and making calls
   - Credentials automatically managed by Replit - no manual key storage needed
   - Phone number configured in Twilio connection settings
-- Email service integration points defined but provider not specified
+  - Users can also manually configure Twilio via Settings page integration UI
 
-**Property Management Systems:**
-- Generic PMS provider integration schema
-- API key storage for external system connections
-- Provider selection UI (currently shows "none" as option)
+- **Email Integrations (User-Configurable):**
+  - Gmail: Users connect via email address and app password
+  - Outlook/Office 365: Users connect via email address and app password
+  - Configuration stored in integrationConfig table
+  - Settings UI provides guided setup with instructions for obtaining app passwords
+
+**Property Management Systems (User-Configurable):**
+- Supported providers: Buildium, AppFolio, Yardi, Rent Manager
+- Generic integration schema with API key storage
+- Configuration via Settings page integration UI
+- Provider-specific API credentials stored securely in integrationConfig table
+
+**Integration Management:**
+- All integrations configured via Settings → Integrations tab
+- Unified storage in integrationConfig table with service identifier
+- Real-time status monitoring in AI Activity Center
+- Support for enabling/disabling integrations without deleting credentials
 
 ### Session Management
 
