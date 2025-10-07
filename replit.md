@@ -160,10 +160,14 @@ Preferred communication style: Simple, everyday language.
 - TypeScript for type safety across full stack
 - ESBuild for production bundling
 
-### Third-Party Integration Readiness
+### Third-Party Integrations
 
 **Communication Services:**
-- Twilio configuration schema for SMS/phone (SID, token, phone number stored in integrationConfig table)
+- **Twilio Integration (Active):** Replit-managed Twilio connection for SMS and voice calls
+  - Authentication via Replit Connectors API using API key method (accountSid + apiKey + apiKeySecret)
+  - Helper functions in `server/twilio.ts` for sending SMS and making calls
+  - Credentials automatically managed by Replit - no manual key storage needed
+  - Phone number configured in Twilio connection settings
 - Email service integration points defined but provider not specified
 
 **Property Management Systems:**
