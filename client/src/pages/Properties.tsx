@@ -2,46 +2,10 @@ import { PropertyCard } from "@/components/PropertyCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Properties() {
-  const properties = [
-    {
-      name: "Sunset Apartments",
-      address: "123 West Ave, Austin, TX",
-      units: 24,
-      occupancy: 92,
-      monthlyRevenue: "$48,000",
-      activeLeads: 12,
-      conversionRate: "38%",
-    },
-    {
-      name: "Downtown Lofts",
-      address: "456 Main St, Austin, TX",
-      units: 18,
-      occupancy: 88,
-      monthlyRevenue: "$36,000",
-      activeLeads: 8,
-      conversionRate: "42%",
-    },
-    {
-      name: "Garden View Estates",
-      address: "789 Garden Rd, Austin, TX",
-      units: 32,
-      occupancy: 95,
-      monthlyRevenue: "$64,000",
-      activeLeads: 15,
-      conversionRate: "45%",
-    },
-    {
-      name: "Riverside Complex",
-      address: "321 River St, Austin, TX",
-      units: 20,
-      occupancy: 90,
-      monthlyRevenue: "$40,000",
-      activeLeads: 10,
-      conversionRate: "36%",
-    },
-  ];
+  const { data: properties = [] } = useQuery<any[]>({ queryKey: ["/api/properties"] });
 
   return (
     <div className="space-y-6">
@@ -68,8 +32,14 @@ export default function Properties() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {properties.map((property) => (
           <PropertyCard
-            key={property.name}
-            {...property}
+            key={property.id}
+            name={property.name}
+            address={property.address}
+            units={property.units}
+            occupancy={property.occupancy}
+            monthlyRevenue={property.monthlyRevenue}
+            activeLeads={property.activeLeads}
+            conversionRate={property.conversionRate}
             onClick={() => console.log(`Clicked ${property.name}`)}
           />
         ))}

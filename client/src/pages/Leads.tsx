@@ -6,96 +6,52 @@ import { Search, Plus, Filter } from "lucide-react";
 import { LeadCard } from "@/components/LeadCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+
+const statusColors: Record<string, string> = {
+  new: "bg-status-new text-white",
+  contacted: "bg-status-contacted text-white",
+  prequalified: "bg-status-prequalified text-white",
+  application: "bg-status-application text-white",
+  approved: "bg-status-approved text-white",
+};
+
+const statusTitles: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  prequalified: "Pre-qualified",
+  application: "Application Sent",
+  approved: "Approved",
+};
 
 export default function Leads() {
-  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const { data: leads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
+  const { data: selectedLeadData } = useQuery({
+    queryKey: ["/api/leads", selectedLeadId],
+    enabled: !!selectedLeadId,
+  });
 
-  const sampleLead = {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "+1 555-0123",
-    property: "Sunset Apartments 2BR",
-    status: "prequalified" as const,
-    income: "$85,000/year",
-    moveInDate: "April 1, 2024",
-    qualificationScore: 85,
-    conversations: [
-      {
-        id: "1",
-        type: "user" as const,
-        channel: "email" as const,
-        message: "Hi, I'm interested in the 2BR apartment. Is it still available?",
-        timestamp: "2 hours ago",
-      },
-      {
-        id: "2",
-        type: "ai" as const,
-        channel: "email" as const,
-        message: "Hello! Yes, the 2BR apartment is available. Monthly rent is $2,400. Would you like to schedule a viewing?",
-        timestamp: "2 hours ago",
-        aiGenerated: true,
-      },
-    ],
-    notes: [
-      {
-        id: "1",
-        content: "Lead shows strong interest. Income verified at $85k/year.",
-        timestamp: "1 hour ago",
-        aiGenerated: true,
-      },
-    ],
-  };
+  // Group leads by status
+  const leadsByStatus = leads.reduce((acc: Record<string, any[]>, lead: any) => {
+    if (!acc[lead.status]) acc[lead.status] = [];
+    acc[lead.status].push(lead);
+    return acc;
+  }, {} as Record<string, any[]>);
 
-  const pipelineStages = [
-    {
-      stage: "new" as const,
-      title: "New",
-      count: 8,
-      color: "bg-status-new text-white",
-      leads: [
-        { id: "1", name: "Sarah Johnson", property: "Sunset Apt 2BR", value: "$2,400/mo" },
-        { id: "2", name: "Mike Davis", property: "Downtown Loft", value: "$2,800/mo" },
-      ],
-    },
-    {
-      stage: "contacted" as const,
-      title: "Contacted",
-      count: 12,
-      color: "bg-status-contacted text-white",
-      leads: [
-        { id: "3", name: "Emma Wilson", property: "Garden View 3BR", value: "$3,200/mo" },
-        { id: "4", name: "James Lee", property: "Parkside Studio", value: "$1,800/mo" },
-      ],
-    },
-    {
-      stage: "prequalified" as const,
-      title: "Pre-qualified",
-      count: 6,
-      color: "bg-status-prequalified text-white",
-      leads: [
-        { id: "5", name: "Lisa Anderson", property: "Riverside 2BR", value: "$2,600/mo" },
-      ],
-    },
-    {
-      stage: "application" as const,
-      title: "Application Sent",
-      count: 4,
-      color: "bg-status-application text-white",
-      leads: [
-        { id: "6", name: "Robert Taylor", property: "Hilltop 1BR", value: "$2,200/mo" },
-      ],
-    },
-    {
-      stage: "approved" as const,
-      title: "Approved",
-      count: 3,
-      color: "bg-status-approved text-white",
-      leads: [
-        { id: "7", name: "Jennifer Moore", property: "Lakeside 2BR", value: "$2,900/mo" },
-      ],
-    },
-  ];
+  const pipelineStages = Object.keys(statusTitles).map(status => ({
+    stage: status as any,
+    title: statusTitles[status],
+    count: leadsByStatus[status]?.length || 0,
+    color: statusColors[status],
+    leads: (leadsByStatus[status] || []).slice(0, 3).map(lead => ({
+      id: lead.id,
+      name: lead.name,
+      property: lead.propertyName,
+      value: "$2,400/mo",
+    })),
+  }));
 
   return (
     <div className="space-y-6">
@@ -135,47 +91,38 @@ export default function Leads() {
         </TabsContent>
         <TabsContent value="list" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <LeadCard
-              name="Sarah Johnson"
-              email="sarah.j@email.com"
-              phone="+1 555-0123"
-              property="Sunset Apartments 2BR"
-              status="new"
-              source="email"
-              aiHandled={true}
-              lastContact="2 hours ago"
-              onClick={() => setSelectedLead(sampleLead)}
-            />
-            <LeadCard
-              name="Michael Chen"
-              email="m.chen@email.com"
-              phone="+1 555-0456"
-              property="Downtown Loft 1BR"
-              status="prequalified"
-              source="phone"
-              aiHandled={true}
-              lastContact="1 day ago"
-              onClick={() => setSelectedLead(sampleLead)}
-            />
-            <LeadCard
-              name="Emma Wilson"
-              email="emma.w@email.com"
-              phone="+1 555-0789"
-              property="Garden View 3BR"
-              status="contacted"
-              source="sms"
-              aiHandled={true}
-              lastContact="3 hours ago"
-              onClick={() => setSelectedLead(sampleLead)}
-            />
+            {leads.map((lead) => (
+              <LeadCard
+                key={lead.id}
+                name={lead.name}
+                email={lead.email}
+                phone={lead.phone}
+                property={lead.propertyName}
+                status={lead.status}
+                source={lead.source}
+                aiHandled={lead.aiHandled}
+                lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
+                onClick={() => setSelectedLeadId(lead.id)}
+              />
+            ))}
           </div>
         </TabsContent>
       </Tabs>
 
       <LeadDetailSheet
-        open={!!selectedLead}
-        onOpenChange={(open) => !open && setSelectedLead(null)}
-        lead={selectedLead}
+        open={!!selectedLeadId}
+        onOpenChange={(open) => !open && setSelectedLeadId(null)}
+        lead={selectedLeadData ? {
+          ...selectedLeadData,
+          conversations: (selectedLeadData as any).conversations?.map((c: any) => ({
+            ...c,
+            timestamp: formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }),
+          })) || [],
+          notes: (selectedLeadData as any).notes?.map((n: any) => ({
+            ...n,
+            timestamp: formatDistanceToNow(new Date(n.createdAt), { addSuffix: true }),
+          })) || [],
+        } : null}
       />
     </div>
   );

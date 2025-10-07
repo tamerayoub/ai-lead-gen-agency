@@ -5,76 +5,23 @@ import { AIActivityFeed } from "@/components/AIActivityFeed";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { Users, TrendingUp, Clock, Building2 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
 export default function Dashboard() {
-  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
-  const sampleLead = {
-    id: "1",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "+1 555-0123",
-    property: "Sunset Apartments 2BR",
-    status: "prequalified" as const,
-    income: "$85,000/year",
-    moveInDate: "April 1, 2024",
-    qualificationScore: 85,
-    conversations: [
-      {
-        id: "1",
-        type: "user" as const,
-        channel: "email" as const,
-        message: "Hi, I'm interested in the 2BR apartment. Is it still available?",
-        timestamp: "2 hours ago",
-      },
-      {
-        id: "2",
-        type: "ai" as const,
-        channel: "email" as const,
-        message: "Hello! Yes, the 2BR apartment is available. It features modern amenities and a balcony. Monthly rent is $2,400. Would you like to schedule a viewing?",
-        timestamp: "2 hours ago",
-        aiGenerated: true,
-      },
-    ],
-    notes: [
-      {
-        id: "1",
-        content: "Lead shows strong interest. Income verified at $85k/year. Credit score pending.",
-        timestamp: "1 hour ago",
-        aiGenerated: true,
-      },
-    ],
-  };
+  const { data: leads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
+  const { data: properties = [] } = useQuery<any[]>({ queryKey: ["/api/properties"] });
+  const { data: stats } = useQuery<any>({ queryKey: ["/api/analytics/stats"] });
+  const { data: activities = [] } = useQuery<any[]>({ queryKey: ["/api/ai-activity"] });
+  const { data: selectedLeadData } = useQuery({
+    queryKey: ["/api/leads", selectedLeadId],
+    enabled: !!selectedLeadId,
+  });
 
-  const activities = [
-    {
-      id: "1",
-      type: "response" as const,
-      channel: "email" as const,
-      leadName: "Sarah Johnson",
-      action: "Responded to inquiry about 2BR apartment",
-      timestamp: "5 min ago",
-      status: "success" as const,
-    },
-    {
-      id: "2",
-      type: "followup" as const,
-      channel: "sms" as const,
-      leadName: "Mike Davis",
-      action: "Sent follow-up about viewing appointment",
-      timestamp: "15 min ago",
-      status: "success" as const,
-    },
-    {
-      id: "3",
-      type: "qualification" as const,
-      channel: "phone" as const,
-      leadName: "Emma Wilson",
-      action: "Pre-qualified lead based on income verification",
-      timestamp: "1 hour ago",
-      status: "success" as const,
-    },
-  ];
+  const recentLeads = leads.slice(0, 4);
+  const topProperties = properties.slice(0, 2);
 
   return (
     <div className="space-y-6">
@@ -86,28 +33,28 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Leads"
-          value="245"
+          value={stats?.totalLeads || 0}
           change="+12% from last month"
           changeType="positive"
           icon={Users}
         />
         <StatCard
           title="Conversion Rate"
-          value="34%"
+          value={stats?.conversionRate || "0%"}
           change="+5% from last month"
           changeType="positive"
           icon={TrendingUp}
         />
         <StatCard
           title="Avg Response Time"
-          value="2.3 min"
+          value={stats?.avgResponseTime || "N/A"}
           change="-15% from last month"
           changeType="positive"
           icon={Clock}
         />
         <StatCard
           title="Active Properties"
-          value="8"
+          value={stats?.activeProperties || 0}
           change="2 new this month"
           changeType="neutral"
           icon={Building2}
@@ -119,76 +66,39 @@ export default function Dashboard() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Recent Leads</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <LeadCard
-                name="Sarah Johnson"
-                email="sarah.j@email.com"
-                phone="+1 555-0123"
-                property="Sunset Apartments 2BR"
-                status="new"
-                source="email"
-                aiHandled={true}
-                lastContact="2 hours ago"
-                onClick={() => setSelectedLead(sampleLead)}
-              />
-              <LeadCard
-                name="Michael Chen"
-                email="m.chen@email.com"
-                phone="+1 555-0456"
-                property="Downtown Loft 1BR"
-                status="prequalified"
-                source="phone"
-                aiHandled={true}
-                lastContact="1 day ago"
-                onClick={() => setSelectedLead(sampleLead)}
-              />
-              <LeadCard
-                name="Emma Wilson"
-                email="emma.w@email.com"
-                phone="+1 555-0789"
-                property="Garden View 3BR"
-                status="contacted"
-                source="sms"
-                aiHandled={true}
-                lastContact="3 hours ago"
-                onClick={() => setSelectedLead(sampleLead)}
-              />
-              <LeadCard
-                name="James Lee"
-                email="j.lee@email.com"
-                phone="+1 555-0321"
-                property="Parkside Studio"
-                status="application"
-                source="listing"
-                aiHandled={false}
-                lastContact="5 hours ago"
-                onClick={() => setSelectedLead(sampleLead)}
-              />
+              {recentLeads.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  name={lead.name}
+                  email={lead.email}
+                  phone={lead.phone}
+                  property={lead.propertyName}
+                  status={lead.status}
+                  source={lead.source}
+                  aiHandled={lead.aiHandled}
+                  lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
+                  onClick={() => setSelectedLeadId(lead.id)}
+                />
+              ))}
             </div>
           </div>
 
           <div>
             <h2 className="text-xl font-semibold mb-4">Top Properties</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              <PropertyCard
-                name="Sunset Apartments"
-                address="123 West Ave, Austin, TX"
-                units={24}
-                occupancy={92}
-                monthlyRevenue="$48,000"
-                activeLeads={12}
-                conversionRate="38%"
-                onClick={() => console.log("Property clicked")}
-              />
-              <PropertyCard
-                name="Downtown Lofts"
-                address="456 Main St, Austin, TX"
-                units={18}
-                occupancy={88}
-                monthlyRevenue="$36,000"
-                activeLeads={8}
-                conversionRate="42%"
-                onClick={() => console.log("Property clicked")}
-              />
+              {topProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  name={property.name}
+                  address={property.address}
+                  units={property.units}
+                  occupancy={property.occupancy}
+                  monthlyRevenue={property.monthlyRevenue}
+                  activeLeads={property.activeLeads}
+                  conversionRate={property.conversionRate}
+                  onClick={() => console.log("Property clicked")}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -199,9 +109,19 @@ export default function Dashboard() {
       </div>
 
       <LeadDetailSheet
-        open={!!selectedLead}
-        onOpenChange={(open) => !open && setSelectedLead(null)}
-        lead={selectedLead}
+        open={!!selectedLeadId}
+        onOpenChange={(open) => !open && setSelectedLeadId(null)}
+        lead={selectedLeadData ? {
+          ...selectedLeadData,
+          conversations: (selectedLeadData as any).conversations?.map((c: any) => ({
+            ...c,
+            timestamp: formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }),
+          })) || [],
+          notes: (selectedLeadData as any).notes?.map((n: any) => ({
+            ...n,
+            timestamp: formatDistanceToNow(new Date(n.createdAt), { addSuffix: true }),
+          })) || [],
+        } : null}
       />
     </div>
   );

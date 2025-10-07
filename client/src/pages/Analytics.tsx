@@ -2,31 +2,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/StatCard";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, Users, DollarSign, Percent } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Analytics() {
-  const lineData = [
-    { month: "Jan", leads: 45 },
-    { month: "Feb", leads: 52 },
-    { month: "Mar", leads: 48 },
-    { month: "Apr", leads: 61 },
-    { month: "May", leads: 55 },
-    { month: "Jun", leads: 67 },
-  ];
+  const { data: stats } = useQuery<any>({ queryKey: ["/api/analytics/stats"] });
+  const { data: trends = [] } = useQuery<any[]>({ queryKey: ["/api/analytics/trends"] });
 
-  const barData = [
-    { source: "Email", count: 120 },
-    { source: "Phone", count: 85 },
-    { source: "SMS", count: 40 },
-    { source: "Listing", count: 65 },
-  ];
+  const barData = Object.entries(stats?.bySource || {}).map(([source, count]) => ({
+    source: source.charAt(0).toUpperCase() + source.slice(1),
+    count,
+  }));
 
-  const pieData = [
-    { name: "New", value: 8, color: "hsl(210 100% 56%)" },
-    { name: "Contacted", value: 12, color: "hsl(262 70% 60%)" },
-    { name: "Pre-qualified", value: 6, color: "hsl(38 92% 50%)" },
-    { name: "Application", value: 4, color: "hsl(280 65% 60%)" },
-    { name: "Approved", value: 3, color: "hsl(142 70% 45%)" },
-  ];
+  const pieData = Object.entries(stats?.byStatus || {}).map(([name, value]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    value,
+    color: name === "new" ? "hsl(210 100% 56%)" :
+           name === "contacted" ? "hsl(262 70% 60%)" :
+           name === "prequalified" ? "hsl(38 92% 50%)" :
+           name === "application" ? "hsl(280 65% 60%)" :
+           "hsl(142 70% 45%)"
+  }));
 
   return (
     <div className="space-y-6">
@@ -45,14 +40,14 @@ export default function Analytics() {
         />
         <StatCard
           title="New Leads"
-          value="67"
+          value={stats?.totalLeads || 0}
           change="+22% from last month"
           changeType="positive"
           icon={Users}
         />
         <StatCard
           title="Conversion Rate"
-          value="34%"
+          value={stats?.conversionRate || "0%"}
           change="+5% from last month"
           changeType="positive"
           icon={Percent}
@@ -73,7 +68,7 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={lineData}>
+              <LineChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                 <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -151,7 +146,7 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {pieData.map((item) => (
+              {pieData.map((item: any) => (
                 <div key={item.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: item.color }} />
