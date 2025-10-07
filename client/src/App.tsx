@@ -12,6 +12,7 @@ import Leads from "@/pages/Leads";
 import Properties from "@/pages/Properties";
 import Analytics from "@/pages/Analytics";
 import AITraining from "@/pages/AITraining";
+import AIActivityCenter from "@/pages/AIActivityCenter";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/properties" component={Properties} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/ai-training" component={AITraining} />
+      <Route path="/ai-activity" component={AIActivityCenter} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

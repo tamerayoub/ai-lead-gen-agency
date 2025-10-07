@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3, Activity } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,6 +19,7 @@ const menuItems = [
   { title: "Properties", url: "/properties", icon: Building2 },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
   { title: "AI Training", url: "/ai-training", icon: Bot },
+  { title: "AI Activity", url: "/ai-activity", icon: Activity },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

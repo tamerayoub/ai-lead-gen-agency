@@ -38,6 +38,11 @@ export default function Settings() {
   const [twilioPhone, setTwilioPhone] = useState("");
   const [pmsProvider, setPmsProvider] = useState("none");
   const [pmsApiKey, setPmsApiKey] = useState("");
+  
+  const [gmailEmail, setGmailEmail] = useState("");
+  const [gmailAppPassword, setGmailAppPassword] = useState("");
+  const [outlookEmail, setOutlookEmail] = useState("");
+  const [outlookAppPassword, setOutlookAppPassword] = useState("");
 
   const { data: responseSettings } = useQuery({ 
     queryKey: ["/api/ai-settings/responses"],
@@ -81,6 +86,34 @@ export default function Settings() {
         setTwilioSid(data.config?.accountSid || "");
         setTwilioToken(data.config?.authToken || "");
         setTwilioPhone(data.config?.phoneNumber || "");
+      }
+      return data;
+    }
+  });
+
+  const { data: gmailConfig } = useQuery({ 
+    queryKey: ["/api/integrations/gmail"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/gmail");
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data) {
+        setGmailEmail(data.config?.email || "");
+        setGmailAppPassword(data.config?.appPassword || "");
+      }
+      return data;
+    }
+  });
+
+  const { data: outlookConfig } = useQuery({ 
+    queryKey: ["/api/integrations/outlook"],
+    queryFn: async () => {
+      const res = await fetch("/api/integrations/outlook");
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data) {
+        setOutlookEmail(data.config?.email || "");
+        setOutlookAppPassword(data.config?.appPassword || "");
       }
       return data;
     }
@@ -174,6 +207,28 @@ export default function Settings() {
         enabled: true,
       });
     }
+  };
+
+  const saveGmail = () => {
+    saveIntegrationMutation.mutate({
+      service: "gmail",
+      config: {
+        email: gmailEmail,
+        appPassword: gmailAppPassword,
+      },
+      enabled: true,
+    });
+  };
+
+  const saveOutlook = () => {
+    saveIntegrationMutation.mutate({
+      service: "outlook",
+      config: {
+        email: outlookEmail,
+        appPassword: outlookAppPassword,
+      },
+      enabled: true,
+    });
   };
   return (
     <div className="space-y-6">
@@ -419,8 +474,84 @@ export default function Settings() {
         <TabsContent value="integrations" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Communication Channels</CardTitle>
-              <CardDescription>Connect your communication channels</CardDescription>
+              <CardTitle>Email Integrations</CardTitle>
+              <CardDescription>Connect your email accounts to manage all communications</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Gmail</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="gmail-email">Gmail Address</Label>
+                  <Input
+                    id="gmail-email"
+                    type="email"
+                    placeholder="your-email@gmail.com"
+                    data-testid="input-gmail-email"
+                    value={gmailEmail}
+                    onChange={(e) => setGmailEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gmail-password">App Password</Label>
+                  <Input
+                    id="gmail-password"
+                    type="password"
+                    placeholder="••••••••••••••••"
+                    data-testid="input-gmail-password"
+                    value={gmailAppPassword}
+                    onChange={(e) => setGmailAppPassword(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Generate an app password from your Google Account settings
+                  </p>
+                </div>
+                <Button onClick={saveGmail} disabled={saveIntegrationMutation.isPending} data-testid="button-save-gmail">
+                  <Save className="h-4 w-4 mr-2" />
+                  Connect Gmail
+                </Button>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Outlook / Office 365</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="outlook-email">Outlook Email</Label>
+                  <Input
+                    id="outlook-email"
+                    type="email"
+                    placeholder="your-email@outlook.com"
+                    data-testid="input-outlook-email"
+                    value={outlookEmail}
+                    onChange={(e) => setOutlookEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="outlook-password">App Password</Label>
+                  <Input
+                    id="outlook-password"
+                    type="password"
+                    placeholder="••••••••••••••••"
+                    data-testid="input-outlook-password"
+                    value={outlookAppPassword}
+                    onChange={(e) => setOutlookAppPassword(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use app password from Microsoft account security settings
+                  </p>
+                </div>
+                <Button onClick={saveOutlook} disabled={saveIntegrationMutation.isPending} data-testid="button-save-outlook">
+                  <Save className="h-4 w-4 mr-2" />
+                  Connect Outlook
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>SMS & Calling (Twilio)</CardTitle>
+              <CardDescription>Configure Twilio for SMS and voice calls</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
