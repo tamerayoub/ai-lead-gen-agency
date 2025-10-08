@@ -189,10 +189,17 @@ Preferred communication style: Simple, everyday language.
   - Users can also manually configure Twilio via Settings page integration UI
 
 - **Email Integrations (User-Configurable):**
-  - Gmail: Users connect via email address and app password
+  - **Gmail OAuth 2.0 (Active):** Secure Google account connection
+    - OAuth 2.0 flow using googleapis package
+    - Authentication route: `/api/auth/google` generates OAuth URL
+    - Callback route: `/api/auth/google/callback` exchanges code for tokens
+    - Redirect URI format: `https://{REPLIT_DEV_DOMAIN}/api/auth/google/callback`
+    - Tokens (access_token, refresh_token) stored in integrationConfig table
+    - Credentials managed via GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets
+    - Helper functions in `server/gmail.ts` for listing, reading, and sending emails
   - Outlook/Office 365: Users connect via email address and app password
   - Configuration stored in integrationConfig table
-  - Settings UI provides guided setup with instructions for obtaining app passwords
+  - Settings UI provides "Connect with Google" OAuth button for Gmail
 
 **Property Management Systems (User-Configurable):**
 - Supported providers: Buildium, AppFolio, Yardi, Rent Manager
