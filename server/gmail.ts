@@ -1,0 +1,147 @@
+import { google } from "googleapis";
+import { OAuth2Client } from "google-auth-library";
+
+const GMAIL_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.modify"
+];
+
+export function getGmailOAuth2Client(): OAuth2Client {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/api/auth/google/callback`
+  );
+}
+
+export function getGmailAuthUrl(userId: string): string {
+  const oauth2Client = getGmailOAuth2Client();
+  
+  return oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "consent",
+    scope: GMAIL_SCOPES,
+    state: userId // Pass user ID to identify who's authenticating
+  });
+}
+
+export async function getGmailTokensFromCode(code: string) {
+  const oauth2Client = getGmailOAuth2Client();
+  const { tokens } = await oauth2Client.getToken(code);
+  return tokens;
+}
+
+export async function getGmailClient(tokens: { access_token: string; refresh_token?: string }) {
+  const oauth2Client = getGmailOAuth2Client();
+  oauth2Client.setCredentials(tokens);
+  return google.gmail({ version: "v1", auth: oauth2Client });
+}
+
+export async function listMessages(tokens: any, maxResults: number = 20) {
+  const gmail = await getGmailClient(tokens);
+  const response = await gmail.users.messages.list({
+    userId: "me",
+    maxResults,
+  });
+  return response.data.messages || [];
+}
+
+export async function getMessage(tokens: any, messageId: string) {
+  const gmail = await getGmailClient(tokens);
+  const response = await gmail.users.messages.get({
+    userId: "me",
+    id: messageId,
+    format: "full"
+  });
+  return response.data;
+}
+
+export async function sendReply(
+  tokens: any,
+  {
+    to,
+    subject,
+    body,
+    threadId,
+    inReplyTo,
+    references
+  }: {
+    to: string;
+    subject: string;
+    body: string;
+    threadId?: string;
+    inReplyTo?: string;
+    references?: string;
+  }
+) {
+  const gmail = await getGmailClient(tokens);
+
+  const messageParts = [
+    `To: ${to}`,
+    `Subject: Re: ${subject}`,
+    ...(inReplyTo ? [`In-Reply-To: ${inReplyTo}`] : []),
+    ...(references ? [`References: ${references}`] : []),
+    'Content-Type: text/plain; charset="UTF-8"',
+    'MIME-Version: 1.0',
+    '',
+    body
+  ];
+
+  const raw = messageParts.join('\n');
+  const encodedMessage = Buffer.from(raw)
+    .toString("base64")
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const response = await gmail.users.messages.send({
+    userId: "me",
+    requestBody: {
+      raw: encodedMessage,
+      ...(threadId && { threadId })
+    }
+  });
+
+  return response.data;
+}
+
+export async function sendEmail(
+  tokens: any,
+  {
+    to,
+    subject,
+    body
+  }: {
+    to: string;
+    subject: string;
+    body: string;
+  }
+) {
+  const gmail = await getGmailClient(tokens);
+
+  const messageParts = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'MIME-Version: 1.0',
+    '',
+    body
+  ];
+
+  const raw = messageParts.join('\n');
+  const encodedMessage = Buffer.from(raw)
+    .toString("base64")
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+
+  const response = await gmail.users.messages.send({
+    userId: "me",
+    requestBody: {
+      raw: encodedMessage
+    }
+  });
+
+  return response.data;
+}

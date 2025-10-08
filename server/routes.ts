@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema } from "@shared/schema";
+import { getGmailAuthUrl, getGmailTokensFromCode } from "./gmail";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -307,6 +308,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(activities.slice(0, 4));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch AI activity" });
+    }
+  });
+
+  // ===== GMAIL OAUTH ROUTES =====
+  app.get("/api/auth/google", async (req, res) => {
+    try {
+      // In production, you'd get the actual user ID from session
+      // For now, using a placeholder
+      const userId = req.query.userId as string || "default-user";
+      const authUrl = getGmailAuthUrl(userId);
+      res.json({ url: authUrl });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/auth/google/callback", async (req, res) => {
+    try {
+      const { code, state: userId } = req.query;
+      
+      if (!code) {
+        return res.status(400).send("Authorization code missing");
+      }
+
+      // Exchange code for tokens
+      const tokens = await getGmailTokensFromCode(code as string);
+
+      // Store tokens in integrationConfig
+      await storage.upsertIntegrationConfig({
+        service: "gmail",
+        config: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expiry_date: tokens.expiry_date,
+          scope: tokens.scope,
+          token_type: tokens.token_type,
+        },
+        isActive: true,
+      });
+
+      // Redirect back to settings with success message
+      res.redirect("/settings?gmail=connected");
+    } catch (error) {
+      console.error("Gmail OAuth error:", error);
+      res.redirect("/settings?gmail=error");
     }
   });
 

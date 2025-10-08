@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Brain, MessageSquare, Zap, Settings2, Save } from "lucide-react";
+import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -39,8 +39,7 @@ export default function Settings() {
   const [pmsProvider, setPmsProvider] = useState("none");
   const [pmsApiKey, setPmsApiKey] = useState("");
   
-  const [gmailEmail, setGmailEmail] = useState("");
-  const [gmailAppPassword, setGmailAppPassword] = useState("");
+  const [gmailConnected, setGmailConnected] = useState(false);
   const [outlookEmail, setOutlookEmail] = useState("");
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
 
@@ -97,9 +96,8 @@ export default function Settings() {
       const res = await fetch("/api/integrations/gmail");
       if (!res.ok) return null;
       const data = await res.json();
-      if (data) {
-        setGmailEmail(data.config?.email || "");
-        setGmailAppPassword(data.config?.appPassword || "");
+      if (data && data.config?.access_token) {
+        setGmailConnected(true);
       }
       return data;
     }
@@ -209,15 +207,25 @@ export default function Settings() {
     }
   };
 
-  const saveGmail = () => {
+  const connectGmail = async () => {
+    try {
+      const res = await fetch("/api/auth/google");
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({ title: "Failed to initiate Gmail connection", variant: "destructive" });
+    }
+  };
+
+  const disconnectGmail = () => {
     saveIntegrationMutation.mutate({
       service: "gmail",
-      config: {
-        email: gmailEmail,
-        appPassword: gmailAppPassword,
-      },
-      enabled: true,
+      config: {},
+      enabled: false,
     });
+    setGmailConnected(false);
   };
 
   const saveOutlook = () => {
@@ -479,36 +487,34 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="text-sm font-medium">Gmail</h3>
-                <div className="space-y-2">
-                  <Label htmlFor="gmail-email">Gmail Address</Label>
-                  <Input
-                    id="gmail-email"
-                    type="email"
-                    placeholder="your-email@gmail.com"
-                    data-testid="input-gmail-email"
-                    value={gmailEmail}
-                    onChange={(e) => setGmailEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="gmail-password">App Password</Label>
-                  <Input
-                    id="gmail-password"
-                    type="password"
-                    placeholder="••••••••••••••••"
-                    data-testid="input-gmail-password"
-                    value={gmailAppPassword}
-                    onChange={(e) => setGmailAppPassword(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Generate an app password from your Google Account settings
-                  </p>
-                </div>
-                <Button onClick={saveGmail} disabled={saveIntegrationMutation.isPending} data-testid="button-save-gmail">
-                  <Save className="h-4 w-4 mr-2" />
-                  Connect Gmail
-                </Button>
+                <h3 className="text-sm font-medium">Gmail (OAuth)</h3>
+                {gmailConnected ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 bg-green-500/10 text-green-600 dark:text-green-400 rounded-md">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm">Gmail connected successfully</span>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={disconnectGmail} 
+                      disabled={saveIntegrationMutation.isPending}
+                      data-testid="button-disconnect-gmail"
+                    >
+                      Disconnect Gmail
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Connect your Gmail account to read and respond to emails directly from LeadGenAI.
+                      This uses secure OAuth authentication.
+                    </p>
+                    <Button onClick={connectGmail} data-testid="button-connect-gmail">
+                      <Mail className="h-4 w-4 mr-2" />
+                      Connect with Google
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <Separator />
