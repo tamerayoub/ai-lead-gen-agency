@@ -7,7 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +44,9 @@ export default function Settings() {
   const [gmailConnected, setGmailConnected] = useState(false);
   const [outlookEmail, setOutlookEmail] = useState("");
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
+  
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<any[]>([]);
 
   const { data: responseSettings } = useQuery({ 
     queryKey: ["/api/ai-settings/responses"],
@@ -243,7 +248,11 @@ export default function Settings() {
   const syncGmailMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
     onSuccess: (data: any) => {
-      const { summary, total } = data;
+      const { summary, total, processingLogs } = data;
+      
+      // Store logs and keep dialog open
+      setSyncLogs(processingLogs || []);
+      
       const description = [
         `✓ Created ${summary.created} new leads`,
         summary.duplicates > 0 && `• ${summary.duplicates} already processed`,
@@ -256,12 +265,23 @@ export default function Settings() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
     },
-    onError: () => {
+    onError: (error: any) => {
+      // Keep dialog open and show error
+      setSyncLogs([{
+        status: "error",
+        from: "System",
+        subject: "Sync Failed",
+        preview: error?.message || "Failed to sync Gmail messages. Please check your Gmail connection.",
+        error: error?.message || "Unknown error",
+        timestamp: new Date().toISOString(),
+      }]);
       toast({ title: "Failed to sync Gmail messages", variant: "destructive" });
     },
   });
 
   const syncGmailLeads = () => {
+    setSyncLogs([]);
+    setShowSyncDialog(true);
     syncGmailMutation.mutate();
   };
   return (
@@ -681,6 +701,93 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-sync-logs">
+          <DialogHeader>
+            <DialogTitle>Gmail Sync Progress</DialogTitle>
+            <DialogDescription>
+              {syncGmailMutation.isPending 
+                ? "Fetching and processing emails..." 
+                : `Processed ${syncLogs.length} email${syncLogs.length !== 1 ? 's' : ''}`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[500px] pr-4">
+            <div className="space-y-3">
+              {syncGmailMutation.isPending && syncLogs.length === 0 && (
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-md">
+                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Connecting to Gmail...</span>
+                </div>
+              )}
+              {!syncGmailMutation.isPending && syncLogs.length === 0 && (
+                <div className="flex items-center gap-3 p-4 bg-muted rounded-md">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">No emails found to process</span>
+                </div>
+              )}
+              {syncLogs.map((log, index) => (
+                <div 
+                  key={index}
+                  className={`p-4 rounded-md border ${
+                    log.status === 'success' 
+                      ? 'bg-green-500/5 border-green-500/20' 
+                      : log.status === 'duplicate'
+                      ? 'bg-yellow-500/5 border-yellow-500/20'
+                      : 'bg-red-500/5 border-red-500/20'
+                  }`}
+                  data-testid={`log-item-${index}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {log.status === 'success' && (
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    )}
+                    {log.status === 'duplicate' && (
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                    )}
+                    {log.status === 'error' && (
+                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="space-y-1 flex-1">
+                          <p className="text-sm font-medium">
+                            From: <span className="font-normal">{log.from}</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Subject: {log.subject}
+                          </p>
+                        </div>
+                        {log.status === 'success' && log.leadName && (
+                          <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
+                            Lead: {log.leadName}
+                          </div>
+                        )}
+                      </div>
+                      {log.preview && (
+                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                          {log.preview}...
+                        </p>
+                      )}
+                      {log.status === 'error' && log.error && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                          Error: {log.error}
+                        </p>
+                      )}
+                      {log.status === 'duplicate' && (
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                          Already processed - skipped
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

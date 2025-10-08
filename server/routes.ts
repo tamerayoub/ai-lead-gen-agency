@@ -376,37 +376,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdLeads = [];
       const duplicates = [];
       const parseErrors = [];
+      const processingLogs = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
       for (const msg of messages) {
         if (!msg.id) continue;
 
+        // Get full message content first to extract sender/subject for logging
+        const fullMessage = await getMessage(tokens, msg.id);
+        const headers = fullMessage.payload?.headers || [];
+        const from = headers.find((h: any) => h.name === "From")?.value || "";
+        const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
+        
+        // Get email body - recursively search for text/plain or text/html in nested parts
+        const findBodyPart = (parts: any[], mimeType: string): any => {
+          for (const part of parts) {
+            if (part.mimeType === mimeType && part.body?.data) {
+              return part;
+            }
+            if (part.parts) {
+              const found = findBodyPart(part.parts, mimeType);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+
+        let emailBody = "";
+        if (fullMessage.payload?.parts) {
+          // Prefer text/plain, fallback to text/html
+          const textPart = findBodyPart(fullMessage.payload.parts, "text/plain");
+          const htmlPart = findBodyPart(fullMessage.payload.parts, "text/html");
+          
+          if (textPart?.body?.data) {
+            emailBody = Buffer.from(textPart.body.data, "base64").toString();
+          } else if (htmlPart?.body?.data) {
+            // Decode HTML and strip tags for preview
+            const htmlContent = Buffer.from(htmlPart.body.data, "base64").toString();
+            emailBody = htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          }
+        } else if (fullMessage.payload?.body?.data) {
+          emailBody = Buffer.from(fullMessage.payload.body.data, "base64").toString();
+        }
+
+        const emailPreview = emailBody.substring(0, 150).replace(/\n/g, ' ').trim();
+
         // Check if already processed by externalId
         const existing = await storage.getConversationByExternalId(msg.id);
         if (existing) {
           duplicates.push({ messageId: msg.id, reason: "Already processed" });
+          processingLogs.push({
+            status: "duplicate",
+            from,
+            subject,
+            preview: emailPreview,
+            timestamp: new Date().toISOString(),
+          });
           continue;
         }
 
         try {
-          // Get full message content
-          const fullMessage = await getMessage(tokens, msg.id);
-          
-          // Extract email content
-          const headers = fullMessage.payload?.headers || [];
-          const from = headers.find((h: any) => h.name === "From")?.value || "";
-          const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
-          
-          // Get email body
-          let emailBody = "";
-          if (fullMessage.payload?.parts) {
-            const textPart = fullMessage.payload.parts.find((p: any) => p.mimeType === "text/plain");
-            if (textPart?.body?.data) {
-              emailBody = Buffer.from(textPart.body.data, "base64").toString();
-            }
-          } else if (fullMessage.payload?.body?.data) {
-            emailBody = Buffer.from(fullMessage.payload.body.data, "base64").toString();
-          }
 
           // Use OpenAI to parse lead information
           const parsePrompt = `Extract lead information from this property inquiry email. Return a JSON object with:
@@ -470,9 +499,26 @@ Return ONLY valid JSON, no other text.`;
             subject,
           });
 
+          processingLogs.push({
+            status: "success",
+            from,
+            subject,
+            preview: emailPreview,
+            leadName: newLead.name,
+            timestamp: new Date().toISOString(),
+          });
+
         } catch (parseError) {
           console.error(`Failed to parse message ${msg.id}:`, parseError);
           parseErrors.push({ messageId: msg.id, error: String(parseError) });
+          processingLogs.push({
+            status: "error",
+            from,
+            subject,
+            preview: emailPreview,
+            error: String(parseError),
+            timestamp: new Date().toISOString(),
+          });
           // Continue processing remaining messages
         }
       }
@@ -482,6 +528,7 @@ Return ONLY valid JSON, no other text.`;
         createdLeads,
         duplicates,
         parseErrors,
+        processingLogs,
         total: messages.length,
         summary: {
           created: createdLeads.length,

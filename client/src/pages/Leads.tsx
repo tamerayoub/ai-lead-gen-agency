@@ -113,7 +113,15 @@ export default function Leads() {
         open={!!selectedLeadId}
         onOpenChange={(open) => !open && setSelectedLeadId(null)}
         lead={selectedLeadData ? {
-          ...selectedLeadData,
+          id: (selectedLeadData as any).id,
+          name: (selectedLeadData as any).name,
+          email: (selectedLeadData as any).email,
+          phone: (selectedLeadData as any).phone,
+          property: (selectedLeadData as any).propertyName,
+          status: (selectedLeadData as any).status,
+          income: (selectedLeadData as any).income,
+          moveInDate: (selectedLeadData as any).moveInDate,
+          qualificationScore: (selectedLeadData as any).qualificationScore,
           conversations: (selectedLeadData as any).conversations?.map((c: any) => ({
             ...c,
             timestamp: formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }),
