@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema } from "@shared/schema";
-import { getGmailAuthUrl, getGmailTokensFromCode } from "./gmail";
+import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage } from "./gmail";
+import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -353,6 +354,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Gmail OAuth error:", error);
       res.redirect("/settings?gmail=error");
+    }
+  });
+
+  // ===== GMAIL LEAD SYNC =====
+  app.post("/api/leads/sync-from-gmail", async (req, res) => {
+    try {
+      // Get Gmail integration config
+      const gmailConfig = await storage.getIntegrationConfig("gmail");
+      const tokens = gmailConfig?.config as any;
+      if (!gmailConfig || !tokens?.access_token) {
+        return res.status(400).json({ error: "Gmail not connected" });
+      }
+
+      // Get all properties to match against
+      const properties = await storage.getAllProperties();
+
+      // Fetch recent messages (last 20)
+      const messages = await listMessages(tokens, 20);
+      
+      const createdLeads = [];
+      const skippedEmails = [];
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      for (const msg of messages) {
+        if (!msg.id) continue;
+
+        // Get full message content
+        const fullMessage = await getMessage(tokens, msg.id);
+        
+        // Extract email content
+        const headers = fullMessage.payload?.headers || [];
+        const from = headers.find((h: any) => h.name === "From")?.value || "";
+        const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
+        
+        // Get email body
+        let emailBody = "";
+        if (fullMessage.payload?.parts) {
+          const textPart = fullMessage.payload.parts.find((p: any) => p.mimeType === "text/plain");
+          if (textPart?.body?.data) {
+            emailBody = Buffer.from(textPart.body.data, "base64").toString();
+          }
+        } else if (fullMessage.payload?.body?.data) {
+          emailBody = Buffer.from(fullMessage.payload.body.data, "base64").toString();
+        }
+
+        // Skip if already processed (check if email exists in conversations)
+        const existingLeads = await storage.getAllLeads();
+        let alreadyProcessed = false;
+        for (const lead of existingLeads) {
+          const convos = await storage.getConversationsByLeadId(lead.id);
+          if (convos.some(c => c.message.includes(subject))) {
+            alreadyProcessed = true;
+            break;
+          }
+        }
+        
+        if (alreadyProcessed) {
+          skippedEmails.push({ subject, reason: "Already processed" });
+          continue;
+        }
+
+        // Use OpenAI to parse lead information
+        const parsePrompt = `Extract lead information from this property inquiry email. Return a JSON object with:
+- firstName (string, required)
+- lastName (string, required) 
+- email (string, required - extract from sender)
+- phone (string, optional)
+- propertyName (string, optional - which property they're asking about)
+- message (string, optional - their inquiry/questions)
+- moveInDate (string, optional)
+- budget (string, optional)
+
+Email From: ${from}
+Subject: ${subject}
+Body: ${emailBody}
+
+Return ONLY valid JSON, no other text.`;
+
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: parsePrompt }],
+            temperature: 0.3,
+          });
+
+          const parsedData = JSON.parse(completion.choices[0].message.content || "{}");
+          
+          // Match property if mentioned
+          let matchedProperty = null;
+          if (parsedData.propertyName) {
+            matchedProperty = properties.find(p => 
+              p.name.toLowerCase().includes(parsedData.propertyName.toLowerCase()) ||
+              parsedData.propertyName.toLowerCase().includes(p.name.toLowerCase())
+            );
+          }
+
+          // Create lead
+          const newLead = await storage.createLead({
+            name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
+            email: parsedData.email || from.match(/<(.+)>/)?.[1] || from,
+            phone: parsedData.phone || "",
+            propertyId: matchedProperty?.id || properties[0]?.id || "",
+            propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
+            status: "new",
+            source: "email",
+          });
+
+          // Create conversation record
+          await storage.createConversation({
+            leadId: newLead.id,
+            type: "received",
+            message: parsedData.message || emailBody.substring(0, 500),
+            channel: "email",
+            aiGenerated: false,
+          });
+
+          createdLeads.push({
+            leadId: newLead.id,
+            name: newLead.name,
+            email: newLead.email,
+            subject,
+          });
+
+        } catch (parseError) {
+          console.error("Failed to parse email:", parseError);
+          skippedEmails.push({ subject, reason: "Failed to parse" });
+        }
+      }
+
+      res.json({
+        success: true,
+        createdLeads,
+        skippedEmails,
+        total: messages.length,
+      });
+
+    } catch (error) {
+      console.error("Gmail sync error:", error);
+      res.status(500).json({ error: "Failed to sync Gmail messages" });
     }
   });
 

@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle } from "lucide-react";
+import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -238,6 +238,25 @@ export default function Settings() {
       },
       enabled: true,
     });
+  };
+
+  const syncGmailMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
+    onSuccess: (data: any) => {
+      const { createdLeads, skippedEmails, total } = data;
+      toast({ 
+        title: `Sync Complete!`, 
+        description: `Created ${createdLeads.length} leads from ${total} emails. Skipped ${skippedEmails.length}.`
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to sync Gmail messages", variant: "destructive" });
+    },
+  });
+
+  const syncGmailLeads = () => {
+    syncGmailMutation.mutate();
   };
   return (
     <div className="space-y-6">
@@ -495,14 +514,24 @@ export default function Settings() {
                       <CheckCircle className="h-4 w-4" />
                       <span className="text-sm">Gmail connected successfully</span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={disconnectGmail} 
-                      disabled={saveIntegrationMutation.isPending}
-                      data-testid="button-disconnect-gmail"
-                    >
-                      Disconnect Gmail
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={syncGmailLeads} 
+                        disabled={syncGmailMutation.isPending}
+                        data-testid="button-sync-gmail"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${syncGmailMutation.isPending ? 'animate-spin' : ''}`} />
+                        Sync Gmail Leads
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        onClick={disconnectGmail} 
+                        disabled={saveIntegrationMutation.isPending}
+                        data-testid="button-disconnect-gmail"
+                      >
+                        Disconnect Gmail
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
