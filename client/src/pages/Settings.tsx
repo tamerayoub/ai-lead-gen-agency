@@ -120,7 +120,7 @@ export default function Settings() {
   });
 
   const saveSettingMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/ai-settings", "POST", data),
+    mutationFn: (data: any) => apiRequest("POST", "/api/ai-settings", data),
     onSuccess: (_, variables) => {
       toast({ title: "Settings saved successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/ai-settings/${variables.category}`] });
@@ -131,7 +131,7 @@ export default function Settings() {
   });
 
   const saveIntegrationMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/integrations", "POST", data),
+    mutationFn: (data: any) => apiRequest("POST", "/api/integrations", data),
     onSuccess: (_, variables) => {
       toast({ title: "Integration saved successfully" });
       queryClient.invalidateQueries({ queryKey: [`/api/integrations/${variables.service}`] });
