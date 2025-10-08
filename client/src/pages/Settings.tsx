@@ -212,6 +212,7 @@ export default function Settings() {
       const res = await fetch("/api/auth/google");
       const data = await res.json();
       if (data.url) {
+        // Open OAuth in same window to avoid popup blockers
         window.location.href = data.url;
       }
     } catch (error) {
