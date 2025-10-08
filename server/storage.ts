@@ -35,6 +35,7 @@ export interface IStorage {
 
   // Conversation operations
   getConversationsByLeadId(leadId: string): Promise<Conversation[]>;
+  getConversationByExternalId(externalId: string): Promise<Conversation | undefined>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
 
   // Note operations
@@ -140,6 +141,11 @@ export class DatabaseStorage implements IStorage {
   // Conversation operations
   async getConversationsByLeadId(leadId: string): Promise<Conversation[]> {
     return db.select().from(conversations).where(eq(conversations.leadId, leadId)).orderBy(conversations.createdAt);
+  }
+
+  async getConversationByExternalId(externalId: string): Promise<Conversation | undefined> {
+    const result = await db.select().from(conversations).where(eq(conversations.externalId, externalId)).limit(1);
+    return result[0];
   }
 
   async createConversation(conversation: InsertConversation): Promise<Conversation> {

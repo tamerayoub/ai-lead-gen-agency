@@ -48,6 +48,7 @@ export const conversations = pgTable("conversations", {
   channel: text("channel").notNull(),
   message: text("message").notNull(),
   aiGenerated: boolean("ai_generated").default(false),
+  externalId: text("external_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

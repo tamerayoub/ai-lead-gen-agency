@@ -243,10 +243,16 @@ export default function Settings() {
   const syncGmailMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
     onSuccess: (data: any) => {
-      const { createdLeads, skippedEmails, total } = data;
+      const { summary, total } = data;
+      const description = [
+        `✓ Created ${summary.created} new leads`,
+        summary.duplicates > 0 && `• ${summary.duplicates} already processed`,
+        summary.errors > 0 && `• ${summary.errors} failed to parse`,
+      ].filter(Boolean).join('\n');
+      
       toast({ 
-        title: `Sync Complete!`, 
-        description: `Created ${createdLeads.length} leads from ${total} emails. Skipped ${skippedEmails.length}.`
+        title: `Sync Complete! (${total} emails checked)`, 
+        description,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
     },

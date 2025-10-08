@@ -374,49 +374,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const messages = await listMessages(tokens, 20);
       
       const createdLeads = [];
-      const skippedEmails = [];
+      const duplicates = [];
+      const parseErrors = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
       for (const msg of messages) {
         if (!msg.id) continue;
 
-        // Get full message content
-        const fullMessage = await getMessage(tokens, msg.id);
-        
-        // Extract email content
-        const headers = fullMessage.payload?.headers || [];
-        const from = headers.find((h: any) => h.name === "From")?.value || "";
-        const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
-        
-        // Get email body
-        let emailBody = "";
-        if (fullMessage.payload?.parts) {
-          const textPart = fullMessage.payload.parts.find((p: any) => p.mimeType === "text/plain");
-          if (textPart?.body?.data) {
-            emailBody = Buffer.from(textPart.body.data, "base64").toString();
-          }
-        } else if (fullMessage.payload?.body?.data) {
-          emailBody = Buffer.from(fullMessage.payload.body.data, "base64").toString();
-        }
-
-        // Skip if already processed (check if email exists in conversations)
-        const existingLeads = await storage.getAllLeads();
-        let alreadyProcessed = false;
-        for (const lead of existingLeads) {
-          const convos = await storage.getConversationsByLeadId(lead.id);
-          if (convos.some(c => c.message.includes(subject))) {
-            alreadyProcessed = true;
-            break;
-          }
-        }
-        
-        if (alreadyProcessed) {
-          skippedEmails.push({ subject, reason: "Already processed" });
+        // Check if already processed by externalId
+        const existing = await storage.getConversationByExternalId(msg.id);
+        if (existing) {
+          duplicates.push({ messageId: msg.id, reason: "Already processed" });
           continue;
         }
 
-        // Use OpenAI to parse lead information
-        const parsePrompt = `Extract lead information from this property inquiry email. Return a JSON object with:
+        try {
+          // Get full message content
+          const fullMessage = await getMessage(tokens, msg.id);
+          
+          // Extract email content
+          const headers = fullMessage.payload?.headers || [];
+          const from = headers.find((h: any) => h.name === "From")?.value || "";
+          const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
+          
+          // Get email body
+          let emailBody = "";
+          if (fullMessage.payload?.parts) {
+            const textPart = fullMessage.payload.parts.find((p: any) => p.mimeType === "text/plain");
+            if (textPart?.body?.data) {
+              emailBody = Buffer.from(textPart.body.data, "base64").toString();
+            }
+          } else if (fullMessage.payload?.body?.data) {
+            emailBody = Buffer.from(fullMessage.payload.body.data, "base64").toString();
+          }
+
+          // Use OpenAI to parse lead information
+          const parsePrompt = `Extract lead information from this property inquiry email. Return a JSON object with:
 - firstName (string, required)
 - lastName (string, required) 
 - email (string, required - extract from sender)
@@ -432,7 +425,6 @@ Body: ${emailBody}
 
 Return ONLY valid JSON, no other text.`;
 
-        try {
           const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: parsePrompt }],
@@ -461,13 +453,14 @@ Return ONLY valid JSON, no other text.`;
             source: "email",
           });
 
-          // Create conversation record
+          // Create conversation record with externalId
           await storage.createConversation({
             leadId: newLead.id,
             type: "received",
             message: parsedData.message || emailBody.substring(0, 500),
             channel: "email",
             aiGenerated: false,
+            externalId: msg.id,
           });
 
           createdLeads.push({
@@ -478,16 +471,23 @@ Return ONLY valid JSON, no other text.`;
           });
 
         } catch (parseError) {
-          console.error("Failed to parse email:", parseError);
-          skippedEmails.push({ subject, reason: "Failed to parse" });
+          console.error(`Failed to parse message ${msg.id}:`, parseError);
+          parseErrors.push({ messageId: msg.id, error: String(parseError) });
+          // Continue processing remaining messages
         }
       }
 
       res.json({
         success: true,
         createdLeads,
-        skippedEmails,
+        duplicates,
+        parseErrors,
         total: messages.length,
+        summary: {
+          created: createdLeads.length,
+          duplicates: duplicates.length,
+          errors: parseErrors.length,
+        }
       });
 
     } catch (error) {
