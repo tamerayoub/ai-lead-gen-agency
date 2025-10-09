@@ -7,12 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw, AlertCircle, Info, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useSyncProgress } from "@/hooks/useSyncProgress";
 import { useState, useEffect } from "react";
 
 export default function Settings() {
@@ -43,9 +43,9 @@ export default function Settings() {
   
   const [outlookEmail, setOutlookEmail] = useState("");
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
+  const [showSyncLogs, setShowSyncLogs] = useState(false);
   
-  const [showSyncDialog, setShowSyncDialog] = useState(false);
-  const [syncLogs, setSyncLogs] = useState<any[]>([]);
+  const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
   const { data: responseSettings } = useQuery({ 
     queryKey: ["/api/ai-settings/responses"],
@@ -256,47 +256,35 @@ export default function Settings() {
   const syncGmailMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
     onSuccess: (data: any) => {
-      const { summary = {}, total = 0, processingLogs = [] } = data;
-      
-      // Store logs and keep dialog open
-      setSyncLogs(processingLogs);
-      
-      // Handle case where summary might not have expected properties
+      const { summary = {}, total = 0 } = data;
       const created = summary.created || 0;
-      const duplicates = summary.duplicates || 0;
-      const skipped = summary.skipped || 0;
-      const errors = summary.errors || 0;
-      
-      const description = [
-        `✓ Created ${created} new leads`,
-        duplicates > 0 && `• ${duplicates} already processed`,
-        skipped > 0 && `• ${skipped} skipped (not rental inquiries)`,
-        errors > 0 && `• ${errors} failed to parse`,
-      ].filter(Boolean).join('\n');
       
       toast({ 
-        title: `Sync Complete! (${total} emails checked)`, 
-        description,
+        title: `✅ Sync Complete!`, 
+        description: `Created ${created} new leads from ${total} emails`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+      
+      // Auto-hide logs after 5 seconds
+      setTimeout(() => {
+        setShowSyncLogs(false);
+        stopPolling();
+      }, 5000);
     },
     onError: (error: any) => {
-      // Keep dialog open and show error
-      setSyncLogs([{
-        status: "error",
-        from: "System",
-        subject: "Sync Failed",
-        preview: error?.message || "Failed to sync Gmail messages. Please check your Gmail connection.",
-        error: error?.message || "Unknown error",
-        timestamp: new Date().toISOString(),
-      }]);
       toast({ title: "Failed to sync Gmail messages", variant: "destructive" });
+      // Hide logs after error display
+      setTimeout(() => {
+        setShowSyncLogs(false);
+        stopPolling();
+      }, 5000);
     },
   });
 
   const syncGmailLeads = () => {
-    setSyncLogs([]);
-    setShowSyncDialog(true);
+    setShowSyncLogs(true);
+    startPolling();
     syncGmailMutation.mutate();
   };
 
@@ -566,7 +554,7 @@ export default function Settings() {
                     <span className="text-sm">Loading connection status...</span>
                   </div>
                 ) : isGmailConnected ? (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     <div className="flex items-center gap-2 p-3 bg-green-500/10 text-green-600 dark:text-green-400 rounded-md">
                       <CheckCircle className="h-4 w-4" />
                       <span className="text-sm">Gmail connected successfully</span>
@@ -574,10 +562,10 @@ export default function Settings() {
                     <div className="flex gap-2">
                       <Button 
                         onClick={syncGmailLeads} 
-                        disabled={syncGmailMutation.isPending}
+                        disabled={syncGmailMutation.isPending || isPolling}
                         data-testid="button-sync-gmail"
                       >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${syncGmailMutation.isPending ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`h-4 w-4 mr-2 ${(syncGmailMutation.isPending || isPolling) ? 'animate-spin' : ''}`} />
                         Sync Gmail Leads
                       </Button>
                       <Button 
@@ -589,6 +577,94 @@ export default function Settings() {
                         Disconnect Gmail
                       </Button>
                     </div>
+
+                    {/* Inline Progress and Logs */}
+                    {showSyncLogs && progress && (
+                      <div className="space-y-3 border rounded-md p-4 bg-muted/50">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium">Sync Progress</h4>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setShowSyncLogs(false);
+                              stopPolling();
+                            }}
+                            data-testid="button-close-sync-logs"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{progress.currentStep}</span>
+                            <span className="font-medium">{progressPercentage}%</span>
+                          </div>
+                          <Progress value={progressPercentage} className="h-2" data-testid="sync-progress-bar" />
+                          <div className="text-xs text-muted-foreground">
+                            {progress.processedEmails} / {progress.totalEmails} emails processed
+                          </div>
+                        </div>
+
+                        {/* Live Logs */}
+                        {progress.logs.length > 0 && (
+                          <div className="space-y-2">
+                            <h5 className="text-xs font-medium text-muted-foreground">Live Logs</h5>
+                            <div className="max-h-[300px] overflow-y-auto space-y-1 bg-background rounded-md p-2">
+                              {progress.logs.slice(-20).reverse().map((log, index) => (
+                                <div
+                                  key={index}
+                                  className={`flex items-start gap-2 text-xs p-2 rounded ${
+                                    log.type === 'success'
+                                      ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                                      : log.type === 'error'
+                                      ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                      : log.type === 'warning'
+                                      ? 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400'
+                                      : 'bg-muted'
+                                  }`}
+                                  data-testid={`sync-log-${index}`}
+                                >
+                                  {log.type === 'success' && <CheckCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  {log.type === 'error' && <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  {log.type === 'warning' && <AlertCircle className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  {log.type === 'info' && <Info className="h-3 w-3 shrink-0 mt-0.5" />}
+                                  <span className="flex-1">{log.message}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Summary (when complete) */}
+                        {progress.summary && (
+                          <div className="border-t pt-3 space-y-1">
+                            <h5 className="text-xs font-medium">Summary</h5>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Created:</span>
+                                <span className="font-medium text-green-600 dark:text-green-400">{progress.summary.created}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Duplicates:</span>
+                                <span className="font-medium text-yellow-600 dark:text-yellow-400">{progress.summary.duplicates}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Skipped:</span>
+                                <span className="font-medium">{progress.summary.skipped}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Errors:</span>
+                                <span className="font-medium text-red-600 dark:text-red-400">{progress.summary.errors}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -732,93 +808,6 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh]" data-testid="dialog-sync-logs">
-          <DialogHeader>
-            <DialogTitle>Gmail Sync Progress</DialogTitle>
-            <DialogDescription>
-              {syncGmailMutation.isPending 
-                ? "Fetching and processing emails..." 
-                : `Processed ${syncLogs.length} email${syncLogs.length !== 1 ? 's' : ''}`
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-[500px] pr-4">
-            <div className="space-y-3">
-              {syncGmailMutation.isPending && syncLogs.length === 0 && (
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-md">
-                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Connecting to Gmail...</span>
-                </div>
-              )}
-              {!syncGmailMutation.isPending && syncLogs.length === 0 && (
-                <div className="flex items-center gap-3 p-4 bg-muted rounded-md">
-                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">No emails found to process</span>
-                </div>
-              )}
-              {syncLogs.map((log, index) => (
-                <div 
-                  key={index}
-                  className={`p-4 rounded-md border ${
-                    log.status === 'success' 
-                      ? 'bg-green-500/5 border-green-500/20' 
-                      : log.status === 'duplicate'
-                      ? 'bg-yellow-500/5 border-yellow-500/20'
-                      : 'bg-red-500/5 border-red-500/20'
-                  }`}
-                  data-testid={`log-item-${index}`}
-                >
-                  <div className="flex items-start gap-3">
-                    {log.status === 'success' && (
-                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                    )}
-                    {log.status === 'duplicate' && (
-                      <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
-                    )}
-                    {log.status === 'error' && (
-                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                    )}
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-1 flex-1">
-                          <p className="text-sm font-medium">
-                            From: <span className="font-normal">{log.from}</span>
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Subject: {log.subject}
-                          </p>
-                        </div>
-                        {log.status === 'success' && log.leadName && (
-                          <div className="text-xs bg-primary/10 text-primary px-2 py-1 rounded shrink-0">
-                            Lead: {log.leadName}
-                          </div>
-                        )}
-                      </div>
-                      {log.preview && (
-                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                          {log.preview}...
-                        </p>
-                      )}
-                      {log.status === 'error' && log.error && (
-                        <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                          Error: {log.error}
-                        </p>
-                      )}
-                      {log.status === 'duplicate' && (
-                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
-                          Already processed - skipped
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

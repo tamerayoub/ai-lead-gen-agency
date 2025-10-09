@@ -365,27 +365,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== GMAIL LEAD SYNC =====
   app.post("/api/leads/sync-from-gmail", async (req, res) => {
+    const { syncProgressTracker } = await import("./syncProgress");
+    
     try {
-      console.log("🔄 Gmail sync started...");
-      
       // Get Gmail integration config
       const gmailConfig = await storage.getIntegrationConfig("gmail");
       const tokens = gmailConfig?.config as any;
       if (!gmailConfig || !tokens?.access_token) {
-        console.log("❌ Gmail not connected");
+        syncProgressTracker.fail("Gmail not connected");
         return res.status(400).json({ error: "Gmail not connected" });
       }
 
-      console.log("✓ Gmail credentials found");
+      syncProgressTracker.addLog('info', '✓ Gmail credentials verified');
 
       // Get all properties to match against
       const properties = await storage.getAllProperties();
-      console.log(`✓ Loaded ${properties.length} properties`);
+      syncProgressTracker.addLog('info', `✓ Loaded ${properties.length} properties`);
 
       // Fetch comprehensive email history (up to 5000 emails)
-      console.log("📧 Fetching emails from Gmail...");
+      syncProgressTracker.addLog('info', '📧 Fetching emails from Gmail...');
       const messages = await listMessages(tokens, 5000);
-      console.log(`✓ Fetched ${messages.length} emails`);
+      
+      // Start progress tracking
+      syncProgressTracker.start(messages.length);
+      syncProgressTracker.addLog('success', `✓ Fetched ${messages.length} emails`);
+      syncProgressTracker.updateStep(`Analyzing ${messages.length} emails with AI...`);
       
       const createdLeads = [];
       const duplicates = [];
@@ -394,15 +398,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processingLogs = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      console.log(`🤖 Starting AI analysis of ${messages.length} emails...`);
-      let processedCount = 0;
-
       for (const msg of messages) {
-        if (!msg.id) continue;
+        if (!msg.id) {
+          syncProgressTracker.incrementProcessed();
+          continue;
+        }
         
-        processedCount++;
-        if (processedCount % 10 === 0) {
-          console.log(`   Progress: ${processedCount}/${messages.length} emails analyzed`);
+        syncProgressTracker.incrementProcessed();
+        const current = syncProgressTracker.getProgress().processedEmails;
+        
+        if (current % 10 === 0 || current === 1) {
+          syncProgressTracker.updateStep(`Processing email ${current}/${messages.length}...`);
         }
 
         // Get full message content first to extract sender/subject for logging
@@ -448,6 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existing = await storage.getConversationByExternalId(msg.id);
         if (existing) {
           duplicates.push({ messageId: msg.id, reason: "Already processed" });
+          syncProgressTracker.addLog('warning', `⏭️  Skipped duplicate: "${subject.substring(0, 50)}..."`);
           processingLogs.push({
             status: "duplicate",
             from,
@@ -493,6 +500,7 @@ Respond with ONLY "YES" if this is a rental inquiry, or "NO" if it's not.`;
           
           if (!isRentalInquiry) {
             skipped.push({ messageId: msg.id, reason: "Not a rental inquiry" });
+            syncProgressTracker.addLog('info', `⏭️  Skipped: "${subject.substring(0, 50)}..." (not rental)`);
             processingLogs.push({
               status: "skipped",
               from,
@@ -603,6 +611,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             email: newLead.email,
             subject,
           });
+          
+          syncProgressTracker.addLog('success', `✅ Created lead: ${newLead.name} - "${subject.substring(0, 40)}..."`);
 
           processingLogs.push({
             status: "success",
@@ -614,8 +624,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           });
 
         } catch (parseError) {
-          console.error(`Failed to parse message ${msg.id}:`, parseError);
           parseErrors.push({ messageId: msg.id, error: String(parseError) });
+          syncProgressTracker.addLog('error', `❌ Failed to parse: "${subject.substring(0, 40)}..."`);
           processingLogs.push({
             status: "error",
             from,
@@ -628,8 +638,15 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
         }
       }
 
-      console.log(`✅ Gmail sync complete!`);
-      console.log(`   Created: ${createdLeads.length} | Duplicates: ${duplicates.length} | Skipped: ${skipped.length} | Errors: ${parseErrors.length}`);
+      const summary = {
+        created: createdLeads.length,
+        duplicates: duplicates.length,
+        skipped: skipped.length,
+        errors: parseErrors.length,
+      };
+
+      syncProgressTracker.complete(summary);
+      syncProgressTracker.addLog('success', `✅ Sync complete! Created ${summary.created} leads from ${messages.length} emails`);
 
       res.json({
         success: true,
@@ -639,15 +656,11 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
         parseErrors,
         processingLogs,
         total: messages.length,
-        summary: {
-          created: createdLeads.length,
-          duplicates: duplicates.length,
-          skipped: skipped.length,
-          errors: parseErrors.length,
-        }
+        summary,
       });
 
     } catch (error) {
+      syncProgressTracker.fail(String(error));
       console.error("Gmail sync error:", error);
       res.status(500).json({ error: "Failed to sync Gmail messages" });
     }
