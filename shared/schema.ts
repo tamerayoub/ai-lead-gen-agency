@@ -37,6 +37,7 @@ export const leads = pgTable("leads", {
   income: text("income"),
   moveInDate: text("move_in_date"),
   qualificationScore: integer("qualification_score"),
+  profileData: jsonb("profile_data"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastContactAt: timestamp("last_contact_at").defaultNow().notNull(),
 });

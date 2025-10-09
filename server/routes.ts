@@ -370,8 +370,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all properties to match against
       const properties = await storage.getAllProperties();
 
-      // Fetch recent messages (last 20)
-      const messages = await listMessages(tokens, 20);
+      // Fetch all available messages (up to 500 for comprehensive history)
+      const messages = await listMessages(tokens, 500);
       
       const createdLeads = [];
       const duplicates = [];
@@ -437,22 +437,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         try {
 
-          // Use OpenAI to parse lead information
-          const parsePrompt = `Extract lead information from this property inquiry email. Return a JSON object with:
-- firstName (string, required)
-- lastName (string, required) 
-- email (string, required - extract from sender)
-- phone (string, optional)
-- propertyName (string, optional - which property they're asking about)
-- message (string, optional - their inquiry/questions)
-- moveInDate (string, optional)
-- budget (string, optional)
+          // First, use AI to check if this is a real estate rental inquiry
+          const filterPrompt = `Analyze this email and determine if it's a real estate rental/property inquiry from a potential tenant.
+
+Consider it a rental inquiry ONLY if:
+- Someone is asking about renting/leasing a property
+- Expressing interest in viewing/applying for a rental unit
+- Asking about rental availability, pricing, or lease terms
+- Responding to a rental listing
+
+DO NOT consider these as rental inquiries:
+- Newsletters, marketing emails, promotional content
+- Property management software/service emails
+- Financial services, loans, credit scores
+- Job recruiting, social media notifications
+- Any automated/system emails
+- Sales/purchase inquiries (buying property)
+
+Email From: ${from}
+Subject: ${subject}
+Body: ${emailBody.substring(0, 1000)}
+
+Respond with ONLY "YES" if this is a rental inquiry, or "NO" if it's not.`;
+
+          const filterCompletion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: filterPrompt }],
+            temperature: 0.1,
+          });
+
+          const isRentalInquiry = filterCompletion.choices[0].message.content?.trim().toUpperCase() === "YES";
+          
+          if (!isRentalInquiry) {
+            processingLogs.push({
+              status: "skipped",
+              from,
+              subject,
+              preview: emailPreview,
+              reason: "Not a rental inquiry",
+              timestamp: new Date().toISOString(),
+            });
+            continue;
+          }
+
+          // Now extract detailed lead information
+          const parsePrompt = `Extract comprehensive lead information from this rental property inquiry email. Return a JSON object with:
+
+REQUIRED FIELDS:
+- firstName (string) - first name of the person
+- lastName (string) - last name of the person
+- email (string) - extract from sender email address
+
+OPTIONAL CONTACT INFO:
+- phone (string) - phone number if mentioned
+- currentAddress (string) - where they currently live
+- location (string) - city/area they want to rent in
+
+RENTAL PREFERENCES:
+- propertyName (string) - specific property they're asking about
+- message (string) - their main inquiry/questions
+- moveInDate (string) - when they want to move in
+- budget (string) - their monthly rent budget/range
+- bedrooms (number) - number of bedrooms needed
+- petPolicy (string) - if they mention pets
+
+PROFILE INFORMATION:
+- occupation (string) - their job/profession
+- employer (string) - company they work for
+- income (string) - annual or monthly income if mentioned
+- creditScore (string) - credit score if mentioned
+- education (string) - education level/degree if mentioned
+- householdSize (number) - number of people moving in
+- background (string) - any other relevant background info (smoker/non-smoker, lifestyle, etc)
 
 Email From: ${from}
 Subject: ${subject}
 Body: ${emailBody}
 
-Return ONLY valid JSON, no other text.`;
+Return ONLY valid JSON. Leave fields empty string "" or null if not found in the email.`;
 
           const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -475,7 +537,7 @@ Return ONLY valid JSON, no other text.`;
             );
           }
 
-          // Create lead
+          // Create lead with comprehensive profile data
           const newLead = await storage.createLead({
             name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
             email: parsedData.email || from.match(/<(.+)>/)?.[1] || from,
@@ -484,6 +546,21 @@ Return ONLY valid JSON, no other text.`;
             propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
             status: "new",
             source: "email",
+            income: parsedData.income || null,
+            moveInDate: parsedData.moveInDate || null,
+            profileData: {
+              currentAddress: parsedData.currentAddress || null,
+              location: parsedData.location || null,
+              occupation: parsedData.occupation || null,
+              employer: parsedData.employer || null,
+              creditScore: parsedData.creditScore || null,
+              education: parsedData.education || null,
+              householdSize: parsedData.householdSize || null,
+              background: parsedData.background || null,
+              budget: parsedData.budget || null,
+              bedrooms: parsedData.bedrooms || null,
+              petPolicy: parsedData.petPolicy || null,
+            },
           });
 
           // Create conversation record with externalId
