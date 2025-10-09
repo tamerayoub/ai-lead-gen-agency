@@ -264,11 +264,13 @@ export default function Settings() {
       // Handle case where summary might not have expected properties
       const created = summary.created || 0;
       const duplicates = summary.duplicates || 0;
+      const skipped = summary.skipped || 0;
       const errors = summary.errors || 0;
       
       const description = [
         `✓ Created ${created} new leads`,
         duplicates > 0 && `• ${duplicates} already processed`,
+        skipped > 0 && `• ${skipped} skipped (not rental inquiries)`,
         errors > 0 && `• ${errors} failed to parse`,
       ].filter(Boolean).join('\n');
       

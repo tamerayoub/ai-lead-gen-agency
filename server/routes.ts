@@ -376,6 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdLeads = [];
       const duplicates = [];
       const parseErrors = [];
+      const skipped = [];
       const processingLogs = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -469,6 +470,7 @@ Respond with ONLY "YES" if this is a rental inquiry, or "NO" if it's not.`;
           const isRentalInquiry = filterCompletion.choices[0].message.content?.trim().toUpperCase() === "YES";
           
           if (!isRentalInquiry) {
+            skipped.push({ messageId: msg.id, reason: "Not a rental inquiry" });
             processingLogs.push({
               status: "skipped",
               from,
@@ -608,12 +610,14 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
         success: true,
         createdLeads,
         duplicates,
+        skipped,
         parseErrors,
         processingLogs,
         total: messages.length,
         summary: {
           created: createdLeads.length,
           duplicates: duplicates.length,
+          skipped: skipped.length,
           errors: parseErrors.length,
         }
       });
