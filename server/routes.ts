@@ -360,18 +360,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== GMAIL LEAD SYNC =====
   app.post("/api/leads/sync-from-gmail", async (req, res) => {
     try {
+      console.log("🔄 Gmail sync started...");
+      
       // Get Gmail integration config
       const gmailConfig = await storage.getIntegrationConfig("gmail");
       const tokens = gmailConfig?.config as any;
       if (!gmailConfig || !tokens?.access_token) {
+        console.log("❌ Gmail not connected");
         return res.status(400).json({ error: "Gmail not connected" });
       }
 
+      console.log("✓ Gmail credentials found");
+
       // Get all properties to match against
       const properties = await storage.getAllProperties();
+      console.log(`✓ Loaded ${properties.length} properties`);
 
-      // Fetch all available messages (up to 500 for comprehensive history)
-      const messages = await listMessages(tokens, 500);
+      // Fetch recent messages (100 for better performance, can be increased later)
+      console.log("📧 Fetching emails from Gmail...");
+      const messages = await listMessages(tokens, 100);
+      console.log(`✓ Fetched ${messages.length} emails`);
       
       const createdLeads = [];
       const duplicates = [];
@@ -380,8 +388,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const processingLogs = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+      console.log(`🤖 Starting AI analysis of ${messages.length} emails...`);
+      let processedCount = 0;
+
       for (const msg of messages) {
         if (!msg.id) continue;
+        
+        processedCount++;
+        if (processedCount % 10 === 0) {
+          console.log(`   Progress: ${processedCount}/${messages.length} emails analyzed`);
+        }
 
         // Get full message content first to extract sender/subject for logging
         const fullMessage = await getMessage(tokens, msg.id);
@@ -605,6 +621,9 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           // Continue processing remaining messages
         }
       }
+
+      console.log(`✅ Gmail sync complete!`);
+      console.log(`   Created: ${createdLeads.length} | Duplicates: ${duplicates.length} | Skipped: ${skipped.length} | Errors: ${parseErrors.length}`);
 
       res.json({
         success: true,
