@@ -357,6 +357,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== GMAIL SYNC PROGRESS POLLING =====
+  app.get("/api/leads/sync-progress", async (req, res) => {
+    const { syncProgressTracker } = await import("./syncProgress");
+    res.json(syncProgressTracker.getProgress());
+  });
+
   // ===== GMAIL LEAD SYNC =====
   app.post("/api/leads/sync-from-gmail", async (req, res) => {
     try {
