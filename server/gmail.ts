@@ -45,6 +45,7 @@ export async function getGmailClient(tokens: { access_token: string; refresh_tok
 export async function listMessages(tokens: any, maxResults: number = 20) {
   const gmail = await getGmailClient(tokens);
   const allMessages: any[] = [];
+  const seenIds = new Set<string>(); // Track unique message IDs
   let pageToken: string | undefined = undefined;
   
   // Gmail API max per page is 500, so we need to paginate for larger requests
@@ -60,10 +61,21 @@ export async function listMessages(tokens: any, maxResults: number = 20) {
     });
     
     const messages = response.data.messages || [];
-    allMessages.push(...messages);
+    
+    // Only add unique messages
+    for (const msg of messages) {
+      if (msg.id && !seenIds.has(msg.id)) {
+        seenIds.add(msg.id);
+        allMessages.push(msg);
+        
+        if (allMessages.length >= maxResults) {
+          break;
+        }
+      }
+    }
     
     if (maxResults > 500) {
-      console.log(`   Fetched page ${page}: ${allMessages.length}/${maxResults} emails so far...`);
+      console.log(`   Fetched page ${page}: ${allMessages.length} unique emails (${seenIds.size} total seen)...`);
     }
     
     // Check if there are more pages

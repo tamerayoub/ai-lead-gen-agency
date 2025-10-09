@@ -274,19 +274,12 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
       
-      // Auto-hide logs after 5 seconds
-      setTimeout(() => {
-        setShowSyncLogs(false);
-        stopPolling();
-      }, 5000);
+      // Keep logs visible so user can review them
+      // Polling will auto-stop after 2 seconds via useSyncProgress hook
     },
     onError: (error: any) => {
       toast({ title: "Failed to sync Gmail messages", variant: "destructive" });
-      // Hide logs after error display
-      setTimeout(() => {
-        setShowSyncLogs(false);
-        stopPolling();
-      }, 5000);
+      // Keep logs visible so user can see what went wrong
     },
   });
 
@@ -620,9 +613,11 @@ export default function Settings() {
                         {/* Live Logs */}
                         {progress.logs.length > 0 && (
                           <div className="space-y-2">
-                            <h5 className="text-xs font-medium text-muted-foreground">Live Logs</h5>
+                            <h5 className="text-xs font-medium text-muted-foreground">
+                              Sync Logs ({progress.logs.length} total)
+                            </h5>
                             <div className="max-h-[300px] overflow-y-auto space-y-1 bg-background rounded-md p-2">
-                              {progress.logs.slice(-20).reverse().map((log, index) => (
+                              {progress.logs.slice().reverse().map((log, index) => (
                                 <div
                                   key={index}
                                   className={`flex items-start gap-2 text-xs p-2 rounded ${
