@@ -376,9 +376,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const properties = await storage.getAllProperties();
       console.log(`✓ Loaded ${properties.length} properties`);
 
-      // Fetch recent messages (100 for better performance, can be increased later)
+      // Fetch comprehensive email history (up to 5000 emails)
       console.log("📧 Fetching emails from Gmail...");
-      const messages = await listMessages(tokens, 100);
+      const messages = await listMessages(tokens, 5000);
       console.log(`✓ Fetched ${messages.length} emails`);
       
       const createdLeads = [];

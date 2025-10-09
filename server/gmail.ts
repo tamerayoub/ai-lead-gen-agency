@@ -44,11 +44,36 @@ export async function getGmailClient(tokens: { access_token: string; refresh_tok
 
 export async function listMessages(tokens: any, maxResults: number = 20) {
   const gmail = await getGmailClient(tokens);
-  const response = await gmail.users.messages.list({
-    userId: "me",
-    maxResults,
-  });
-  return response.data.messages || [];
+  const allMessages: any[] = [];
+  let pageToken: string | undefined = undefined;
+  
+  // Gmail API max per page is 500, so we need to paginate for larger requests
+  const perPage = Math.min(maxResults, 500);
+  let page = 0;
+  
+  while (allMessages.length < maxResults) {
+    page++;
+    const response: any = await gmail.users.messages.list({
+      userId: "me",
+      maxResults: perPage,
+      pageToken,
+    });
+    
+    const messages = response.data.messages || [];
+    allMessages.push(...messages);
+    
+    if (maxResults > 500) {
+      console.log(`   Fetched page ${page}: ${allMessages.length}/${maxResults} emails so far...`);
+    }
+    
+    // Check if there are more pages
+    pageToken = response.data.nextPageToken;
+    if (!pageToken || messages.length === 0) {
+      break;
+    }
+  }
+  
+  return allMessages.slice(0, maxResults);
 }
 
 export async function getMessage(tokens: any, messageId: string) {
