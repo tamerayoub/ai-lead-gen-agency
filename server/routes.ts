@@ -20,6 +20,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync progress route must come before :id route to avoid matching "sync-progress" as an id
+  app.get("/api/leads/sync-progress", async (req, res) => {
+    const { syncProgressTracker } = await import("./syncProgress");
+    res.json(syncProgressTracker.getProgress());
+  });
+
   app.get("/api/leads/:id", async (req, res) => {
     try {
       const lead = await storage.getLead(req.params.id);
@@ -357,17 +363,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== GMAIL SYNC PROGRESS POLLING =====
-  app.get("/api/leads/sync-progress", async (req, res) => {
-    const { syncProgressTracker } = await import("./syncProgress");
-    res.json(syncProgressTracker.getProgress());
-  });
-
   // ===== GMAIL LEAD SYNC =====
   app.post("/api/leads/sync-from-gmail", async (req, res) => {
     const { syncProgressTracker } = await import("./syncProgress");
     
     try {
+      // Reset tracker at the start to clear any stale state
+      syncProgressTracker.reset();
+      
+      // Start with placeholder count (will update once we know total emails)
+      syncProgressTracker.start(0);
+      syncProgressTracker.updateStep('Initializing sync...');
+      
       // Get Gmail integration config
       const gmailConfig = await storage.getIntegrationConfig("gmail");
       const tokens = gmailConfig?.config as any;
@@ -384,10 +391,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch comprehensive email history (up to 5000 emails)
       syncProgressTracker.addLog('info', '📧 Fetching emails from Gmail...');
+      syncProgressTracker.updateStep('Fetching emails from Gmail...');
       const messages = await listMessages(tokens, 5000);
       
-      // Start progress tracking
-      syncProgressTracker.start(messages.length);
+      // Update total count now that we know how many emails we have (without resetting logs)
+      syncProgressTracker.setTotal(messages.length);
       syncProgressTracker.addLog('success', `✓ Fetched ${messages.length} emails`);
       syncProgressTracker.updateStep(`Analyzing ${messages.length} emails with AI...`);
       

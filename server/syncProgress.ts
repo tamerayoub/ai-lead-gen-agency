@@ -44,6 +44,10 @@ class SyncProgressTracker {
     this.addLog('info', '🔄 Gmail sync started...');
   }
 
+  setTotal(totalEmails: number) {
+    this.progress.totalEmails = totalEmails;
+  }
+
   updateStep(step: string) {
     this.progress.currentStep = step;
   }

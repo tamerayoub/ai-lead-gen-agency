@@ -47,6 +47,14 @@ export default function Settings() {
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
+  // Auto-enable polling and show logs if sync is already running (background sync support)
+  useEffect(() => {
+    if (progress?.isRunning && !isPolling) {
+      setShowSyncLogs(true);
+      startPolling();
+    }
+  }, [progress?.isRunning, isPolling, startPolling]);
+
   const { data: responseSettings } = useQuery({ 
     queryKey: ["/api/ai-settings/responses"],
     queryFn: async () => {

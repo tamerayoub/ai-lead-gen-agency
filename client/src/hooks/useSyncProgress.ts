@@ -30,7 +30,7 @@ export function useSyncProgress(enabled: boolean = false) {
 
   const { data: progress, refetch } = useQuery<SyncProgress>({
     queryKey: ["/api/leads/sync-progress"],
-    enabled: isPolling,
+    enabled: true, // Always enabled to check for running syncs
     refetchInterval: isPolling ? 1000 : false, // Poll every second when active
     refetchIntervalInBackground: true,
   });
