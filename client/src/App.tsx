@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
 import Properties from "@/pages/Properties";
@@ -15,6 +16,11 @@ import AITraining from "@/pages/AITraining";
 import AIActivityCenter from "@/pages/AIActivityCenter";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
+
+function BackgroundSyncWrapper() {
+  useBackgroundGmailSync();
+  return null;
+}
 
 function Router() {
   return (
@@ -41,6 +47,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
+          <BackgroundSyncWrapper />
           <SidebarProvider style={style as React.CSSProperties}>
             <div className="flex h-screen w-full">
               <AppSidebar />
