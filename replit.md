@@ -197,6 +197,16 @@ Preferred communication style: Simple, everyday language.
     - Tokens (access_token, refresh_token) stored in integrationConfig table
     - Credentials managed via GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets
     - Helper functions in `server/gmail.ts` for listing, reading, and sending emails
+    - **Background Sync Automation:**
+      - Automatic sync on page load (3-second delay after initialization)
+      - Periodic sync every 5 minutes when user is active
+      - Activity tracking via mouse, keyboard, click, and scroll events
+      - Sync pauses after 10 minutes of inactivity
+      - Only runs when Gmail is connected (verified access_token)
+      - Toast notifications only shown for new leads
+      - Silent error logging without user disruption
+      - Cache invalidation for leads and AI activity on every sync
+      - Implemented via `useBackgroundGmailSync` hook in App.tsx
   - Outlook/Office 365: Users connect via email address and app password
   - Configuration stored in integrationConfig table
   - Settings UI provides "Connect with Google" OAuth button for Gmail
