@@ -248,15 +248,20 @@ export default function Settings() {
   const syncGmailMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
     onSuccess: (data: any) => {
-      const { summary, total, processingLogs } = data;
+      const { summary = {}, total = 0, processingLogs = [] } = data;
       
       // Store logs and keep dialog open
-      setSyncLogs(processingLogs || []);
+      setSyncLogs(processingLogs);
+      
+      // Handle case where summary might not have expected properties
+      const created = summary.created || 0;
+      const duplicates = summary.duplicates || 0;
+      const errors = summary.errors || 0;
       
       const description = [
-        `✓ Created ${summary.created} new leads`,
-        summary.duplicates > 0 && `• ${summary.duplicates} already processed`,
-        summary.errors > 0 && `• ${summary.errors} failed to parse`,
+        `✓ Created ${created} new leads`,
+        duplicates > 0 && `• ${duplicates} already processed`,
+        errors > 0 && `• ${errors} failed to parse`,
       ].filter(Boolean).join('\n');
       
       toast({ 

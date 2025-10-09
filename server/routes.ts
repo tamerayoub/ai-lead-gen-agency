@@ -460,7 +460,11 @@ Return ONLY valid JSON, no other text.`;
             temperature: 0.3,
           });
 
-          const parsedData = JSON.parse(completion.choices[0].message.content || "{}");
+          // Strip markdown code blocks if present
+          let rawContent = completion.choices[0].message.content || "{}";
+          rawContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          
+          const parsedData = JSON.parse(rawContent);
           
           // Match property if mentioned
           let matchedProperty = null;
