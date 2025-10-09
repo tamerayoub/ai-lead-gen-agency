@@ -13,7 +13,7 @@ import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshC
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -41,7 +41,6 @@ export default function Settings() {
   const [pmsProvider, setPmsProvider] = useState("none");
   const [pmsApiKey, setPmsApiKey] = useState("");
   
-  const [gmailConnected, setGmailConnected] = useState(false);
   const [outlookEmail, setOutlookEmail] = useState("");
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
   
@@ -95,18 +94,20 @@ export default function Settings() {
     }
   });
 
-  const { data: gmailConfig } = useQuery({ 
+  const { data: gmailConfig, isLoading: gmailLoading } = useQuery({ 
     queryKey: ["/api/integrations/gmail"],
     queryFn: async () => {
       const res = await fetch("/api/integrations/gmail");
       if (!res.ok) return null;
       const data = await res.json();
-      if (data && data.config?.access_token) {
-        setGmailConnected(true);
-      }
       return data;
     }
   });
+
+  // Derive connection status from query data
+  const isGmailConnected = Boolean(
+    gmailConfig && gmailConfig.config?.access_token && gmailConfig.isActive !== false
+  );
 
   const { data: outlookConfig } = useQuery({ 
     queryKey: ["/api/integrations/outlook"],
@@ -198,7 +199,7 @@ export default function Settings() {
         authToken: twilioToken,
         phoneNumber: twilioPhone,
       },
-      enabled: true,
+      isActive: true,
     });
   };
 
@@ -207,7 +208,7 @@ export default function Settings() {
       saveIntegrationMutation.mutate({
         service: pmsProvider,
         config: { apiKey: pmsApiKey },
-        enabled: true,
+        isActive: true,
       });
     }
   };
@@ -226,12 +227,19 @@ export default function Settings() {
   };
 
   const disconnectGmail = () => {
-    saveIntegrationMutation.mutate({
-      service: "gmail",
-      config: {},
-      enabled: false,
-    });
-    setGmailConnected(false);
+    // Preserve existing config tokens if available, otherwise use empty config
+    saveIntegrationMutation.mutate(
+      {
+        service: "gmail",
+        config: gmailConfig?.config ?? {},
+        isActive: false,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+        }
+      }
+    );
   };
 
   const saveOutlook = () => {
@@ -241,7 +249,7 @@ export default function Settings() {
         email: outlookEmail,
         appPassword: outlookAppPassword,
       },
-      enabled: true,
+      isActive: true,
     });
   };
 
@@ -289,6 +297,17 @@ export default function Settings() {
     setShowSyncDialog(true);
     syncGmailMutation.mutate();
   };
+
+  // Handle OAuth redirect - refetch Gmail config when returning from OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail') === 'connected') {
+      queryClient.refetchQueries({ queryKey: ["/api/integrations/gmail"], type: 'active' });
+      // Clean up URL
+      window.history.replaceState({}, '', '/settings');
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -539,7 +558,12 @@ export default function Settings() {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-sm font-medium">Gmail (OAuth)</h3>
-                {gmailConnected ? (
+                {gmailLoading ? (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Loading connection status...</span>
+                  </div>
+                ) : isGmailConnected ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 p-3 bg-green-500/10 text-green-600 dark:text-green-400 rounded-md">
                       <CheckCircle className="h-4 w-4" />
