@@ -75,10 +75,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
-      return await apiRequest(`/api/leads/${lead?.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest("PATCH", `/api/leads/${lead?.id}`, data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
