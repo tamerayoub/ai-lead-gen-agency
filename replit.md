@@ -229,6 +229,18 @@ Preferred communication style: Simple, everyday language.
       - Silent error logging without user disruption
       - Cache invalidation for leads and AI activity on every sync
       - Implemented via `useBackgroundGmailSync` hook in App.tsx
+    - **Lead Deduplication & Thread Consolidation:**
+      - **Thread-Level Deduplication:** In-memory `threadLeadMap` (Map<string, string>) tracks threadId → leadId associations during sync
+      - **Deduplication Priority:** 
+        1. First checks if threadId exists in threadLeadMap (ensures all emails in same Gmail thread go to same lead)
+        2. Falls back to email deduplication (normalized: lowercase + trim)
+        3. Falls back to phone deduplication (trimmed)
+        4. Creates new lead only if no match found
+      - **Thread Mapping Storage:** After finding or creating lead, stores threadId → leadId for subsequent messages in thread
+      - **Email Chain Consolidation:** All emails in the same Gmail thread (including replies and forwards) are linked to ONE lead
+      - **Conversation Timeline:** Shows proper back-and-forth message history under single contact
+      - **Storage Methods:** `getLeadByEmail()` and `getLeadByPhone()` support deduplication lookups
+      - **Result:** No duplicate leads for same person, even if email/phone extraction varies between messages
   - Outlook/Office 365: Users connect via email address and app password
   - Configuration stored in integrationConfig table
   - Settings UI provides "Connect with Google" OAuth button for Gmail
