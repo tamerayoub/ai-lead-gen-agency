@@ -56,6 +56,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const partialSchema = insertLeadSchema.partial();
       const validatedData = partialSchema.parse(req.body);
+      
+      // Check for duplicate email if email is being updated
+      if (validatedData.email) {
+        const existingLead = await storage.getLeadByEmail(validatedData.email);
+        if (existingLead && existingLead.id !== req.params.id) {
+          return res.status(409).json({ error: "A lead with this email already exists" });
+        }
+      }
+      
       const lead = await storage.updateLead(req.params.id, validatedData);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });

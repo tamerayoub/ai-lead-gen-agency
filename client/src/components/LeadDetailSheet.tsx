@@ -3,10 +3,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, MapPin, DollarSign, Calendar, Send } from "lucide-react";
+import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check } from "lucide-react";
 import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface LeadDetails {
   id: string;
@@ -49,6 +62,85 @@ const statusColors: Record<LeadStatus, string> = {
 };
 
 export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    status: "" as LeadStatus,
+    income: "",
+    moveInDate: "",
+  });
+  const { toast } = useToast();
+
+  const updateLeadMutation = useMutation({
+    mutationFn: async (data: Partial<typeof editForm>) => {
+      return await apiRequest(`/api/leads/${lead?.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
+      toast({
+        title: "Success",
+        description: "Lead updated successfully",
+      });
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update lead",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Shared reset helper to restore server data
+  const resetToServerData = () => {
+    if (lead) {
+      setEditForm({
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        status: lead.status,
+        income: lead.income || "",
+        moveInDate: lead.moveInDate || "",
+      });
+      setIsEditing(false);
+    }
+  };
+
+  // Reset when sheet opens or closes
+  const handleOpenChange = (newOpen: boolean) => {
+    resetToServerData();
+    onOpenChange(newOpen);
+  };
+
+  // Reset when lead data changes (but not when actively editing to avoid losing user input)
+  useEffect(() => {
+    if (lead && !isEditing) {
+      setEditForm({
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        status: lead.status,
+        income: lead.income || "",
+        moveInDate: lead.moveInDate || "",
+      });
+    }
+  }, [lead, isEditing]);
+
+  const handleSave = () => {
+    updateLeadMutation.mutate(editForm);
+  };
+
+  const handleCancel = () => {
+    resetToServerData();
+  };
+
   if (!lead) return null;
 
   const initials = lead.name
@@ -58,7 +150,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     .toUpperCase();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" data-testid="sheet-lead-detail">
         <SheetHeader className="pb-6">
           <div className="flex items-start gap-4">
@@ -66,41 +158,143 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               <AvatarFallback className="text-lg">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">
-              <SheetTitle className="text-xl">{lead.name}</SheetTitle>
-              <Badge className={cn(statusColors[lead.status])}>
-                {lead.status.charAt(0).toUpperCase() + lead.status.slice(1)}
+              <SheetTitle className="text-xl">{isEditing ? editForm.name : lead.name}</SheetTitle>
+              <Badge className={cn(statusColors[isEditing ? editForm.status : lead.status])}>
+                {(isEditing ? editForm.status : lead.status).charAt(0).toUpperCase() + (isEditing ? editForm.status : lead.status).slice(1)}
               </Badge>
+            </div>
+            <div className="flex gap-2">
+              {!isEditing ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-lead"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCancel}
+                    disabled={updateLeadMutation.isPending}
+                    data-testid="button-cancel-edit"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    onClick={handleSave}
+                    disabled={updateLeadMutation.isPending}
+                    data-testid="button-save-edit"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </SheetHeader>
 
         <div className="space-y-6">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <span>{lead.email}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span>{lead.phone}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span>{lead.property}</span>
-            </div>
-            {lead.income && (
-              <div className="flex items-center gap-2 text-sm">
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                <span>Income: {lead.income}</span>
+          {isEditing ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  data-testid="input-edit-name"
+                />
               </div>
-            )}
-            {lead.moveInDate && (
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>Move-in: {lead.moveInDate}</span>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  data-testid="input-edit-email"
+                />
               </div>
-            )}
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  data-testid="input-edit-phone"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editForm.status}
+                  onValueChange={(value) => setEditForm({ ...editForm, status: value as LeadStatus })}
+                >
+                  <SelectTrigger id="edit-status" data-testid="select-edit-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="contacted">Contacted</SelectItem>
+                    <SelectItem value="prequalified">Pre-qualified</SelectItem>
+                    <SelectItem value="application">Application</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-income">Income (optional)</Label>
+                <Input
+                  id="edit-income"
+                  value={editForm.income}
+                  onChange={(e) => setEditForm({ ...editForm, income: e.target.value })}
+                  data-testid="input-edit-income"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-moveInDate">Move-in Date (optional)</Label>
+                <Input
+                  id="edit-moveInDate"
+                  value={editForm.moveInDate}
+                  onChange={(e) => setEditForm({ ...editForm, moveInDate: e.target.value })}
+                  data-testid="input-edit-moveindate"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <span>{lead.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span>{lead.phone}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <span>{lead.property}</span>
+              </div>
+              {lead.income && (
+                <div className="flex items-center gap-2 text-sm">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span>Income: {lead.income}</span>
+                </div>
+              )}
+              {lead.moveInDate && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span>Move-in: {lead.moveInDate}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {lead.qualificationScore !== undefined && (
             <div className="p-4 rounded-md bg-muted">
