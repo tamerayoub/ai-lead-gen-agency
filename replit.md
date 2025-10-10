@@ -84,6 +84,7 @@ Preferred communication style: Simple, everyday language.
 - `notes` - Manual and AI-generated notes on leads
 - `aiSettings` - Configurable AI behavior by category (responses, qualification, automation)
 - `integrationConfig` - Third-party service credentials (Twilio, PMS systems, etc.)
+- `pendingReplies` - AI-generated email replies awaiting approval or auto-sent records
 
 **Storage Layer:**
 - Abstract `IStorage` interface defining all database operations
@@ -112,8 +113,23 @@ Preferred communication style: Simple, everyday language.
 **Configuration System:**
 - Template-based responses with variable substitution (e.g., {property_name}, {unit_type})
 - Qualification rules (income thresholds, credit scores, pet policies)
-- Automation settings (auto-respond, follow-up timing, max follow-ups)
+- Automation settings (auto-respond, follow-up timing, max follow-ups, auto-pilot mode)
 - Tone and speed preferences for AI responses
+
+**AI Email Reply Approval System:**
+- **Pending Replies Queue:** Dashboard component displaying AI-generated email replies awaiting approval
+- **Auto-Pilot Mode:** Toggle in Settings > Automation to automatically send approved AI replies
+  - When enabled: AI replies are sent immediately without manual review
+  - When disabled: Replies are queued for manual approval/editing
+- **Testing Constraint:** AI replies only generated for infinimoji@gmail.com (Gustavo Pueblo) for testing
+- **Email Threading:** Preserves threadId, inReplyTo, and references headers for proper conversation flow
+- **Reply Management:**
+  - Review: View AI-generated reply content before sending
+  - Approve: Send reply and record as outgoing conversation
+  - Reject: Delete pending reply without sending
+  - Edit: Modify reply content before approval (UI ready, backend pending)
+- **Status Tracking:** Pending replies marked as 'pending', 'sent', or 'rejected'
+- **Conversation Recording:** All sent replies automatically logged in conversations table with AI flag
 
 **Communication Channels:**
 - **Multi-Channel Support:** Email, SMS, and Phone
