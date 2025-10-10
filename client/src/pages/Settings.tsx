@@ -34,6 +34,7 @@ export default function Settings() {
   const [followup24h, setFollowup24h] = useState(true);
   const [autoSendApp, setAutoSendApp] = useState(false);
   const [maxFollowups, setMaxFollowups] = useState("3");
+  const [autoPilotMode, setAutoPilotMode] = useState(false);
   
   const [twilioSid, setTwilioSid] = useState("");
   const [twilioToken, setTwilioToken] = useState("");
@@ -193,6 +194,7 @@ export default function Settings() {
       await saveSettingMutation.mutateAsync({ category: "automation", key: "followup_24h", value: followup24h.toString() });
       await saveSettingMutation.mutateAsync({ category: "automation", key: "auto_send_app", value: autoSendApp.toString() });
       await saveSettingMutation.mutateAsync({ category: "automation", key: "max_followups", value: maxFollowups });
+      await saveSettingMutation.mutateAsync({ category: "automation", key: "auto_pilot_mode", value: autoPilotMode.toString() });
       toast({ title: "Automation rules saved successfully" });
     } catch (error) {
       toast({ title: "Failed to save automation", variant: "destructive" });
@@ -515,6 +517,22 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground">Send application to qualified leads</p>
                 </div>
                 <Switch checked={autoSendApp} onCheckedChange={setAutoSendApp} data-testid="switch-auto-send-applications" />
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Auto-Pilot Mode</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically approve and send AI-generated replies (bypasses manual review)
+                  </p>
+                </div>
+                <Switch 
+                  checked={autoPilotMode} 
+                  onCheckedChange={setAutoPilotMode} 
+                  data-testid="switch-auto-pilot-mode" 
+                />
               </div>
 
               <Separator />

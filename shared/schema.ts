@@ -77,6 +77,22 @@ export const integrationConfig = pgTable("integration_config", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const pendingReplies = pgTable("pending_replies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  leadName: text("lead_name").notNull(),
+  leadEmail: text("lead_email").notNull(),
+  subject: text("subject").notNull(),
+  content: text("content").notNull(),
+  channel: text("channel").notNull(), // 'email', 'sms', 'phone'
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'sent'
+  threadId: text("thread_id"),
+  inReplyTo: text("in_reply_to"),
+  references: text("references"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  approvedAt: timestamp("approved_at"),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -113,6 +129,12 @@ export const insertIntegrationConfigSchema = createInsertSchema(integrationConfi
   updatedAt: true,
 });
 
+export const insertPendingReplySchema = createInsertSchema(pendingReplies).omit({
+  id: true,
+  createdAt: true,
+  approvedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -133,3 +155,6 @@ export type AISetting = typeof aiSettings.$inferSelect;
 
 export type InsertIntegrationConfig = z.infer<typeof insertIntegrationConfigSchema>;
 export type IntegrationConfig = typeof integrationConfig.$inferSelect;
+
+export type InsertPendingReply = z.infer<typeof insertPendingReplySchema>;
+export type PendingReply = typeof pendingReplies.$inferSelect;

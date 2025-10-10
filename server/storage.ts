@@ -1,13 +1,14 @@
 import { db } from "./db";
 import { 
-  users, properties, leads, conversations, notes, aiSettings, integrationConfig,
+  users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
   type User, type InsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
   type Conversation, type InsertConversation,
   type Note, type InsertNote,
   type AISetting, type InsertAISetting,
-  type IntegrationConfig, type InsertIntegrationConfig
+  type IntegrationConfig, type InsertIntegrationConfig,
+  type PendingReply, type InsertPendingReply
 } from "@shared/schema";
 import { eq, desc, and, sql } from "drizzle-orm";
 
@@ -49,6 +50,13 @@ export interface IStorage {
   // Integration Config operations
   getIntegrationConfig(service: string): Promise<IntegrationConfig | undefined>;
   upsertIntegrationConfig(config: InsertIntegrationConfig): Promise<IntegrationConfig>;
+
+  // Pending Reply operations
+  getAllPendingReplies(): Promise<PendingReply[]>;
+  getPendingReply(id: string): Promise<PendingReply | undefined>;
+  createPendingReply(reply: InsertPendingReply): Promise<PendingReply>;
+  updatePendingReplyStatus(id: string, status: string): Promise<PendingReply | undefined>;
+  deletePendingReply(id: string): Promise<boolean>;
 
   // Analytics
   getLeadStats(): Promise<{
@@ -206,6 +214,35 @@ export class DatabaseStorage implements IStorage {
       const result = await db.insert(integrationConfig).values(config).returning();
       return result[0];
     }
+  }
+
+  // Pending Reply operations
+  async getAllPendingReplies(): Promise<PendingReply[]> {
+    return db.select().from(pendingReplies).orderBy(desc(pendingReplies.createdAt));
+  }
+
+  async getPendingReply(id: string): Promise<PendingReply | undefined> {
+    const result = await db.select().from(pendingReplies).where(eq(pendingReplies.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createPendingReply(reply: InsertPendingReply): Promise<PendingReply> {
+    const result = await db.insert(pendingReplies).values(reply).returning();
+    return result[0];
+  }
+
+  async updatePendingReplyStatus(id: string, status: string): Promise<PendingReply | undefined> {
+    const updates: any = { status };
+    if (status === 'approved' || status === 'sent') {
+      updates.approvedAt = new Date();
+    }
+    const result = await db.update(pendingReplies).set(updates).where(eq(pendingReplies.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePendingReply(id: string): Promise<boolean> {
+    const result = await db.delete(pendingReplies).where(eq(pendingReplies.id, id)).returning();
+    return result.length > 0;
   }
 
   // Analytics

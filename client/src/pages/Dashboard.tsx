@@ -3,6 +3,7 @@ import { LeadCard } from "@/components/LeadCard";
 import { PropertyCard } from "@/components/PropertyCard";
 import { AIActivityFeed } from "@/components/AIActivityFeed";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
+import { PendingRepliesQueue } from "@/components/PendingRepliesQueue";
 import { Users, TrendingUp, Clock, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -106,6 +107,10 @@ export default function Dashboard() {
         <div>
           <AIActivityFeed activities={activities} />
         </div>
+      </div>
+
+      <div className="mt-6">
+        <PendingRepliesQueue />
       </div>
 
       <LeadDetailSheet

@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema } from "@shared/schema";
-import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage } from "./gmail";
+import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema } from "@shared/schema";
+import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
 import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -613,6 +613,101 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             externalId: msg.id,
           });
 
+          // Generate AI reply ONLY for testing lead (infinimoji@gmail.com)
+          if (newLead.email.toLowerCase().includes('infinimoji@gmail.com')) {
+            syncProgressTracker.addLog('info', `🤖 Generating AI reply for ${newLead.name}...`);
+            
+            // Get thread ID and message ID for proper email threading
+            const threadId = fullMessage.threadId;
+            const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+
+            // Generate AI reply based on the lead's inquiry
+            const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
+            
+Lead Information:
+- Name: ${newLead.name}
+- Property Interested In: ${newLead.propertyName}
+- Move-in Date: ${parsedData.moveInDate || 'Not specified'}
+- Budget: ${parsedData.budget || 'Not specified'}
+- Their Message: ${parsedData.message || emailBody.substring(0, 500)}
+
+Write a friendly, professional email response that:
+1. Thanks them for their interest
+2. Confirms receipt of their inquiry
+3. Briefly addresses their specific questions or needs
+4. Mentions next steps (viewing, application, etc.)
+5. Signs off warmly
+
+Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
+
+            const replyCompletion = await openai.chat.completions.create({
+              model: "gpt-4o-mini",
+              messages: [{ role: "user", content: replyPrompt }],
+              temperature: 0.7,
+            });
+
+            const aiReplyContent = replyCompletion.choices[0].message.content || "";
+
+            // Check if auto-pilot mode is enabled
+            const autoPilotSettings = await storage.getAISettings("automation");
+            const autoPilotMode = autoPilotSettings.find(s => s.key === "auto_pilot_mode")?.value === "true";
+
+            if (autoPilotMode) {
+              // Auto-pilot: Send email immediately
+              syncProgressTracker.addLog('info', `✈️ Auto-pilot mode: Sending reply to ${newLead.name}...`);
+              
+              await sendReply(tokens, {
+                to: newLead.email,
+                subject: `Re: ${subject}`,
+                body: aiReplyContent,
+                threadId: threadId || undefined,
+                inReplyTo: messageId || undefined,
+                references: messageId || undefined,
+              });
+
+              // Record conversation
+              await storage.createConversation({
+                leadId: newLead.id,
+                type: 'outgoing',
+                channel: 'email',
+                message: aiReplyContent,
+                aiGenerated: true,
+              });
+
+              // Create pending reply marked as sent (for record keeping)
+              await storage.createPendingReply({
+                leadId: newLead.id,
+                leadName: newLead.name,
+                leadEmail: newLead.email,
+                subject: `Re: ${subject}`,
+                content: aiReplyContent,
+                channel: 'email',
+                status: 'sent',
+                threadId: threadId || undefined,
+                inReplyTo: messageId || undefined,
+                references: messageId || undefined,
+              });
+
+              syncProgressTracker.addLog('success', `✅ AI reply sent automatically to ${newLead.name}`);
+            } else {
+              // Manual approval mode: Create pending reply
+              await storage.createPendingReply({
+                leadId: newLead.id,
+                leadName: newLead.name,
+                leadEmail: newLead.email,
+                subject: `Re: ${subject}`,
+                content: aiReplyContent,
+                channel: 'email',
+                status: 'pending',
+                threadId: threadId || undefined,
+                inReplyTo: messageId || undefined,
+                references: messageId || undefined,
+              });
+
+              syncProgressTracker.addLog('success', `✅ AI reply generated for ${newLead.name} (pending approval)`);
+            }
+          }
+
           createdLeads.push({
             leadId: newLead.id,
             name: newLead.name,
@@ -671,6 +766,86 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
       syncProgressTracker.fail(String(error));
       console.error("Gmail sync error:", error);
       res.status(500).json({ error: "Failed to sync Gmail messages" });
+    }
+  });
+
+  // ===== PENDING REPLIES ROUTES =====
+  app.get("/api/pending-replies", async (req, res) => {
+    try {
+      const pendingReplies = await storage.getAllPendingReplies();
+      res.json(pendingReplies);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch pending replies" });
+    }
+  });
+
+  app.post("/api/pending-replies", async (req, res) => {
+    try {
+      const validatedData = insertPendingReplySchema.parse(req.body);
+      const reply = await storage.createPendingReply(validatedData);
+      res.status(201).json(reply);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid pending reply data" });
+    }
+  });
+
+  app.patch("/api/pending-replies/:id/approve", async (req, res) => {
+    try {
+      const reply = await storage.getPendingReply(req.params.id);
+      if (!reply) {
+        return res.status(404).json({ error: "Pending reply not found" });
+      }
+
+      // Get Gmail integration for sending
+      const gmailConfig = await storage.getIntegrationConfig("gmail");
+      const tokens = gmailConfig?.config as any;
+
+      if (!tokens?.access_token) {
+        return res.status(400).json({ error: "Gmail not connected" });
+      }
+
+      // Send the email
+      if (reply.channel === 'email') {
+        await sendReply(tokens, {
+          to: reply.leadEmail,
+          subject: reply.subject,
+          body: reply.content,
+          threadId: reply.threadId || undefined,
+          inReplyTo: reply.inReplyTo || undefined,
+          references: reply.references || undefined,
+        });
+
+        // Record conversation
+        await storage.createConversation({
+          leadId: reply.leadId,
+          type: 'outgoing',
+          channel: 'email',
+          message: reply.content,
+          aiGenerated: true,
+        });
+
+        // Update reply status
+        await storage.updatePendingReplyStatus(req.params.id, 'sent');
+        
+        res.json({ success: true, message: "Email sent successfully" });
+      } else {
+        res.status(400).json({ error: "Only email replies supported currently" });
+      }
+    } catch (error) {
+      console.error("Failed to approve reply:", error);
+      res.status(500).json({ error: "Failed to send reply" });
+    }
+  });
+
+  app.delete("/api/pending-replies/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deletePendingReply(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Pending reply not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete pending reply" });
     }
   });
 
