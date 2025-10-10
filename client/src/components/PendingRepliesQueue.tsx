@@ -16,6 +16,7 @@ interface PendingReply {
   leadEmail: string;
   subject: string;
   content: string;
+  originalMessage?: string;
   channel: string;
   status: string;
   createdAt: string;
@@ -119,19 +120,35 @@ export function PendingRepliesQueue() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {editingId === reply.id ? (
-                      <Textarea
-                        value={editedContent}
-                        onChange={(e) => setEditedContent(e.target.value)}
-                        className="min-h-[150px]"
-                        data-testid={`textarea-edit-reply-${reply.id}`}
-                      />
-                    ) : (
-                      <div className="rounded-md bg-muted p-4 text-sm whitespace-pre-wrap">
-                        {reply.content}
+                  <CardContent className="space-y-4">
+                    {reply.originalMessage && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">Lead's Inquiry</Badge>
+                        </div>
+                        <div className="rounded-md bg-muted/50 border p-4 text-sm whitespace-pre-wrap" data-testid={`original-message-${reply.id}`}>
+                          {reply.originalMessage}
+                        </div>
                       </div>
                     )}
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="text-xs bg-primary/80">AI Response</Badge>
+                      </div>
+                      {editingId === reply.id ? (
+                        <Textarea
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          className="min-h-[150px]"
+                          data-testid={`textarea-edit-reply-${reply.id}`}
+                        />
+                      ) : (
+                        <div className="rounded-md bg-primary/5 border border-primary/20 p-4 text-sm whitespace-pre-wrap" data-testid={`ai-response-${reply.id}`}>
+                          {reply.content}
+                        </div>
+                      )}
+                    </div>
 
                     {reply.status === 'pending' && (
                       <div className="flex items-center gap-2">
