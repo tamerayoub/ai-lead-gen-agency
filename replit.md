@@ -118,13 +118,16 @@ Preferred communication style: Simple, everyday language.
 
 **AI Email Reply Approval System:**
 - **Pending Replies Queue:** Dashboard component displaying AI-generated email replies awaiting approval
+  - Shows lead's original inquiry alongside AI-generated response
+  - Visual distinction: "Lead's Inquiry" in muted background, "AI Response" with primary accent
+  - Helps users review context before approving replies
 - **Auto-Pilot Mode:** Toggle in Settings > Automation to automatically send approved AI replies
   - When enabled: AI replies are sent immediately without manual review
   - When disabled: Replies are queued for manual approval/editing
 - **Testing Constraint:** AI replies only generated for infinimoji@gmail.com (Gustavo Pueblo) for testing
 - **Email Threading:** Preserves threadId, inReplyTo, and references headers for proper conversation flow
 - **Reply Management:**
-  - Review: View AI-generated reply content before sending
+  - Review: View lead's original message and AI-generated reply side-by-side
   - Approve: Send reply and record as outgoing conversation
   - Reject: Delete pending reply without sending
   - Edit: Modify reply content before approval (UI ready, backend pending)
