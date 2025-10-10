@@ -414,6 +414,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const skipped = [];
       const processingLogs = [];
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      // Track threadId -> leadId mapping to ensure all emails in a thread go to same lead
+      const threadLeadMap = new Map<string, string>();
 
       for (const msg of messages) {
         if (!msg.id) {
@@ -433,6 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const headers = fullMessage.payload?.headers || [];
         const from = headers.find((h: any) => h.name === "From")?.value || "";
         const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
+        const threadId = fullMessage.threadId;
         
         // Get email body - recursively search for text/plain or text/html in nested parts
         const findBodyPart = (parts: any[], mimeType: string): any => {
@@ -578,13 +582,23 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           const parsedData = JSON.parse(rawContent);
           
           // Extract email and phone for deduplication
-          const leadEmail = parsedData.email || from.match(/<(.+)>/)?.[1] || from;
-          const leadPhone = parsedData.phone || "";
+          const leadEmail = (parsedData.email || from.match(/<(.+)>/)?.[1] || from).toLowerCase().trim();
+          const leadPhone = parsedData.phone?.trim() || "";
 
-          // Check if lead already exists by email or phone
-          let existingLead = await storage.getLeadByEmail(leadEmail);
-          if (!existingLead && leadPhone) {
-            existingLead = await storage.getLeadByPhone(leadPhone);
+          // First check if this thread already has an associated lead
+          let existingLead = null;
+          if (threadId && threadLeadMap.has(threadId)) {
+            const leadId = threadLeadMap.get(threadId)!;
+            existingLead = await storage.getLead(leadId);
+            syncProgressTracker.addLog('info', `🔗 Thread match: Using existing lead from thread`);
+          }
+          
+          // If not in thread map, check if lead already exists by email or phone
+          if (!existingLead) {
+            existingLead = await storage.getLeadByEmail(leadEmail);
+            if (!existingLead && leadPhone) {
+              existingLead = await storage.getLeadByPhone(leadPhone);
+            }
           }
 
           let leadToUse;
@@ -659,6 +673,11 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
               },
             });
             syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
+          }
+
+          // Store threadId -> leadId mapping for future emails in this thread
+          if (threadId) {
+            threadLeadMap.set(threadId, leadToUse.id);
           }
 
           // Create conversation record with externalId (linked to the lead)
