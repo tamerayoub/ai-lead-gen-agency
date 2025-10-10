@@ -121,6 +121,7 @@ Preferred communication style: Simple, everyday language.
   - Shows lead's original inquiry alongside AI-generated response
   - Visual distinction: "Lead's Inquiry" in muted background, "AI Response" with primary accent
   - Helps users review context before approving replies
+  - **Scan for Unanswered:** Button to retroactively generate AI replies for existing unanswered leads
 - **Auto-Pilot Mode:** Toggle in Settings > Automation to automatically send approved AI replies
   - When enabled: AI replies are sent immediately without manual review
   - When disabled: Replies are queued for manual approval/editing
@@ -131,8 +132,10 @@ Preferred communication style: Simple, everyday language.
   - Approve: Send reply and record as outgoing conversation
   - Reject: Delete pending reply without sending
   - Edit: Modify reply content before approval (UI ready, backend pending)
+  - Scan: Manually trigger scan for unanswered leads to generate AI replies
 - **Status Tracking:** Pending replies marked as 'pending', 'sent', or 'rejected'
 - **Conversation Recording:** All sent replies automatically logged in conversations table with AI flag
+- **Retroactive AI Reply Generation:** POST /api/scan-unanswered-leads endpoint scans existing infinimoji@gmail.com leads that have incoming conversations but no outgoing replies, generates AI responses for them
 
 **Communication Channels:**
 - **Multi-Channel Support:** Email, SMS, and Phone
