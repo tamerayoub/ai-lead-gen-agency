@@ -27,14 +27,29 @@ const statusTitles: Record<string, string> = {
 
 export default function Leads() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: leads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
   const { data: selectedLeadData } = useQuery({
     queryKey: ["/api/leads", selectedLeadId],
     enabled: !!selectedLeadId,
   });
 
+  // Filter leads based on search query
+  const filteredLeads = leads.filter((lead) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      lead.name?.toLowerCase().includes(query) ||
+      lead.email?.toLowerCase().includes(query) ||
+      lead.phone?.toLowerCase().includes(query) ||
+      lead.propertyName?.toLowerCase().includes(query) ||
+      lead.status?.toLowerCase().includes(query)
+    );
+  });
+
   // Group leads by status
-  const leadsByStatus = leads.reduce((acc: Record<string, any[]>, lead: any) => {
+  const leadsByStatus = filteredLeads.reduce((acc: Record<string, any[]>, lead: any) => {
     if (!acc[lead.status]) acc[lead.status] = [];
     acc[lead.status].push(lead);
     return acc;
@@ -70,8 +85,10 @@ export default function Leads() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search leads..."
+            placeholder="Search leads by name, email, phone, property, or status..."
             className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             data-testid="input-search-leads"
           />
         </div>
@@ -91,20 +108,26 @@ export default function Leads() {
         </TabsContent>
         <TabsContent value="list" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {leads.map((lead) => (
-              <LeadCard
-                key={lead.id}
-                name={lead.name}
-                email={lead.email}
-                phone={lead.phone}
-                property={lead.propertyName}
-                status={lead.status}
-                source={lead.source}
-                aiHandled={lead.aiHandled}
-                lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
-                onClick={() => setSelectedLeadId(lead.id)}
-              />
-            ))}
+            {filteredLeads.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-muted-foreground">
+                {searchQuery ? `No leads found matching "${searchQuery}"` : 'No leads yet'}
+              </div>
+            ) : (
+              filteredLeads.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  name={lead.name}
+                  email={lead.email}
+                  phone={lead.phone}
+                  property={lead.propertyName}
+                  status={lead.status}
+                  source={lead.source}
+                  aiHandled={lead.aiHandled}
+                  lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
+                  onClick={() => setSelectedLeadId(lead.id)}
+                />
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>
