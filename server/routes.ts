@@ -851,6 +851,95 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
+  app.post("/api/scan-unanswered-leads", async (req, res) => {
+    try {
+      // Find all leads from infinimoji@gmail.com that haven't been replied to
+      const allLeads = await storage.getAllLeads();
+      const testLeads = allLeads.filter(lead => 
+        lead.email.toLowerCase().includes('infinimoji@gmail.com')
+      );
+
+      const generatedReplies = [];
+
+      for (const lead of testLeads) {
+        // Check if this lead already has an outgoing reply
+        const conversations = await storage.getConversations(lead.id);
+        const hasOutgoingReply = conversations.some(c => c.type === 'outgoing');
+        
+        if (hasOutgoingReply) {
+          continue; // Skip if already replied
+        }
+
+        // Check if there's already a pending reply for this lead
+        const pendingReplies = await storage.getAllPendingReplies();
+        const hasPendingReply = pendingReplies.some(pr => pr.leadId === lead.id && pr.status === 'pending');
+        
+        if (hasPendingReply) {
+          continue; // Skip if already has pending reply
+        }
+
+        // Find the incoming message
+        const incomingMessage = conversations.find(c => c.type === 'incoming');
+        if (!incomingMessage) {
+          continue; // Skip if no incoming message
+        }
+
+        // Generate AI reply based on the lead's inquiry
+        const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
+        
+Lead Information:
+- Name: ${lead.name}
+- Property Interested In: ${lead.propertyName || 'our property'}
+- Move-in Date: ${lead.moveInDate || 'Not specified'}
+- Budget: ${lead.budget || 'Not specified'}
+- Their Message: ${incomingMessage.message}
+
+Write a friendly, professional email response that:
+1. Thanks them for their interest
+2. Confirms receipt of their inquiry
+3. Briefly addresses their specific questions or needs
+4. Mentions next steps (viewing, application, etc.)
+5. Signs off warmly
+
+Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
+
+        const replyCompletion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: replyPrompt }],
+          temperature: 0.7,
+        });
+
+        const aiReplyContent = replyCompletion.choices[0].message.content || "";
+
+        // Create pending reply for review
+        await storage.createPendingReply({
+          leadId: lead.id,
+          leadName: lead.name,
+          leadEmail: lead.email,
+          subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+          content: aiReplyContent,
+          originalMessage: incomingMessage.message,
+          channel: 'email',
+          status: 'pending',
+        });
+
+        generatedReplies.push({
+          leadId: lead.id,
+          leadName: lead.name,
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        count: generatedReplies.length,
+        replies: generatedReplies
+      });
+    } catch (error) {
+      console.error("Error scanning unanswered leads:", error);
+      res.status(500).json({ error: "Failed to scan unanswered leads" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
