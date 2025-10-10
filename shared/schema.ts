@@ -84,6 +84,7 @@ export const pendingReplies = pgTable("pending_replies", {
   leadEmail: text("lead_email").notNull(),
   subject: text("subject").notNull(),
   content: text("content").notNull(),
+  originalMessage: text("original_message"),
   channel: text("channel").notNull(), // 'email', 'sms', 'phone'
   status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'sent'
   threadId: text("thread_id"),
