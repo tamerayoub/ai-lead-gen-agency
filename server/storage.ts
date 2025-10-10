@@ -31,6 +31,7 @@ export interface IStorage {
   getLeadsByStatus(status: string): Promise<Lead[]>;
   getLead(id: string): Promise<Lead | undefined>;
   getLeadByEmail(email: string): Promise<Lead | undefined>;
+  getLeadByPhone(phone: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<boolean>;
@@ -130,6 +131,11 @@ export class DatabaseStorage implements IStorage {
 
   async getLeadByEmail(email: string): Promise<Lead | undefined> {
     const result = await db.select().from(leads).where(eq(leads.email, email)).limit(1);
+    return result[0];
+  }
+
+  async getLeadByPhone(phone: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(eq(leads.phone, phone)).limit(1);
     return result[0];
   }
 

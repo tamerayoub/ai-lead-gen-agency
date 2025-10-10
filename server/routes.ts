@@ -577,44 +577,93 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           
           const parsedData = JSON.parse(rawContent);
           
-          // Match property if mentioned
-          let matchedProperty = null;
-          if (parsedData.propertyName) {
-            matchedProperty = properties.find(p => 
-              p.name.toLowerCase().includes(parsedData.propertyName.toLowerCase()) ||
-              parsedData.propertyName.toLowerCase().includes(p.name.toLowerCase())
-            );
+          // Extract email and phone for deduplication
+          const leadEmail = parsedData.email || from.match(/<(.+)>/)?.[1] || from;
+          const leadPhone = parsedData.phone || "";
+
+          // Check if lead already exists by email or phone
+          let existingLead = await storage.getLeadByEmail(leadEmail);
+          if (!existingLead && leadPhone) {
+            existingLead = await storage.getLeadByPhone(leadPhone);
           }
 
-          // Create lead with comprehensive profile data
-          const newLead = await storage.createLead({
-            name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
-            email: parsedData.email || from.match(/<(.+)>/)?.[1] || from,
-            phone: parsedData.phone || "",
-            propertyId: matchedProperty?.id || properties[0]?.id || "",
-            propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
-            status: "new",
-            source: "email",
-            income: parsedData.income || null,
-            moveInDate: parsedData.moveInDate || null,
-            profileData: {
-              currentAddress: parsedData.currentAddress || null,
-              location: parsedData.location || null,
-              occupation: parsedData.occupation || null,
-              employer: parsedData.employer || null,
-              creditScore: parsedData.creditScore || null,
-              education: parsedData.education || null,
-              householdSize: parsedData.householdSize || null,
-              background: parsedData.background || null,
-              budget: parsedData.budget || null,
-              bedrooms: parsedData.bedrooms || null,
-              petPolicy: parsedData.petPolicy || null,
-            },
-          });
+          let leadToUse;
+          if (existingLead) {
+            // Update existing lead with any new information
+            leadToUse = existingLead;
+            syncProgressTracker.addLog('info', `📋 Found existing lead: ${existingLead.name}`);
+            
+            // Update lead if we have additional information
+            const updates: Partial<any> = {};
+            if (parsedData.phone && !existingLead.phone) updates.phone = parsedData.phone;
+            if (parsedData.income && !existingLead.income) updates.income = parsedData.income;
+            if (parsedData.moveInDate && !existingLead.moveInDate) updates.moveInDate = parsedData.moveInDate;
+            
+            // Merge profile data
+            if (existingLead.profileData) {
+              const existingProfile = existingLead.profileData as any;
+              const mergedProfile = {
+                ...existingProfile,
+                ...(parsedData.currentAddress && !existingProfile.currentAddress && { currentAddress: parsedData.currentAddress }),
+                ...(parsedData.location && !existingProfile.location && { location: parsedData.location }),
+                ...(parsedData.occupation && !existingProfile.occupation && { occupation: parsedData.occupation }),
+                ...(parsedData.employer && !existingProfile.employer && { employer: parsedData.employer }),
+                ...(parsedData.creditScore && !existingProfile.creditScore && { creditScore: parsedData.creditScore }),
+                ...(parsedData.education && !existingProfile.education && { education: parsedData.education }),
+                ...(parsedData.householdSize && !existingProfile.householdSize && { householdSize: parsedData.householdSize }),
+                ...(parsedData.background && !existingProfile.background && { background: parsedData.background }),
+                ...(parsedData.budget && !existingProfile.budget && { budget: parsedData.budget }),
+                ...(parsedData.bedrooms && !existingProfile.bedrooms && { bedrooms: parsedData.bedrooms }),
+                ...(parsedData.petPolicy && !existingProfile.petPolicy && { petPolicy: parsedData.petPolicy }),
+              };
+              updates.profileData = mergedProfile;
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              await storage.updateLead(existingLead.id, updates);
+              syncProgressTracker.addLog('info', `✏️  Updated lead info for ${existingLead.name}`);
+            }
+          } else {
+            // Match property if mentioned
+            let matchedProperty = null;
+            if (parsedData.propertyName) {
+              matchedProperty = properties.find(p => 
+                p.name.toLowerCase().includes(parsedData.propertyName.toLowerCase()) ||
+                parsedData.propertyName.toLowerCase().includes(p.name.toLowerCase())
+              );
+            }
 
-          // Create conversation record with externalId
+            // Create new lead with comprehensive profile data
+            leadToUse = await storage.createLead({
+              name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
+              email: leadEmail,
+              phone: leadPhone,
+              propertyId: matchedProperty?.id || properties[0]?.id || "",
+              propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
+              status: "new",
+              source: "email",
+              income: parsedData.income || null,
+              moveInDate: parsedData.moveInDate || null,
+              profileData: {
+                currentAddress: parsedData.currentAddress || null,
+                location: parsedData.location || null,
+                occupation: parsedData.occupation || null,
+                employer: parsedData.employer || null,
+                creditScore: parsedData.creditScore || null,
+                education: parsedData.education || null,
+                householdSize: parsedData.householdSize || null,
+                background: parsedData.background || null,
+                budget: parsedData.budget || null,
+                bedrooms: parsedData.bedrooms || null,
+                petPolicy: parsedData.petPolicy || null,
+              },
+            });
+            syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
+          }
+
+          // Create conversation record with externalId (linked to the lead)
           await storage.createConversation({
-            leadId: newLead.id,
+            leadId: leadToUse.id,
             type: "received",
             message: parsedData.message || emailBody.substring(0, 500),
             channel: "email",
@@ -623,8 +672,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           });
 
           // Generate AI reply ONLY for testing lead (infinimoji@gmail.com)
-          if (newLead.email.toLowerCase().includes('infinimoji@gmail.com')) {
-            syncProgressTracker.addLog('info', `🤖 Generating AI reply for ${newLead.name}...`);
+          if (leadToUse.email.toLowerCase().includes('infinimoji@gmail.com')) {
+            syncProgressTracker.addLog('info', `🤖 Generating AI reply for ${leadToUse.name}...`);
             
             // Get thread ID and message ID for proper email threading
             const threadId = fullMessage.threadId;
@@ -634,8 +683,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
             
 Lead Information:
-- Name: ${newLead.name}
-- Property Interested In: ${newLead.propertyName}
+- Name: ${leadToUse.name}
+- Property Interested In: ${leadToUse.propertyName}
 - Move-in Date: ${parsedData.moveInDate || 'Not specified'}
 - Budget: ${parsedData.budget || 'Not specified'}
 - Their Message: ${parsedData.message || emailBody.substring(0, 500)}
@@ -663,10 +712,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
             if (autoPilotMode) {
               // Auto-pilot: Send email immediately
-              syncProgressTracker.addLog('info', `✈️ Auto-pilot mode: Sending reply to ${newLead.name}...`);
+              syncProgressTracker.addLog('info', `✈️ Auto-pilot mode: Sending reply to ${leadToUse.name}...`);
               
               await sendReply(tokens, {
-                to: newLead.email,
+                to: leadToUse.email,
                 subject: `Re: ${subject}`,
                 body: aiReplyContent,
                 threadId: threadId || undefined,
@@ -676,7 +725,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
               // Record conversation
               await storage.createConversation({
-                leadId: newLead.id,
+                leadId: leadToUse.id,
                 type: 'outgoing',
                 channel: 'email',
                 message: aiReplyContent,
@@ -685,9 +734,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
               // Create pending reply marked as sent (for record keeping)
               await storage.createPendingReply({
-                leadId: newLead.id,
-                leadName: newLead.name,
-                leadEmail: newLead.email,
+                leadId: leadToUse.id,
+                leadName: leadToUse.name,
+                leadEmail: leadToUse.email,
                 subject: `Re: ${subject}`,
                 content: aiReplyContent,
                 originalMessage: emailBody,
@@ -698,13 +747,13 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 references: messageId || undefined,
               });
 
-              syncProgressTracker.addLog('success', `✅ AI reply sent automatically to ${newLead.name}`);
+              syncProgressTracker.addLog('success', `✅ AI reply sent automatically to ${leadToUse.name}`);
             } else {
               // Manual approval mode: Create pending reply
               await storage.createPendingReply({
-                leadId: newLead.id,
-                leadName: newLead.name,
-                leadEmail: newLead.email,
+                leadId: leadToUse.id,
+                leadName: leadToUse.name,
+                leadEmail: leadToUse.email,
                 subject: `Re: ${subject}`,
                 content: aiReplyContent,
                 originalMessage: emailBody,
@@ -715,25 +764,27 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 references: messageId || undefined,
               });
 
-              syncProgressTracker.addLog('success', `✅ AI reply generated for ${newLead.name} (pending approval)`);
+              syncProgressTracker.addLog('success', `✅ AI reply generated for ${leadToUse.name} (pending approval)`);
             }
           }
 
-          createdLeads.push({
-            leadId: newLead.id,
-            name: newLead.name,
-            email: newLead.email,
-            subject,
-          });
-          
-          syncProgressTracker.addLog('success', `✅ Created lead: ${newLead.name} - "${subject.substring(0, 40)}..."`);
+          // Track created/updated leads
+          if (!existingLead) {
+            createdLeads.push({
+              leadId: leadToUse.id,
+              name: leadToUse.name,
+              email: leadToUse.email,
+              subject,
+            });
+            syncProgressTracker.addLog('success', `✅ Processed: ${leadToUse.name} - "${subject.substring(0, 40)}..."`);
+          }
 
           processingLogs.push({
             status: "success",
             from,
             subject,
             preview: emailPreview,
-            leadName: newLead.name,
+            leadName: leadToUse.name,
             timestamp: new Date().toISOString(),
           });
 
