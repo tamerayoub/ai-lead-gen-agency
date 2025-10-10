@@ -880,8 +880,8 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           continue; // Skip if already has pending reply
         }
 
-        // Find the incoming message
-        const incomingMessage = conversations.find((c: any) => c.type === 'incoming');
+        // Find the incoming message (check both 'incoming' and 'received' types from Gmail sync)
+        const incomingMessage = conversations.find((c: any) => c.type === 'incoming' || c.type === 'received');
         if (!incomingMessage) {
           continue; // Skip if no incoming message
         }
