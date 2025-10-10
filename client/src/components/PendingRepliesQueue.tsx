@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, XCircle, Mail, MessageSquare, Phone, Edit, Send } from "lucide-react";
+import { CheckCircle, XCircle, Mail, MessageSquare, Phone, Edit, Send, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,6 +54,21 @@ export function PendingRepliesQueue() {
     },
   });
 
+  const scanMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/scan-unanswered-leads", {}),
+    onSuccess: (data: any) => {
+      if (data.count > 0) {
+        toast({ title: `Generated ${data.count} AI ${data.count === 1 ? 'reply' : 'replies'}!` });
+      } else {
+        toast({ title: "No unanswered leads found" });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/pending-replies"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to scan leads", variant: "destructive" });
+    },
+  });
+
   const handleEdit = (reply: PendingReply) => {
     setEditingId(reply.id);
     setEditedContent(reply.content);
@@ -86,11 +101,23 @@ export function PendingRepliesQueue() {
             </CardTitle>
             <CardDescription>Review and approve AI-generated responses</CardDescription>
           </div>
-          {pendingCount > 0 && (
-            <Badge variant="secondary" data-testid="pending-count">
-              {pendingCount} pending
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending}
+              data-testid="button-scan-unanswered"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${scanMutation.isPending ? 'animate-spin' : ''}`} />
+              Scan for Unanswered
+            </Button>
+            {pendingCount > 0 && (
+              <Badge variant="secondary" data-testid="pending-count">
+                {pendingCount} pending
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

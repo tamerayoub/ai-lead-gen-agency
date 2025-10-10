@@ -853,6 +853,8 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
   app.post("/api/scan-unanswered-leads", async (req, res) => {
     try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
       // Find all leads from infinimoji@gmail.com that haven't been replied to
       const allLeads = await storage.getAllLeads();
       const testLeads = allLeads.filter(lead => 
@@ -863,8 +865,8 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       for (const lead of testLeads) {
         // Check if this lead already has an outgoing reply
-        const conversations = await storage.getConversations(lead.id);
-        const hasOutgoingReply = conversations.some(c => c.type === 'outgoing');
+        const conversations = await storage.getConversationsByLeadId(lead.id);
+        const hasOutgoingReply = conversations.some((c: any) => c.type === 'outgoing');
         
         if (hasOutgoingReply) {
           continue; // Skip if already replied
@@ -872,14 +874,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
         // Check if there's already a pending reply for this lead
         const pendingReplies = await storage.getAllPendingReplies();
-        const hasPendingReply = pendingReplies.some(pr => pr.leadId === lead.id && pr.status === 'pending');
+        const hasPendingReply = pendingReplies.some((pr: any) => pr.leadId === lead.id && pr.status === 'pending');
         
         if (hasPendingReply) {
           continue; // Skip if already has pending reply
         }
 
         // Find the incoming message
-        const incomingMessage = conversations.find(c => c.type === 'incoming');
+        const incomingMessage = conversations.find((c: any) => c.type === 'incoming');
         if (!incomingMessage) {
           continue; // Skip if no incoming message
         }
@@ -891,7 +893,6 @@ Lead Information:
 - Name: ${lead.name}
 - Property Interested In: ${lead.propertyName || 'our property'}
 - Move-in Date: ${lead.moveInDate || 'Not specified'}
-- Budget: ${lead.budget || 'Not specified'}
 - Their Message: ${incomingMessage.message}
 
 Write a friendly, professional email response that:
