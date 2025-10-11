@@ -57,10 +57,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current organization (from session or first membership)
   app.get("/api/organizations/current", isAuthenticated, async (req: any, res) => {
     try {
+      console.log("[Orgs] Session currentOrgId:", req.session.currentOrgId);
+      
       // Check if there's a current org in the session
       if (req.session.currentOrgId) {
         const membership = await storage.getMembership(req.user.id, req.session.currentOrgId);
         if (membership) {
+          console.log("[Orgs] Found membership from session:", membership);
           return res.json(membership);
         }
       }
@@ -71,6 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No organization found" });
       }
       
+      console.log("[Orgs] Using default membership:", membership);
       // Store in session for future requests
       req.session.currentOrgId = membership.orgId;
       res.json(membership);
@@ -112,6 +116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Store the active org in the session
       req.session.currentOrgId = orgId;
+      console.log("[Orgs] Switching to org:", orgId, "Session ID:", req.sessionID);
       
       // Save session and return membership
       req.session.save((err: any) => {
@@ -119,6 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("[Orgs] Failed to save session:", err);
           return res.status(500).json({ error: "Failed to save session" });
         }
+        console.log("[Orgs] Session saved successfully");
         res.json(membership);
       });
     } catch (error) {
