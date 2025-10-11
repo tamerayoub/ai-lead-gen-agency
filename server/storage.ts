@@ -28,6 +28,7 @@ export interface IStorage {
   getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined>;
   getUserOrganizations(userId: string): Promise<Array<{ orgId: string; orgName: string; role: string }>>;
   getMembership(userId: string, orgId: string): Promise<{ orgId: string; role: string } | undefined>;
+  createOrganization(name: string, ownerId: string): Promise<{ id: string; name: string }>;
 
   // Property operations
   getAllProperties(orgId: string): Promise<Property[]>;
@@ -164,6 +165,21 @@ export class DatabaseStorage implements IStorage {
     .where(and(eq(memberships.userId, userId), eq(memberships.orgId, orgId)))
     .limit(1);
     return result[0];
+  }
+
+  async createOrganization(name: string, ownerId: string): Promise<{ id: string; name: string }> {
+    // Create organization
+    const orgResult = await db.insert(organizations).values({ name }).returning();
+    const org = orgResult[0];
+
+    // Create owner membership
+    await db.insert(memberships).values({
+      userId: ownerId,
+      orgId: org.id,
+      role: "owner",
+    });
+
+    return { id: org.id, name: org.name };
   }
 
   // Property operations

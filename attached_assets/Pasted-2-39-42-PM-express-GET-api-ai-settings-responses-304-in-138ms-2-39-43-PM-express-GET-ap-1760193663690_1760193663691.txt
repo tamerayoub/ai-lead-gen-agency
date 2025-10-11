@@ -1,0 +1,116 @@
+2:39:42 PM [express] GET /api/ai-settings/responses 304 in 138ms :: []
+2:39:43 PM [express] GET /api/ai-settings/qualification 304 in 140ms :: [{"id":"71efa898-3f37-410e-a…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/integrations/twilio 304 in 129ms
+2:39:43 PM [express] GET /api/integrations/outlook 304 in 137ms
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+2:39:43 PM [express] GET /api/organizations 304 in 88ms :: [{"orgId":"a963dc65-4ebd-4691-8c5b-4f25ea…
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserializing user ID: 46558981
+2:39:43 PM [express] GET /api/organizations/current 304 in 95ms :: {"orgId":"a963dc65-4ebd-4691-8c5b…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/pending-replies 304 in 131ms :: [{"id":"b513912a-6360-43e1-b6f8-24a53a…
+2:39:43 PM [express] GET /api/leads 304 in 125ms :: [{"id":"8892601a-224e-4184-85f3-fd8fb97b2f34","o…
+2:39:43 PM [express] GET /api/integrations/gmail 304 in 140ms :: {"id":"b07cf4b3-44aa-46f0-b4fc-0d0c…
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+2:39:43 PM [express] GET /api/properties 304 in 186ms :: [{"id":"5c7d4eac-b644-416d-9acf-b01ca9559f9…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/auth/user 304 in 46ms :: {"id":"46558981","email":"tamerayoubbusiness@…
+[Passport] Deserializing user ID: 46558981
+2:39:43 PM [express] GET /api/analytics/stats 304 in 233ms :: {"totalLeads":6,"conversionRate":"17%"…
+2:39:43 PM [express] GET /api/organizations 304 in 92ms :: [{"orgId":"a963dc65-4ebd-4691-8c5b-4f25ea…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/organizations/current 304 in 89ms :: {"orgId":"a963dc65-4ebd-4691-8c5b…
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/leads/sync-progress 304 in 51ms :: {"isRunning":false,"totalEmails":0,…
+[Passport] Deserializing user ID: 46558981
+2:39:43 PM [express] GET /api/ai-activity 304 in 391ms :: [{"id":"88c4665d-b0e7-4a5a-a1da-179da07662…
+2:39:43 PM [express] GET /api/integrations/gmail 304 in 143ms :: {"id":"b07cf4b3-44aa-46f0-b4fc-0d0c…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/organizations 304 in 92ms :: [{"orgId":"a963dc65-4ebd-4691-8c5b-4f25ea…
+2:39:43 PM [express] GET /api/ai-settings/responses 304 in 138ms :: []
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/ai-settings/qualification 304 in 140ms :: [{"id":"71efa898-3f37-410e-a…
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+2:39:43 PM [express] GET /api/integrations/twilio 304 in 140ms
+2:39:43 PM [express] GET /api/organizations/current 304 in 92ms :: {"orgId":"a963dc65-4ebd-4691-8c5b…
+2:39:44 PM [express] GET /api/integrations/outlook 304 in 140ms
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Orgs] Failed to create organization: TypeError: storage.createOrganization is not a function
+    at <anonymous> (/home/runner/workspace/server/routes.ts:79:33)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at isAuthenticated (/home/runner/workspace/server/routes.ts:14:12)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/home/runner/workspace/server/index.ts:70:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at strategy.pass (/home/runner/workspace/node_modules/passport/lib/middleware/authenticate.js:355:9)
+    at /home/runner/workspace/node_modules/passport/lib/strategies/session.js:120:12
+    at pass (/home/runner/workspace/node_modules/passport/lib/authenticator.js:352:31)
+    at deserialized (/home/runner/workspace/node_modules/passport/lib/authenticator.js:364:7)
+    at <anonymous> (/home/runner/workspace/server/passport.ts:27:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2:40:19 PM [express] POST /api/organizations 500 in 68ms :: {"error":"Failed to create organization"}
+[Passport] Deserializing user ID: 46558981
+[Passport] Deserialized user: 46558981 tamerayoubbusiness@gmail.com
+[Orgs] Failed to create organization: TypeError: storage.createOrganization is not a function
+    at <anonymous> (/home/runner/workspace/server/routes.ts:79:33)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at isAuthenticated (/home/runner/workspace/server/routes.ts:14:12)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at <anonymous> (/home/runner/workspace/server/index.ts:70:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at trim_prefix (/home/runner/workspace/node_modules/express/lib/router/index.js:328:13)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:286:9
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at strategy.pass (/home/runner/workspace/node_modules/passport/lib/middleware/authenticate.js:355:9)
+    at /home/runner/workspace/node_modules/passport/lib/strategies/session.js:120:12
+    at pass (/home/runner/workspace/node_modules/passport/lib/authenticator.js:352:31)
+    at deserialized (/home/runner/workspace/node_modules/passport/lib/authenticator.js:364:7)
+    at <anonymous> (/home/runner/workspace/server/passport.ts:27:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2:40:46 PM [express] POST /api/organizations 500 in 47ms :: {"error":"Failed to create organization"}
