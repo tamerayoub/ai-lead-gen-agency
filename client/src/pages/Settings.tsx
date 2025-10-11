@@ -56,6 +56,7 @@ export default function Settings() {
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
   const [showSyncLogs, setShowSyncLogs] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showStopSyncDialog, setShowStopSyncDialog] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
@@ -277,6 +278,49 @@ export default function Settings() {
     },
   });
 
+  const clearSyncProgressMutation = useMutation({
+    mutationFn: () => {
+      // Clear sync progress by removing historyId and pageToken from config
+      const clearedConfig = {
+        ...gmailConfig?.config,
+        lastHistoryId: undefined,
+        pageToken: undefined,
+      };
+      return apiRequest("POST", "/api/integrations", {
+        service: "gmail",
+        config: clearedConfig,
+        isActive: true,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+    },
+  });
+
+  const handleStopSync = (deleteLeads: boolean) => {
+    // Stop the sync
+    if (isPolling) {
+      stopPolling();
+    }
+    setShowSyncLogs(false);
+    
+    // Delete leads if requested
+    if (deleteLeads) {
+      deleteGmailLeadsMutation.mutate();
+    }
+    
+    // Clear sync progress so it doesn't auto-resume
+    clearSyncProgressMutation.mutate();
+    
+    setShowStopSyncDialog(false);
+    toast({ 
+      title: "Sync stopped", 
+      description: deleteLeads 
+        ? "Sync stopped and leads deleted" 
+        : "Sync stopped, leads preserved" 
+    });
+  };
+
   const handleDisconnectGmail = (deleteLeads: boolean) => {
     // Stop any running sync first
     if (isPolling) {
@@ -289,11 +333,17 @@ export default function Settings() {
       deleteGmailLeadsMutation.mutate();
     }
     
-    // Disconnect Gmail integration
+    // Clear sync progress and disconnect Gmail integration
+    const clearedConfig = {
+      ...gmailConfig?.config,
+      lastHistoryId: undefined,
+      pageToken: undefined,
+    };
+    
     saveIntegrationMutation.mutate(
       {
         service: "gmail",
-        config: gmailConfig?.config ?? {},
+        config: clearedConfig,
         isActive: false,
       },
       {
@@ -312,7 +362,33 @@ export default function Settings() {
   };
 
   const disconnectGmail = () => {
-    setShowDisconnectDialog(true);
+    // If sync is running, ask about leads
+    if (isPolling || progress?.isRunning) {
+      setShowDisconnectDialog(true);
+    } else {
+      // If sync is NOT running, just disconnect without asking about leads
+      const clearedConfig = {
+        ...gmailConfig?.config,
+        lastHistoryId: undefined,
+        pageToken: undefined,
+      };
+      
+      saveIntegrationMutation.mutate(
+        {
+          service: "gmail",
+          config: clearedConfig,
+          isActive: false,
+        },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+            toast({ 
+              title: "Gmail disconnected successfully"
+            });
+          }
+        }
+      );
+    }
   };
 
   const saveOutlook = () => {
@@ -671,8 +747,8 @@ export default function Settings() {
                             className="h-6 w-6"
                             onClick={() => {
                               if (isPolling || progress?.isRunning) {
-                                // If sync is running, show disconnect dialog
-                                setShowDisconnectDialog(true);
+                                // If sync is running, show stop sync dialog (NOT disconnect)
+                                setShowStopSyncDialog(true);
                               } else {
                                 // If sync is complete, just close logs
                                 setShowSyncLogs(false);
@@ -898,6 +974,38 @@ export default function Settings() {
         </TabsContent>
       </Tabs>
 
+      {/* Stop Sync Confirmation Dialog */}
+      <AlertDialog open={showStopSyncDialog} onOpenChange={setShowStopSyncDialog}>
+        <AlertDialogContent data-testid="dialog-stop-sync">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop Gmail Sync?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop the current sync process. 
+              What would you like to do with the leads found so far?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel data-testid="button-cancel-stop-sync">Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleStopSync(false)}
+              disabled={deleteGmailLeadsMutation.isPending || clearSyncProgressMutation.isPending}
+              data-testid="button-keep-leads-stop-sync"
+            >
+              Keep Leads & Stop Sync
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleStopSync(true)}
+              disabled={deleteGmailLeadsMutation.isPending || clearSyncProgressMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-delete-leads-stop-sync"
+            >
+              Delete Leads & Stop Sync
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Disconnect Gmail Confirmation Dialog */}
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
         <AlertDialogContent data-testid="dialog-disconnect-gmail">
@@ -914,7 +1022,7 @@ export default function Settings() {
               variant="outline"
               onClick={() => handleDisconnectGmail(false)}
               disabled={saveIntegrationMutation.isPending || deleteGmailLeadsMutation.isPending}
-              data-testid="button-keep-leads"
+              data-testid="button-keep-leads-disconnect"
             >
               Keep Leads & Disconnect
             </Button>
@@ -922,7 +1030,7 @@ export default function Settings() {
               onClick={() => handleDisconnectGmail(true)}
               disabled={saveIntegrationMutation.isPending || deleteGmailLeadsMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              data-testid="button-delete-leads"
+              data-testid="button-delete-leads-disconnect"
             >
               Delete Leads & Disconnect
             </AlertDialogAction>
