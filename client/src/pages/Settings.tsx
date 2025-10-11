@@ -130,6 +130,21 @@ export default function Settings() {
     gmailConfig && gmailConfig.config?.access_token && gmailConfig.isActive !== false
   );
 
+  // Get Gmail new leads notifications
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["/api/notifications"],
+    enabled: isGmailConnected,
+  });
+
+  const gmailNewLeadsNotifications = notifications.filter(
+    (n: any) => n.type === "gmail_new_leads" && !n.read
+  );
+  
+  const totalNewLeads = gmailNewLeadsNotifications.reduce(
+    (sum: number, n: any) => sum + (n.metadata?.newMessageCount || 0),
+    0
+  );
+
   const { data: outlookConfig } = useQuery({ 
     queryKey: ["/api/integrations/outlook"],
     queryFn: async () => {
@@ -429,6 +444,8 @@ export default function Settings() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
       
       // Keep logs visible so user can review them
       // Polling will auto-stop after 2 seconds via useSyncProgress hook
@@ -732,6 +749,22 @@ export default function Settings() {
                       <CheckCircle className="h-4 w-4" />
                       <span className="text-sm">Gmail connected successfully</span>
                     </div>
+                    
+                    {/* New Leads Notification */}
+                    {totalNewLeads > 0 && (
+                      <div className="flex items-start gap-2 p-3 bg-blue-500/10 dark:bg-blue-400/15 text-blue-600 dark:text-blue-400 rounded-md border border-blue-500/20 dark:border-blue-400/30" data-testid="alert-new-leads">
+                        <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div className="flex-1 text-sm">
+                          <p className="font-medium">
+                            {totalNewLeads} new lead{totalNewLeads > 1 ? 's' : ''} detected in Gmail
+                          </p>
+                          <p className="text-xs mt-1 opacity-90">
+                            Click "Sync Gmail Leads" to import them into your CRM
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex gap-2">
                       <Button 
                         onClick={syncGmailLeads} 
@@ -740,6 +773,11 @@ export default function Settings() {
                       >
                         <RefreshCw className={`h-4 w-4 mr-2 ${(syncGmailMutation.isPending || isPolling) ? 'animate-spin' : ''}`} />
                         Sync Gmail Leads
+                        {totalNewLeads > 0 && (
+                          <span className="ml-2 px-2 py-0.5 bg-blue-500 dark:bg-blue-400 text-white dark:text-blue-950 rounded-full text-xs font-medium">
+                            {totalNewLeads}
+                          </span>
+                        )}
                       </Button>
                       <Button 
                         variant="outline" 
