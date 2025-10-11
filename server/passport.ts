@@ -12,17 +12,21 @@ import { eq, sql } from "drizzle-orm";
 
 // Serialize user for session
 passport.serializeUser((user: any, done) => {
+  console.log('[Passport] Serializing user:', user?.id, user?.email);
   done(null, user.id);
 });
 
 // Deserialize user from session
 passport.deserializeUser(async (id: string, done) => {
+  console.log('[Passport] Deserializing user ID:', id);
   try {
     const user = await db.query.users.findFirst({
       where: eq(users.id, id),
     });
+    console.log('[Passport] Deserialized user:', user?.id, user?.email);
     done(null, user);
   } catch (error) {
+    console.error('[Passport] Deserialize error:', error);
     done(error);
   }
 });
