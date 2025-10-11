@@ -1,0 +1,38 @@
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:43:11 PM [express] GET /api/integrations/gmail 304 in 92ms :: {"id":"b07cf4b3-44aa-46f0-b4fc-0d0c0…
+12:43:11 PM [express] GET /api/pending-replies 304 in 93ms :: [{"id":"b513912a-6360-43e1-b6f8-24a53af…
+12:43:11 PM [express] GET /api/leads 304 in 92ms :: [{"id":"8892601a-224e-4184-85f3-fd8fb97b2f34","na…
+12:43:11 PM [express] GET /api/properties 304 in 138ms :: [{"id":"5c7d4eac-b644-416d-9acf-b01ca9559f9…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+12:43:11 PM [express] GET /api/analytics/stats 304 in 188ms :: {"totalLeads":6,"conversionRate":"17%"…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:43:11 PM [express] GET /api/auth/user 304 in 48ms :: {"id":"20af099f-e5cd-49fd-8ccf-b71d9adbab79",…
+12:43:11 PM [express] GET /api/ai-activity 304 in 332ms :: [{"id":"88c4665d-b0e7-4a5a-a1da-179da07662…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:43:24 PM [express] POST /api/auth/logout 200 in 142ms :: {"message":"Logged out successfully"}
+12:43:25 PM [express] GET /api/integrations/gmail 401 in 0ms :: {"message":"Unauthorized"}
+12:43:25 PM [express] GET /api/auth/user 401 in 0ms :: {"message":"Not authenticated"}
+12:43:26 PM [express] GET /api/auth/google 302 in 1ms
+[Google OAuth] Callback triggered with profile: 117046895094394776665 tamerayoubbusiness@gmail.com
+[Google OAuth] Existing user found: false
+[Google OAuth] Email exists with different provider: email
+[OAuth] Google auth failed: This email is already registered using email/password. Please sign in with email/password instead.
+12:43:29 PM [express] GET /api/auth/google/callback 302 in 171ms
+12:43:30 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Not authenticated"}
+12:43:30 PM [express] GET /api/integrations/gmail 401 in 0ms :: {"message":"Unauthorized"}
+12:43:36 PM [express] GET /api/auth/google 302 in 0ms
+12:43:40 PM [express] POST /api/auth/logout 200 in 276ms :: {"message":"Logged out successfully"}
+12:43:42 PM [express] GET /api/integrations/gmail 401 in 1ms :: {"message":"Unauthorized"}
+12:43:42 PM [express] GET /api/auth/user 401 in 0ms :: {"message":"Not authenticated"}
+12:43:47 PM [express] POST /api/auth/login 401 in 204ms :: {"message":"This email is registered with …
+12:44:01 PM [express] GET /api/auth/google 302 in 1ms
+[Google OAuth] Callback triggered with profile: 117046895094394776665 tamerayoubbusiness@gmail.com
+[Google OAuth] Existing user found: false
+[Google OAuth] Email exists with different provider: email
+[OAuth] Google auth failed: This email is already registered using email/password. Please sign in with email/password instead.
+12:44:04 PM [express] GET /api/auth/google/callback 302 in 339ms
+12:44:05 PM [express] GET /api/integrations/gmail 401 in 1ms :: {"message":"Unauthorized"}
+12:44:05 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Not authenticated"}

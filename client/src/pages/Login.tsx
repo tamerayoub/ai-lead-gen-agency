@@ -28,17 +28,15 @@ export default function Login() {
     const params = new URLSearchParams(window.location.search);
     const error = params.get("error");
     if (error) {
-      const errorMessages: Record<string, string> = {
-        google_auth_failed: "Google sign-in failed. Please try again or use a different method.",
-        facebook_auth_failed: "Facebook sign-in failed. Please try again or use a different method.",
-        microsoft_auth_failed: "Microsoft sign-in failed. Please try again or use a different method.",
-        apple_auth_failed: "Apple sign-in failed. Please try again or use a different method.",
-      };
+      // Decode the error message (it's URL encoded)
+      const decodedError = decodeURIComponent(error);
+      
       toast({
         title: "Authentication failed",
-        description: errorMessages[error] || "Sign-in failed. Please try again.",
+        description: decodedError,
         variant: "destructive",
       });
+      
       // Clear error from URL
       window.history.replaceState({}, "", "/login");
     }
