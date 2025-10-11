@@ -154,6 +154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(syncProgressTracker.getProgress());
   });
 
+  // Cancel sync route
+  app.post("/api/leads/cancel-sync", isAuthenticated, async (req, res) => {
+    const { syncProgressTracker } = await import("./syncProgress");
+    syncProgressTracker.cancel();
+    res.json({ message: "Sync cancelled" });
+  });
+
   app.get("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const lead = await storage.getLead(req.params.id, req.orgId);
@@ -203,18 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
-    try {
-      const deleted = await storage.deleteLead(req.params.id, req.orgId);
-      if (!deleted) {
-        return res.status(404).json({ error: "Lead not found" });
-      }
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete lead" });
-    }
-  });
-
+  // IMPORTANT: Specific routes must come BEFORE parameterized routes
   app.delete("/api/leads/gmail-sourced", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const count = await storage.deleteGmailSourcedLeads(req.orgId);
@@ -225,6 +221,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("[Delete Gmail Leads] Error:", error);
       res.status(500).json({ error: "Failed to delete Gmail-sourced leads" });
+    }
+  });
+
+  app.delete("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const deleted = await storage.deleteLead(req.params.id, req.orgId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete lead" });
     }
   });
 
@@ -896,6 +904,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const threadLeadMap = new Map<string, string>();
 
       for (const msg of messages) {
+        // Check for cancellation
+        if (syncProgressTracker.isCancelled()) {
+          syncProgressTracker.addLog('warning', '⚠️ Sync cancelled by user');
+          break;
+        }
+
         if (!msg.id) {
           syncProgressTracker.incrementProcessed();
           continue;

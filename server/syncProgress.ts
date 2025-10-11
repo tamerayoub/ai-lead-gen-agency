@@ -14,6 +14,7 @@ interface SyncProgress {
   error?: string;
   startedAt?: Date;
   completedAt?: Date;
+  isCancelled?: boolean;
 }
 
 interface SyncLog {
@@ -91,7 +92,20 @@ class SyncProgressTracker {
       processedEmails: 0,
       currentStep: '',
       logs: [],
+      isCancelled: false,
     };
+  }
+
+  cancel() {
+    this.progress.isCancelled = true;
+    this.progress.isRunning = false;
+    this.progress.currentStep = 'Sync cancelled';
+    this.progress.completedAt = new Date();
+    this.addLog('warning', '⚠️ Sync cancelled by user');
+  }
+
+  isCancelled(): boolean {
+    return this.progress.isCancelled || false;
   }
 }
 

@@ -278,13 +278,18 @@ export default function Settings() {
     },
   });
 
+  const cancelSyncMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/leads/cancel-sync", {}),
+  });
+
   const clearSyncProgressMutation = useMutation({
     mutationFn: () => {
       // Clear sync progress by removing historyId and pageToken from config
+      // Use null instead of undefined for JSONB compatibility
       const clearedConfig = {
         ...gmailConfig?.config,
-        lastHistoryId: undefined,
-        pageToken: undefined,
+        lastHistoryId: null,
+        pageToken: null,
       };
       return apiRequest("POST", "/api/integrations", {
         service: "gmail",
@@ -298,7 +303,10 @@ export default function Settings() {
   });
 
   const handleStopSync = (deleteLeads: boolean) => {
-    // Stop the sync
+    // Cancel the backend sync process
+    cancelSyncMutation.mutate();
+    
+    // Stop frontend polling
     if (isPolling) {
       stopPolling();
     }
@@ -322,7 +330,12 @@ export default function Settings() {
   };
 
   const handleDisconnectGmail = (deleteLeads: boolean) => {
-    // Stop any running sync first
+    // Cancel the backend sync process if running
+    if (isPolling || progress?.isRunning) {
+      cancelSyncMutation.mutate();
+    }
+    
+    // Stop frontend polling
     if (isPolling) {
       stopPolling();
     }
@@ -334,10 +347,11 @@ export default function Settings() {
     }
     
     // Clear sync progress and disconnect Gmail integration
+    // Use null instead of undefined for JSONB compatibility
     const clearedConfig = {
       ...gmailConfig?.config,
-      lastHistoryId: undefined,
-      pageToken: undefined,
+      lastHistoryId: null,
+      pageToken: null,
     };
     
     saveIntegrationMutation.mutate(
@@ -367,10 +381,11 @@ export default function Settings() {
       setShowDisconnectDialog(true);
     } else {
       // If sync is NOT running, just disconnect without asking about leads
+      // Use null instead of undefined for JSONB compatibility
       const clearedConfig = {
         ...gmailConfig?.config,
-        lastHistoryId: undefined,
-        pageToken: undefined,
+        lastHistoryId: null,
+        pageToken: null,
       };
       
       saveIntegrationMutation.mutate(
