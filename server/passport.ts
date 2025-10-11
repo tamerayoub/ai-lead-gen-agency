@@ -299,8 +299,11 @@ passport.use(
 
         // Only allow email/password auth for users registered with email
         if (user.provider !== "email" || !user.passwordHash) {
+          const providerDisplay = user.provider === 'email' 
+            ? 'email/password' 
+            : user.provider;
           return done(null, false, { 
-            message: `This email is registered with ${user.provider}. Please sign in using ${user.provider}.` 
+            message: `This email is registered with ${providerDisplay}. Please sign in using ${providerDisplay}.` 
           });
         }
 
