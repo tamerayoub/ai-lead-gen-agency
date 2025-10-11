@@ -2,9 +2,7 @@
 
 ## Overview
 
-LeadGenAI is a modern CRM system designed for property management companies to automate lead generation and qualification through AI-powered multi-channel communication. The platform handles incoming inquiries across email, SMS, phone, and listing platforms, automatically responding to potential tenants, pre-qualifying leads based on customizable criteria, and managing the entire rental pipeline from first contact to approved application.
-
-The system provides property managers with a comprehensive dashboard to monitor AI interactions, track lead status, manage multiple properties, and analyze conversion metrics - all while maintaining the ability to intervene manually when needed.
+LeadGenAI is an AI-powered CRM system for property management companies. Its core purpose is to automate lead generation and qualification across multiple communication channels (email, SMS, phone, listing platforms). The system provides automated responses, lead pre-qualification based on customizable criteria, and comprehensive management of the rental pipeline from initial contact to application approval. Property managers gain a dashboard to monitor AI interactions, track lead status, manage properties, analyze conversion metrics, and intervene manually as needed.
 
 ## User Preferences
 
@@ -12,254 +10,50 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### UI/UX Decisions
 
-**Framework & Routing:**
-- React with TypeScript for type safety
-- Wouter for client-side routing (lightweight alternative to React Router)
-- Vite as the build tool and dev server with HMR support
+The frontend uses React with TypeScript, Wouter for routing, and Vite for building. It features a modern SaaS aesthetic, inspired by platforms like Linear and Notion, implemented with Shadcn/ui (built on Radix UI) and Tailwind CSS, supporting dark/light themes. State management is handled by TanStack Query for server state and local React state for UI specifics. Key pages include a Dashboard, Leads management, Properties, Analytics, AI Training, and a unified AI Activity Center for real-time monitoring.
 
-**UI System:**
-- Shadcn/ui component library built on Radix UI primitives
-- Tailwind CSS for styling with custom design system
-- Theme support (dark/light mode) via ThemeProvider context
-- Custom design tokens following modern SaaS aesthetics (Linear, Notion, Attio-inspired)
+### Technical Implementations
 
-**State Management:**
-- TanStack Query (React Query) for server state and data fetching
-- Local React state for UI-specific concerns
-- Custom hooks for shared logic (useIsMobile, useToast, useTheme)
+The backend is built with Express.js and TypeScript, providing a REST API. It utilizes PostgreSQL via Neon serverless driver and Drizzle ORM for type-safe data access. The schema includes tables for users, properties, leads, conversations, AI settings, and integration configurations. Authentication is planned using session-based methods with a PostgreSQL session store.
 
-**Key Pages:**
-- Dashboard - Overview stats, recent leads, and AI activity feed
-- Leads - Lead management with pipeline and list views
-- Properties - Property portfolio management
-- Analytics - Charts and performance metrics
-- AI Training - Response templates and qualification criteria
-- **AI Activity Center** - Unified real-time monitoring of all AI communications across email, SMS, and phone
-- Settings - System configuration and integrations
+### Feature Specifications
 
-**Key Design Decisions:**
-- Component-based architecture with reusable UI primitives in `/components/ui`
-- Feature-specific components in `/components` (LeadCard, PropertyCard, ConversationTimeline, etc.)
-- Page-level components in `/pages` following route structure
-- Path aliases configured for clean imports (@/, @shared/, @assets/)
+**AI Integration Points:**
+- **Configuration System:** Template-based responses, customizable qualification rules (income, move-in date), and automation settings (auto-respond, follow-up timing, auto-pilot mode).
+- **AI Email Reply Approval System:** A "Pending Replies Queue" displays AI-generated email replies for review and approval. Features include side-by-side viewing of original inquiries and AI responses, options to approve, reject, or edit replies, and a "Scan for Unanswered" button to retroactively generate replies. An "Auto-Pilot Mode" allows automatic sending of approved AI replies. Email threading is preserved for proper conversation flow.
+- **Multi-Channel Communication:** Supports email, SMS, and phone, with an "AI Activity Center" providing a real-time, unified monitoring hub for all AI communications, including status tracking and full context views.
+- **Pre-qualification Logic:** Assigns qualification scores to leads based on criteria like income and move-in dates, managing a pipeline from new lead to approved application.
 
-### Backend Architecture
+### System Design Choices
 
-**Server Framework:**
-- Express.js for REST API with TypeScript
-- Custom route registration system in `server/routes.ts`
-- Middleware for logging, JSON parsing, and error handling
-
-**API Design:**
-- RESTful endpoints organized by resource:
-  - `/api/leads` - Lead CRUD operations with status filtering
-  - `/api/properties` - Property portfolio management
-  - `/api/ai-settings/:category` - AI configuration by category (responses, qualification, behavior, automation)
-  - `/api/analytics` - Performance metrics and trends
-  - `/api/ai-activity` - AI interaction logging across all channels
-  - `/api/integrations/:service` - Integration configuration (gmail, outlook, twilio, buildium, appfolio, etc.)
-- Request validation using Zod schemas derived from Drizzle tables
-- Consistent error handling with status codes
-- Generic integration endpoint supports multiple service types
-
-**Development Environment:**
-- Vite integration for development with middleware mode
-- Replit-specific plugins for runtime error overlay and dev tools
-- Hot module replacement (HMR) for rapid development
-
-### Data Storage
-
-**Database:**
-- PostgreSQL via Neon serverless driver with WebSocket support
-- Drizzle ORM for type-safe database access and migrations
-- Schema-first approach with TypeScript types generated from tables
-
-**Schema Design:**
-- `users` - Authentication and user profiles
-- `properties` - Property portfolio with occupancy/revenue tracking
-- `leads` - Lead information with status pipeline and qualification scores
-- `conversations` - Multi-channel communication history (email, SMS, phone)
-- `notes` - Manual and AI-generated notes on leads
-- `aiSettings` - Configurable AI behavior by category (responses, qualification, automation)
-- `integrationConfig` - Third-party service credentials (Twilio, PMS systems, etc.)
-- `pendingReplies` - AI-generated email replies awaiting approval or auto-sent records
-
-**Storage Layer:**
-- Abstract `IStorage` interface defining all database operations
-- Implementation in `server/storage.ts` with Drizzle queries
-- Support for filtering, relationships, and upsert operations
-
-**Data Relationships:**
-- Leads reference Properties (foreign key)
-- Conversations and Notes reference Leads (foreign key)
-- Settings and integrations stored as key-value with category grouping
-
-### Authentication & Authorization
-
-**Current State:**
-- User schema defined with username/password fields
-- No authentication middleware currently implemented
-- Session infrastructure prepared (connect-pg-simple referenced in dependencies)
-
-**Intended Design:**
-- Session-based authentication with PostgreSQL session store
-- User operations defined in storage layer (getUser, getUserByUsername, createUser, updateUser)
-- Protected routes to be implemented with session validation
-
-### AI Integration Points
-
-**Configuration System:**
-- Template-based responses with variable substitution (e.g., {property_name}, {unit_type})
-- Qualification rules (income thresholds, credit scores, pet policies)
-- Automation settings (auto-respond, follow-up timing, max follow-ups, auto-pilot mode)
-- Tone and speed preferences for AI responses
-
-**AI Email Reply Approval System:**
-- **Pending Replies Queue:** Dashboard component displaying AI-generated email replies awaiting approval
-  - Shows lead's original inquiry alongside AI-generated response
-  - Visual distinction: "Lead's Inquiry" in muted background, "AI Response" with primary accent
-  - Helps users review context before approving replies
-  - **Scan for Unanswered:** Button to retroactively generate AI replies for existing unanswered leads
-- **Auto-Pilot Mode:** Toggle in Settings > Automation to automatically send approved AI replies
-  - When enabled: AI replies are sent immediately without manual review
-  - When disabled: Replies are queued for manual approval/editing
-- **Testing Constraint:** AI replies only generated for infinimoji@gmail.com (Gustavo Pueblo) for testing
-- **Email Threading:** Preserves threadId, inReplyTo, and references headers for proper conversation flow
-- **Reply Management:**
-  - Review: View lead's original message and AI-generated reply side-by-side
-  - Approve: Send reply and record as outgoing conversation
-  - Reject: Delete pending reply without sending
-  - Edit: Modify reply content before approval (UI ready, backend pending)
-  - Scan: Manually trigger scan for unanswered leads to generate AI replies
-- **Status Tracking:** Pending replies marked as 'pending', 'sent', or 'rejected'
-- **Conversation Recording:** All sent replies automatically logged in conversations table with AI flag
-- **Retroactive AI Reply Generation:** POST /api/scan-unanswered-leads endpoint scans existing infinimoji@gmail.com leads that have incoming conversations but no outgoing replies, generates AI responses for them
-
-**Communication Channels:**
-- **Multi-Channel Support:** Email, SMS, and Phone
-- **AI Activity Center:** Centralized real-time monitoring hub
-  - Unified view of all AI communications across channels
-  - Real-time search and filtering by channel, status, and lead name
-  - Tabbed interface for channel-specific views (All, Email, SMS, Phone)
-  - Visual indicators: channel icons, AI badges, status colors
-  - Activity cards show full context: lead info, action, message preview, timestamp
-  - Status tracking: success (green), pending (yellow), failed (red)
-- AI-generated flag on conversations and notes
-- Channel-specific handling in UI components (icons, formatting, color coding)
-
-**Pre-qualification Logic:**
-- Qualification scores stored on leads
-- Income, move-in date, and other criteria captured
-- Status pipeline: new → contacted → prequalified → application → approved
+A component-based architecture is used for the frontend, with clear separation between UI primitives, feature-specific components, and page-level components. Backend API design is RESTful, organized by resource, with Zod for request validation and consistent error handling. Data storage follows a schema-first approach with an abstract `IStorage` interface. Lead deduplication is implemented at the thread level for email and also by normalized email and phone to ensure all communications for a person are linked to a single lead.
 
 ## External Dependencies
 
 ### Core Infrastructure
-
-**Database:**
-- Neon PostgreSQL serverless database
-- Connection pooling via `@neondatabase/serverless`
-- WebSocket support for serverless environments
-
-**ORM & Validation:**
-- Drizzle ORM for database operations and migrations
-- Drizzle-Zod for schema-to-validation conversion
-- Zod for runtime type validation
+- **Database:** Neon PostgreSQL serverless database.
+- **ORM & Validation:** Drizzle ORM, Drizzle-Zod, and Zod.
 
 ### UI Framework
-
-**Component Libraries:**
-- Radix UI primitives (20+ components: dialog, dropdown, tabs, toast, etc.)
-- Shadcn/ui design system configuration
-- React Hook Form with Zod resolvers for form validation
-
-**Styling:**
-- Tailwind CSS with custom configuration
-- PostCSS for processing
-- Class Variance Authority (CVA) for component variants
-- Inter and JetBrains Mono fonts from Google Fonts
+- **Component Libraries:** Radix UI primitives, Shadcn/ui, React Hook Form.
+- **Styling:** Tailwind CSS, PostCSS, Class Variance Authority (CVA), Inter and JetBrains Mono fonts.
 
 ### Data Visualization
-
-**Charts:**
-- Recharts library for analytics dashboards
-- Support for bar charts, line charts, and pie charts
-- Responsive containers for mobile support
+- **Charts:** Recharts library for analytics dashboards.
 
 ### Utility Libraries
-
-**State & Data:**
-- TanStack Query for server state management
-- date-fns for date formatting and manipulation
-- clsx and tailwind-merge for conditional class names
-
-**Development:**
-- Replit-specific dev tools (cartographer, dev banner, runtime error modal)
-- TypeScript for type safety across full stack
-- ESBuild for production bundling
+- **State & Data:** TanStack Query, date-fns, clsx, tailwind-merge.
+- **Development:** Replit-specific dev tools, TypeScript, ESBuild.
 
 ### Third-Party Integrations
+- **Communication Services:**
+    - **Twilio:** For SMS and voice calls, authenticated via Replit Connectors API.
+    - **Gmail (OAuth 2.0):** For email integration, including background sync, lead deduplication, and email chain consolidation.
+- **Calendar Integration:**
+    - **Google Calendar (OAuth 2.0):** For availability management and scheduling, including event sync and user-configurable schedule preferences for AI.
+- **Property Management Systems (PMS):** Supported providers include Buildium, AppFolio, Yardi, and Rent Manager, configured via API keys.
 
-**Communication Services:**
-- **Twilio Integration (Active):** Replit-managed Twilio connection for SMS and voice calls
-  - Authentication via Replit Connectors API using API key method (accountSid + apiKey + apiKeySecret)
-  - Helper functions in `server/twilio.ts` for sending SMS and making calls
-  - Credentials automatically managed by Replit - no manual key storage needed
-  - Phone number configured in Twilio connection settings
-  - Users can also manually configure Twilio via Settings page integration UI
-
-- **Email Integrations (User-Configurable):**
-  - **Gmail OAuth 2.0 (Active):** Secure Google account connection
-    - OAuth 2.0 flow using googleapis package
-    - Authentication route: `/api/auth/google` generates OAuth URL
-    - Callback route: `/api/auth/google/callback` exchanges code for tokens
-    - Redirect URI format: `https://{REPLIT_DEV_DOMAIN}/api/auth/google/callback`
-    - Tokens (access_token, refresh_token) stored in integrationConfig table
-    - Credentials managed via GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets
-    - Helper functions in `server/gmail.ts` for listing, reading, and sending emails
-    - **Background Sync Automation:**
-      - Automatic sync on page load (3-second delay after initialization)
-      - Periodic sync every 5 minutes when user is active
-      - Activity tracking via mouse, keyboard, click, and scroll events
-      - Sync pauses after 10 minutes of inactivity
-      - Only runs when Gmail is connected (verified access_token)
-      - Toast notifications only shown for new leads
-      - Silent error logging without user disruption
-      - Cache invalidation for leads and AI activity on every sync
-      - Implemented via `useBackgroundGmailSync` hook in App.tsx
-    - **Lead Deduplication & Thread Consolidation:**
-      - **Thread-Level Deduplication:** In-memory `threadLeadMap` (Map<string, string>) tracks threadId → leadId associations during sync
-      - **Deduplication Priority:** 
-        1. First checks if threadId exists in threadLeadMap (ensures all emails in same Gmail thread go to same lead)
-        2. Falls back to email deduplication (normalized: lowercase + trim)
-        3. Falls back to phone deduplication (trimmed)
-        4. Creates new lead only if no match found
-      - **Thread Mapping Storage:** After finding or creating lead, stores threadId → leadId for subsequent messages in thread
-      - **Email Chain Consolidation:** All emails in the same Gmail thread (including replies and forwards) are linked to ONE lead
-      - **Conversation Timeline:** Shows proper back-and-forth message history under single contact
-      - **Storage Methods:** `getLeadByEmail()` and `getLeadByPhone()` support deduplication lookups
-      - **Result:** No duplicate leads for same person, even if email/phone extraction varies between messages
-  - Outlook/Office 365: Users connect via email address and app password
-  - Configuration stored in integrationConfig table
-  - Settings UI provides "Connect with Google" OAuth button for Gmail
-
-**Property Management Systems (User-Configurable):**
-- Supported providers: Buildium, AppFolio, Yardi, Rent Manager
-- Generic integration schema with API key storage
-- Configuration via Settings page integration UI
-- Provider-specific API credentials stored securely in integrationConfig table
-
-**Integration Management:**
-- All integrations configured via Settings → Integrations tab
-- Unified storage in integrationConfig table with service identifier
-- Real-time status monitoring in AI Activity Center
-- Support for enabling/disabling integrations without deleting credentials
-
-### Session Management
-
-**Planned:**
-- connect-pg-simple for PostgreSQL session storage
-- Express session middleware (referenced in dependencies)
-- Credentials-based fetch requests configured
+### Session Management (Planned)
+- `connect-pg-simple` for PostgreSQL session storage and Express session middleware.

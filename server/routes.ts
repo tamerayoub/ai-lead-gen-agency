@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
+import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -215,6 +216,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No incoming message to reply to" });
       }
 
+      // Get calendar availability context
+      const availabilityContext = await getAvailabilityContext();
+
       // Generate AI reply based on the lead's inquiry
       const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
       
@@ -224,12 +228,15 @@ Lead Information:
 - Move-in Date: ${lead.moveInDate || 'Not specified'}
 - Their Message: ${incomingMessage.message}
 
+${availabilityContext}
+
 Write a friendly, professional email response that:
 1. Thanks them for their interest
 2. Confirms receipt of their inquiry
 3. Briefly addresses their specific questions or needs
-4. Mentions next steps (viewing, application, etc.)
-5. Signs off warmly
+4. If they're asking about viewing/showing times, suggest specific available times based on the calendar above
+5. Mentions next steps (viewing, application, etc.)
+6. Signs off warmly
 
 Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
@@ -1017,6 +1024,9 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             const threadId = fullMessage.threadId;
             const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
 
+            // Get calendar availability context
+            const availabilityContext = await getAvailabilityContext();
+
             // Generate AI reply based on the lead's inquiry
             const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
             
@@ -1027,12 +1037,15 @@ Lead Information:
 - Budget: ${parsedData.budget || 'Not specified'}
 - Their Message: ${parsedData.message || emailBody.substring(0, 500)}
 
+${availabilityContext}
+
 Write a friendly, professional email response that:
 1. Thanks them for their interest
 2. Confirms receipt of their inquiry
 3. Briefly addresses their specific questions or needs
-4. Mentions next steps (viewing, application, etc.)
-5. Signs off warmly
+4. If they're asking about viewing/showing times, suggest specific available times based on the calendar above
+5. Mentions next steps (viewing, application, etc.)
+6. Signs off warmly
 
 Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
@@ -1284,6 +1297,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           continue; // Skip if no incoming message
         }
 
+        // Get calendar availability context
+        const availabilityContext = await getAvailabilityContext();
+
         // Generate AI reply based on the lead's inquiry
         const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
         
@@ -1293,12 +1309,15 @@ Lead Information:
 - Move-in Date: ${lead.moveInDate || 'Not specified'}
 - Their Message: ${incomingMessage.message}
 
+${availabilityContext}
+
 Write a friendly, professional email response that:
 1. Thanks them for their interest
 2. Confirms receipt of their inquiry
 3. Briefly addresses their specific questions or needs
-4. Mentions next steps (viewing, application, etc.)
-5. Signs off warmly
+4. If they're asking about viewing/showing times, suggest specific available times based on the calendar above
+5. Mentions next steps (viewing, application, etc.)
+6. Signs off warmly
 
 Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
