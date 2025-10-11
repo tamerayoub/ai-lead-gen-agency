@@ -77,8 +77,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             if (existingEmailUser) {
               // Email exists but with different provider - don't allow, inform user
               console.log('[Google OAuth] Email exists with different provider:', existingEmailUser.provider);
+              const providerDisplay = existingEmailUser.provider === 'email' 
+                ? 'email/password' 
+                : existingEmailUser.provider;
               return done(null, false, { 
-                message: `This email is already registered with ${existingEmailUser.provider}. Please sign in using ${existingEmailUser.provider}.` 
+                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
               });
             }
 
@@ -135,8 +138,11 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
             });
 
             if (existingEmailUser) {
+              const providerDisplay = existingEmailUser.provider === 'email' 
+                ? 'email/password' 
+                : existingEmailUser.provider;
               return done(null, false, { 
-                message: `This email is already registered with ${existingEmailUser.provider}. Please sign in using ${existingEmailUser.provider}.` 
+                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
               });
             }
 
@@ -188,8 +194,11 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
             });
 
             if (existingEmailUser) {
+              const providerDisplay = existingEmailUser.provider === 'email' 
+                ? 'email/password' 
+                : existingEmailUser.provider;
               return done(null, false, { 
-                message: `This email is already registered with ${existingEmailUser.provider}. Please sign in using ${existingEmailUser.provider}.` 
+                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
               });
             }
 
@@ -244,8 +253,11 @@ if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPL
             });
 
             if (existingEmailUser) {
+              const providerDisplay = existingEmailUser.provider === 'email' 
+                ? 'email/password' 
+                : existingEmailUser.provider;
               return done(null, false, { 
-                message: `This email is already registered with ${existingEmailUser.provider}. Please sign in using ${existingEmailUser.provider}.` 
+                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
               });
             }
 
