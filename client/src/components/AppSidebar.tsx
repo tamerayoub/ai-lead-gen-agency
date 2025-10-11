@@ -31,8 +31,16 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      // Force a full page reload to clear all state and redirect to login
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Still redirect to login even if the API call fails
+      window.location.href = "/login";
+    }
   };
 
   const getInitials = () => {
