@@ -365,7 +365,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         isActive: true,
       });
 
-      res.redirect('/#/schedule?connected=google');
+      res.redirect('/schedule?connected=google');
     } catch (error) {
       console.error("Error in Google Calendar callback:", error);
       res.status(500).send("Failed to connect Google Calendar");
