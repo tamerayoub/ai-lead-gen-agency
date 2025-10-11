@@ -10,6 +10,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 11, 2025 - Notification System and Gmail Lead Detection
+**Problem:** Users had no way to know when new potential leads arrived in their Gmail inbox without manually running sync.
+
+**Solution:** Implemented a comprehensive notification system with background Gmail scanning:
+- **Database Schema:** Added `notifications` table with fields for type, title, message, actionUrl, metadata, read status, and org/user scoping
+- **Storage Interface:** Extended `IStorage` with full CRUD operations for notifications (create, getById, list with filtering, markAsRead, delete)
+- **API Endpoints:** Created RESTful endpoints (`GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications`, `PATCH /api/notifications/:id/read`, `DELETE /api/notifications/:id`)
+- **Background Scanner:** Implemented `gmailScanner.ts` that runs every 5 minutes, detects new email threads from connected Gmail accounts, and creates notifications without auto-importing leads
+- **Deduplication:** Scanner maintains in-memory map (`notifiedThreadsByOrg`) of already-notified threads, cleared after successful sync to prevent duplicate notifications
+- **UI Components:** Added `NotificationBell` component in header with unread count badge, dropdown showing all notifications with actions (mark read, delete, navigate to actionUrl)
+- **Settings Integration:** Updated Settings page to display pending leads count in Gmail integration section with visual alert and count badge on sync button
+- **Query Invalidation:** Gmail sync properly invalidates notification queries to clear stale counts after import
+
+**Result:** Users now receive real-time notifications about new Gmail leads with visual indicators throughout the app. The notification bell in the header shows unread count, Settings page displays actionable alerts, and all notifications clear automatically after sync. The system prevents duplicate notifications and properly handles multi-tenant organization scoping.
+
 ### October 11, 2025 - Organization Switching Persistence Fixed
 **Problem:** Organization switching used session storage which didn't persist reliably across requests.
 
