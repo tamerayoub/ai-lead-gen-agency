@@ -31,9 +31,13 @@ passport.deserializeUser(async (id: string, done) => {
 const getBaseUrl = () => {
   const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
   if (replitDomain) {
-    return `https://${replitDomain}`;
+    const url = `https://${replitDomain}`;
+    console.log('[OAuth] Base URL:', url);
+    return url;
   }
-  return process.env.BASE_URL || "http://localhost:5000";
+  const fallback = process.env.BASE_URL || "http://localhost:5000";
+  console.log('[OAuth] Base URL (fallback):', fallback);
+  return fallback;
 };
 
 // Google OAuth Strategy
