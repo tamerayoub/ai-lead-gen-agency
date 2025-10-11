@@ -107,7 +107,23 @@ router.get("/user", (req, res) => {
   }
 });
 
-// Logout
+// Logout (support both GET and POST for navigation compatibility)
+router.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      console.error('[Auth] Logout error:', err);
+      return res.redirect("/login?error=" + encodeURIComponent("Error logging out"));
+    }
+    req.session.destroy((destroyErr) => {
+      if (destroyErr) {
+        console.error('[Auth] Session destroy error:', destroyErr);
+      }
+      res.clearCookie("connect.sid");
+      res.redirect("/login");
+    });
+  });
+});
+
 router.post("/logout", (req, res) => {
   req.logout((err) => {
     if (err) {
