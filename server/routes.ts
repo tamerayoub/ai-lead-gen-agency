@@ -1544,6 +1544,53 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
+  // ===== NOTIFICATION ROUTES =====
+  app.get("/api/notifications", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const notifications = await storage.getUserNotifications(req.user.id, req.orgId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.user.id, req.orgId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Failed to fetch unread count:", error);
+      res.status(500).json({ error: "Failed to fetch unread count" });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const success = await storage.markNotificationAsRead(req.params.id, req.user.id);
+      if (!success) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error);
+      res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const success = await storage.deleteNotification(req.params.id, req.user.id);
+      if (!success) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+      res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
