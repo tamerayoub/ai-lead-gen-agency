@@ -131,21 +131,39 @@ router.get(
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/login?error=google_auth_failed" }),
-  (req, res) => {
-    console.log('[OAuth] Google callback - User authenticated:', req.user);
-    console.log('[OAuth] Session ID:', req.sessionID);
-    console.log('[OAuth] Session data:', req.session);
-    
-    // Manually save session to ensure it's persisted
-    req.session.save((err) => {
+  (req, res, next) => {
+    passport.authenticate("google", (err: any, user: any, info: any) => {
       if (err) {
-        console.error('[OAuth] Session save error:', err);
-        return res.redirect("/login?error=session_save_failed");
+        console.error('[OAuth] Google auth error:', err);
+        return res.redirect("/login?error=" + encodeURIComponent("Authentication error occurred"));
       }
-      console.log('[OAuth] Session saved successfully, redirecting to /');
-      res.redirect("/");
-    });
+      
+      if (!user) {
+        console.log('[OAuth] Google auth failed:', info?.message);
+        const errorMsg = info?.message || "Google authentication failed";
+        return res.redirect("/login?error=" + encodeURIComponent(errorMsg));
+      }
+      
+      console.log('[OAuth] Google callback - User authenticated:', user.id);
+      console.log('[OAuth] Session ID:', req.sessionID);
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error('[OAuth] Login error:', loginErr);
+          return res.redirect("/login?error=" + encodeURIComponent("Error creating session"));
+        }
+        
+        // Manually save session to ensure it's persisted
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error('[OAuth] Session save error:', saveErr);
+            return res.redirect("/login?error=" + encodeURIComponent("Error saving session"));
+          }
+          console.log('[OAuth] Session saved successfully, redirecting to /');
+          res.redirect("/");
+        });
+      });
+    })(req, res, next);
   }
 );
 
