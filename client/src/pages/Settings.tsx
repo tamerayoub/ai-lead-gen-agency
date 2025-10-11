@@ -8,6 +8,16 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Brain, MessageSquare, Zap, Settings2, Save, Mail, CheckCircle, RefreshCw, AlertCircle, Info, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -45,6 +55,7 @@ export default function Settings() {
   const [outlookEmail, setOutlookEmail] = useState("");
   const [outlookAppPassword, setOutlookAppPassword] = useState("");
   const [showSyncLogs, setShowSyncLogs] = useState(false);
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
@@ -248,8 +259,37 @@ export default function Settings() {
     }
   };
 
-  const disconnectGmail = () => {
-    // Preserve existing config tokens if available, otherwise use empty config
+  const deleteGmailLeadsMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/leads/gmail-sourced", {}),
+    onSuccess: () => {
+      toast({ 
+        title: "Gmail leads deleted", 
+        description: "All leads from Gmail have been removed" 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete leads", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleDisconnectGmail = (deleteLeads: boolean) => {
+    // Stop any running sync first
+    if (isPolling) {
+      stopPolling();
+    }
+    setShowSyncLogs(false);
+    
+    // Delete leads if requested
+    if (deleteLeads) {
+      deleteGmailLeadsMutation.mutate();
+    }
+    
+    // Disconnect Gmail integration
     saveIntegrationMutation.mutate(
       {
         service: "gmail",
@@ -259,9 +299,20 @@ export default function Settings() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+          setShowDisconnectDialog(false);
+          toast({ 
+            title: "Gmail disconnected", 
+            description: deleteLeads 
+              ? "Gmail disconnected and all leads removed" 
+              : "Gmail disconnected, leads preserved" 
+          });
         }
       }
     );
+  };
+
+  const disconnectGmail = () => {
+    setShowDisconnectDialog(true);
   };
 
   const saveOutlook = () => {
@@ -619,8 +670,13 @@ export default function Settings() {
                             size="icon"
                             className="h-6 w-6"
                             onClick={() => {
-                              setShowSyncLogs(false);
-                              stopPolling();
+                              if (isPolling || progress?.isRunning) {
+                                // If sync is running, show disconnect dialog
+                                setShowDisconnectDialog(true);
+                              } else {
+                                // If sync is complete, just close logs
+                                setShowSyncLogs(false);
+                              }
                             }}
                             data-testid="button-close-sync-logs"
                           >
@@ -841,6 +897,38 @@ export default function Settings() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Disconnect Gmail Confirmation Dialog */}
+      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <AlertDialogContent data-testid="dialog-disconnect-gmail">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Gmail Integration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop any running sync and disconnect your Gmail account. 
+              What would you like to do with the leads found from Gmail?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel data-testid="button-cancel-disconnect">Cancel</AlertDialogCancel>
+            <Button
+              variant="outline"
+              onClick={() => handleDisconnectGmail(false)}
+              disabled={saveIntegrationMutation.isPending || deleteGmailLeadsMutation.isPending}
+              data-testid="button-keep-leads"
+            >
+              Keep Leads & Disconnect
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleDisconnectGmail(true)}
+              disabled={saveIntegrationMutation.isPending || deleteGmailLeadsMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-delete-leads"
+            >
+              Delete Leads & Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -46,6 +46,7 @@ export interface IStorage {
   createLead(lead: InsertLead & { orgId: string }): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>, orgId: string): Promise<Lead | undefined>;
   deleteLead(id: string, orgId: string): Promise<boolean>;
+  deleteGmailSourcedLeads(orgId: string): Promise<number>;
 
   // Conversation operations
   getConversationsByLeadId(leadId: string): Promise<Conversation[]>;
@@ -248,6 +249,38 @@ export class DatabaseStorage implements IStorage {
     
     const result = await db.delete(leads).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).returning();
     return result.length > 0;
+  }
+
+  async deleteGmailSourcedLeads(orgId: string): Promise<number> {
+    // Get all Gmail-sourced leads for this organization
+    const gmailLeads = await db.select().from(leads).where(
+      and(
+        eq(leads.orgId, orgId),
+        eq(leads.source, 'gmail')
+      )
+    );
+    
+    const leadIds = gmailLeads.map(lead => lead.id);
+    
+    if (leadIds.length === 0) {
+      return 0;
+    }
+    
+    // Delete related conversations and notes
+    for (const leadId of leadIds) {
+      await db.delete(conversations).where(eq(conversations.leadId, leadId));
+      await db.delete(notes).where(eq(notes.leadId, leadId));
+    }
+    
+    // Delete the leads
+    const result = await db.delete(leads).where(
+      and(
+        eq(leads.orgId, orgId),
+        eq(leads.source, 'gmail')
+      )
+    ).returning();
+    
+    return result.length;
   }
 
   // Conversation operations

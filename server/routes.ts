@@ -215,6 +215,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/leads/gmail-sourced", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const count = await storage.deleteGmailSourcedLeads(req.orgId);
+      res.json({ 
+        message: "Gmail-sourced leads deleted", 
+        count 
+      });
+    } catch (error) {
+      console.error("[Delete Gmail Leads] Error:", error);
+      res.status(500).json({ error: "Failed to delete Gmail-sourced leads" });
+    }
+  });
+
   // ===== PROPERTY ROUTES =====
   app.get("/api/properties", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
