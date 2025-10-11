@@ -75,14 +75,16 @@ export function AppSidebar() {
       const res = await apiRequest("POST", "/api/organizations", { name });
       return await res.json();
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations/current"] });
+    onSuccess: async (data) => {
+      // Switch to the new organization
+      const switchRes = await apiRequest("POST", "/api/organizations/switch", { orgId: data.id });
+      await switchRes.json();
+      
       setNewOrgName("");
       setIsCreateDialogOpen(false);
       toast({
         title: "Organization created",
-        description: `${data.name} has been created successfully.`,
+        description: `${data.name} has been created and activated.`,
       });
       // Reload the page to refresh all data with new org context
       window.location.reload();

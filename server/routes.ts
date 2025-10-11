@@ -57,10 +57,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current organization (from session or first membership)
   app.get("/api/organizations/current", isAuthenticated, async (req: any, res) => {
     try {
+      // Check if there's a current org in the session
+      if (req.session.currentOrgId) {
+        const membership = await storage.getMembership(req.user.id, req.session.currentOrgId);
+        if (membership) {
+          return res.json(membership);
+        }
+      }
+      
+      // Fallback to first membership
       const membership = await storage.getUserOrganization(req.user.id);
       if (!membership) {
         return res.status(404).json({ error: "No organization found" });
       }
+      
+      // Store in session for future requests
+      req.session.currentOrgId = membership.orgId;
       res.json(membership);
     } catch (error) {
       console.error("[Orgs] Failed to fetch current org:", error);
@@ -98,9 +110,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "You are not a member of this organization" });
       }
 
-      // In a full implementation, we'd store the active org in the session or user preferences
-      // For now, just return the membership
-      res.json(membership);
+      // Store the active org in the session
+      req.session.currentOrgId = orgId;
+      
+      // Save session and return membership
+      req.session.save((err: any) => {
+        if (err) {
+          console.error("[Orgs] Failed to save session:", err);
+          return res.status(500).json({ error: "Failed to save session" });
+        }
+        res.json(membership);
+      });
     } catch (error) {
       console.error("[Orgs] Failed to switch organization:", error);
       res.status(500).json({ error: "Failed to switch organization" });
