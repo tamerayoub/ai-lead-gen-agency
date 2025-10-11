@@ -54,9 +54,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
         callbackURL: `${getBaseUrl()}/api/auth/google/callback`,
       },
       async (accessToken, refreshToken, profile, done) => {
+        console.log('[Google OAuth] Callback triggered with profile:', profile.id, profile.emails?.[0]?.value);
         try {
           const email = profile.emails?.[0]?.value;
           if (!email) {
+            console.log('[Google OAuth] No email in profile');
             return done(null, false, { message: "No email provided by Google" });
           }
 
@@ -64,6 +66,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           let user = await db.query.users.findFirst({
             where: sql`${users.provider} = 'google' AND ${users.providerId} = ${profile.id}`,
           });
+          console.log('[Google OAuth] Existing user found:', !!user);
 
           if (!user) {
             // Check if email exists (could be password or other OAuth)
@@ -73,12 +76,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
             if (existingEmailUser) {
               // Email exists but with different provider - don't allow, inform user
+              console.log('[Google OAuth] Email exists with different provider:', existingEmailUser.provider);
               return done(null, false, { 
                 message: `This email is already registered with ${existingEmailUser.provider}. Please sign in using ${existingEmailUser.provider}.` 
               });
             }
 
             // Create new user with Google
+            console.log('[Google OAuth] Creating new user');
             const [newUser] = await db.insert(users).values({
               email,
               firstName: profile.name?.givenName,
@@ -88,10 +93,13 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               providerId: profile.id,
             }).returning();
             user = newUser;
+            console.log('[Google OAuth] New user created:', user.id);
           }
 
+          console.log('[Google OAuth] Calling done with user:', user.id);
           done(null, user);
         } catch (error) {
+          console.error('[Google OAuth] Error:', error);
           done(error as Error);
         }
       }
