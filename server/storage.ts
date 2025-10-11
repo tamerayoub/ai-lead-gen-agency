@@ -72,6 +72,8 @@ export interface IStorage {
   // Integration Config operations
   getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined>;
   upsertIntegrationConfig(config: InsertIntegrationConfig & { orgId: string }): Promise<IntegrationConfig>;
+  getAllGmailIntegrations(): Promise<Array<{ orgId: string; config: any }>>;
+  getOrganizationMembers(orgId: string): Promise<Array<{ userId: string }>>;
 
   // Pending Reply operations
   getAllPendingReplies(orgId: string): Promise<PendingReply[]>;
@@ -401,6 +403,20 @@ export class DatabaseStorage implements IStorage {
       const result = await db.insert(integrationConfig).values(config).returning();
       return result[0];
     }
+  }
+
+  async getAllGmailIntegrations(): Promise<Array<{ orgId: string; config: any }>> {
+    const configs = await db.select()
+      .from(integrationConfig)
+      .where(and(eq(integrationConfig.service, "gmail"), eq(integrationConfig.isActive, true)));
+    return configs.map(c => ({ orgId: c.orgId, config: c.config }));
+  }
+
+  async getOrganizationMembers(orgId: string): Promise<Array<{ userId: string }>> {
+    const members = await db.select({ userId: memberships.userId })
+      .from(memberships)
+      .where(eq(memberships.orgId, orgId));
+    return members;
   }
 
   // Pending Reply operations (tenant-scoped through lead relationship)

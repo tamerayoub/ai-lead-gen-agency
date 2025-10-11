@@ -7,6 +7,7 @@ import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalen
 import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
 import authRouter from "./auth";
+import { gmailScanner } from "./gmailScanner";
 
 // Middleware to check if user is authenticated
 function isAuthenticated(req: any, res: any, next: any) {
@@ -1349,6 +1350,15 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       syncProgressTracker.complete(summary);
       syncProgressTracker.addLog('success', `✅ Sync complete! Created ${summary.created} leads from ${messages.length} emails`);
+
+      // Clear notified threads for synced leads
+      const syncedThreadIds = createdLeads
+        .map((lead: any) => lead.gmailThreadId)
+        .filter(Boolean) as string[];
+      
+      if (syncedThreadIds.length > 0) {
+        await gmailScanner.clearNotifiedThreads(req.orgId, syncedThreadIds);
+      }
 
       res.json({
         success: true,

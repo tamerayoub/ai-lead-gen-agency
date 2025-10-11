@@ -5,6 +5,7 @@ import { Pool } from "@neondatabase/serverless";
 import passport from "./passport";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { gmailScanner } from "./gmailScanner";
 
 // Validate required environment variables
 if (!process.env.SESSION_SECRET) {
@@ -101,5 +102,8 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start Gmail scanner for periodic lead detection
+    gmailScanner.start();
   });
 })();
