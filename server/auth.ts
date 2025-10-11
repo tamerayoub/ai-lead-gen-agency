@@ -133,7 +133,19 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: "/login?error=google_auth_failed" }),
   (req, res) => {
-    res.redirect("/");
+    console.log('[OAuth] Google callback - User authenticated:', req.user);
+    console.log('[OAuth] Session ID:', req.sessionID);
+    console.log('[OAuth] Session data:', req.session);
+    
+    // Manually save session to ensure it's persisted
+    req.session.save((err) => {
+      if (err) {
+        console.error('[OAuth] Session save error:', err);
+        return res.redirect("/login?error=session_save_failed");
+      }
+      console.log('[OAuth] Session saved successfully, redirecting to /');
+      res.redirect("/");
+    });
   }
 );
 
