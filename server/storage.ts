@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
-  calendarConnections, calendarEvents, schedulePreferences, memberships, organizations,
+  calendarConnections, calendarEvents, schedulePreferences, memberships, organizations, notifications,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -12,7 +12,8 @@ import {
   type PendingReply, type InsertPendingReply,
   type CalendarConnection, type InsertCalendarConnection,
   type CalendarEvent, type InsertCalendarEvent,
-  type SchedulePreference, type InsertSchedulePreference
+  type SchedulePreference, type InsertSchedulePreference,
+  type Notification, type InsertNotification
 } from "@shared/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
@@ -60,6 +61,13 @@ export interface IStorage {
   // AI Settings operations
   getAISettings(category: string, orgId: string): Promise<AISetting[]>;
   upsertAISetting(setting: InsertAISetting & { orgId: string }): Promise<AISetting>;
+
+  // Notification operations
+  getUserNotifications(userId: string, orgId: string): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string, orgId: string): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: string, userId: string): Promise<boolean>;
+  deleteNotification(id: string, userId: string): Promise<boolean>;
 
   // Integration Config operations
   getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined>;
@@ -332,6 +340,44 @@ export class DatabaseStorage implements IStorage {
       const result = await db.insert(aiSettings).values(setting).returning();
       return result[0];
     }
+  }
+
+  // Notification operations
+  async getUserNotifications(userId: string, orgId: string): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(and(eq(notifications.userId, userId), eq(notifications.orgId, orgId)))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string, orgId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.orgId, orgId),
+        eq(notifications.read, false)
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const result = await db.insert(notifications).values(notification).returning();
+    return result[0];
+  }
+
+  async markNotificationAsRead(id: string, userId: string): Promise<boolean> {
+    const result = await db.update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async deleteNotification(id: string, userId: string): Promise<boolean> {
+    const result = await db.delete(notifications)
+      .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+      .returning();
+    return result.length > 0;
   }
 
   // Integration Config operations

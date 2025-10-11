@@ -240,6 +240,19 @@ export const schedulePreferences = pgTable("schedule_preferences", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  type: text("type").notNull(), // 'gmail_leads_found', 'lead_status_changed', etc.
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  actionUrl: text("action_url"), // Where to navigate when clicked
+  metadata: jsonb("metadata"), // Extra data like count of leads found
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertCalendarConnectionSchema = createInsertSchema(calendarConnections).omit({
   id: true,
   createdAt: true,
@@ -253,6 +266,11 @@ export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit
 });
 
 export const insertSchedulePreferenceSchema = createInsertSchema(schedulePreferences).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
 });
@@ -291,6 +309,9 @@ export type CalendarEvent = typeof calendarEvents.$inferSelect;
 
 export type InsertSchedulePreference = z.infer<typeof insertSchedulePreferenceSchema>;
 export type SchedulePreference = typeof schedulePreferences.$inferSelect;
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
