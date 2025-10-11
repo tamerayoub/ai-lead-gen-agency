@@ -225,13 +225,25 @@ export default function Settings() {
 
   const connectGmail = async () => {
     try {
+      console.log("[Gmail] Fetching auth URL...");
       const res = await fetch("/api/integrations/gmail/auth");
+      console.log("[Gmail] Response status:", res.status);
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
+      console.log("[Gmail] Response data:", data);
+      
       if (data.url) {
-        // Open OAuth in same window to avoid popup blockers
+        console.log("[Gmail] Redirecting to:", data.url);
         window.location.href = data.url;
+      } else {
+        throw new Error("No OAuth URL received from server");
       }
     } catch (error) {
+      console.error("[Gmail] Connection error:", error);
       toast({ title: "Failed to initiate Gmail connection", variant: "destructive" });
     }
   };

@@ -784,8 +784,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     try {
       // Use the authenticated user's ID for Gmail OAuth
       const userId = req.user.id;
+      console.log("[Gmail OAuth] Generating auth URL for user:", userId);
       const authUrl = getGmailAuthUrl(userId);
-      res.json({ url: authUrl });
+      console.log("[Gmail OAuth] Generated auth URL:", authUrl);
+      const response = { url: authUrl };
+      console.log("[Gmail OAuth] Sending response:", response);
+      res.json(response);
     } catch (error) {
       console.error("[Gmail OAuth] Failed to generate auth URL:", error);
       res.status(500).json({ error: "Failed to generate auth URL" });
