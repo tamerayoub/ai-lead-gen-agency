@@ -1166,7 +1166,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
               propertyId: matchedProperty?.id || properties[0]?.id || "",
               propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
               status: "new",
-              source: "email",
+              source: "gmail",
               income: parsedData.income || null,
               moveInDate: parsedData.moveInDate || null,
               profileData: {
