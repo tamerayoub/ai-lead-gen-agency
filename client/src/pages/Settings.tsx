@@ -225,7 +225,7 @@ export default function Settings() {
 
   const connectGmail = async () => {
     try {
-      const res = await fetch("/api/auth/google");
+      const res = await fetch("/api/integrations/gmail/auth");
       const data = await res.json();
       if (data.url) {
         // Open OAuth in same window to avoid popup blockers

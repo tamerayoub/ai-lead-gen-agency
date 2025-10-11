@@ -780,7 +780,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== GMAIL OAUTH ROUTES =====
-  app.get("/api/auth/google", isAuthenticated, async (req: any, res) => {
+  app.get("/api/integrations/gmail/auth", isAuthenticated, async (req: any, res) => {
     try {
       // Use the authenticated user's ID for Gmail OAuth
       const userId = req.user.id;
@@ -792,7 +792,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/auth/google/callback", isAuthenticated, async (req, res) => {
+  app.get("/api/integrations/gmail/callback", isAuthenticated, async (req, res) => {
     try {
       const { code, state: userId } = req.query;
       

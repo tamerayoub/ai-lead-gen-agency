@@ -9,8 +9,8 @@ const GMAIL_SCOPES = [
 
 export function getGmailOAuth2Client(): OAuth2Client {
   const redirectUri = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`
-    : 'http://localhost:5000/api/auth/google/callback';
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/integrations/gmail/callback`
+    : 'http://localhost:5000/api/integrations/gmail/callback';
     
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
