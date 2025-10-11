@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
-  calendarConnections, calendarEvents, schedulePreferences,
+  calendarConnections, calendarEvents, schedulePreferences, memberships,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -24,22 +24,25 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
 
+  // Organization & Membership operations
+  getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined>;
+
   // Property operations
-  getAllProperties(): Promise<Property[]>;
-  getProperty(id: string): Promise<Property | undefined>;
-  createProperty(property: InsertProperty): Promise<Property>;
-  updateProperty(id: string, property: Partial<InsertProperty>): Promise<Property | undefined>;
-  deleteProperty(id: string): Promise<boolean>;
+  getAllProperties(orgId: string): Promise<Property[]>;
+  getProperty(id: string, orgId: string): Promise<Property | undefined>;
+  createProperty(property: InsertProperty & { orgId: string }): Promise<Property>;
+  updateProperty(id: string, property: Partial<InsertProperty>, orgId: string): Promise<Property | undefined>;
+  deleteProperty(id: string, orgId: string): Promise<boolean>;
 
   // Lead operations
-  getAllLeads(): Promise<Lead[]>;
-  getLeadsByStatus(status: string): Promise<Lead[]>;
-  getLead(id: string): Promise<Lead | undefined>;
-  getLeadByEmail(email: string): Promise<Lead | undefined>;
-  getLeadByPhone(phone: string): Promise<Lead | undefined>;
-  createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined>;
-  deleteLead(id: string): Promise<boolean>;
+  getAllLeads(orgId: string): Promise<Lead[]>;
+  getLeadsByStatus(status: string, orgId: string): Promise<Lead[]>;
+  getLead(id: string, orgId: string): Promise<Lead | undefined>;
+  getLeadByEmail(email: string, orgId: string): Promise<Lead | undefined>;
+  getLeadByPhone(phone: string, orgId: string): Promise<Lead | undefined>;
+  createLead(lead: InsertLead & { orgId: string }): Promise<Lead>;
+  updateLead(id: string, lead: Partial<InsertLead>, orgId: string): Promise<Lead | undefined>;
+  deleteLead(id: string, orgId: string): Promise<boolean>;
 
   // Conversation operations
   getConversationsByLeadId(leadId: string): Promise<Conversation[]>;
@@ -51,19 +54,19 @@ export interface IStorage {
   createNote(note: InsertNote): Promise<Note>;
 
   // AI Settings operations
-  getAISettings(category: string): Promise<AISetting[]>;
-  upsertAISetting(setting: InsertAISetting): Promise<AISetting>;
+  getAISettings(category: string, orgId: string): Promise<AISetting[]>;
+  upsertAISetting(setting: InsertAISetting & { orgId: string }): Promise<AISetting>;
 
   // Integration Config operations
-  getIntegrationConfig(service: string): Promise<IntegrationConfig | undefined>;
-  upsertIntegrationConfig(config: InsertIntegrationConfig): Promise<IntegrationConfig>;
+  getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined>;
+  upsertIntegrationConfig(config: InsertIntegrationConfig & { orgId: string }): Promise<IntegrationConfig>;
 
   // Pending Reply operations
-  getAllPendingReplies(): Promise<PendingReply[]>;
-  getPendingReply(id: string): Promise<PendingReply | undefined>;
+  getAllPendingReplies(orgId: string): Promise<PendingReply[]>;
+  getPendingReply(id: string, orgId: string): Promise<PendingReply | undefined>;
   createPendingReply(reply: InsertPendingReply): Promise<PendingReply>;
-  updatePendingReplyStatus(id: string, status: string): Promise<PendingReply | undefined>;
-  deletePendingReply(id: string): Promise<boolean>;
+  updatePendingReplyStatus(id: string, status: string, orgId: string): Promise<PendingReply | undefined>;
+  deletePendingReply(id: string, orgId: string): Promise<boolean>;
 
   // Calendar Connection operations
   getCalendarConnections(userId?: string): Promise<CalendarConnection[]>;
@@ -90,7 +93,7 @@ export interface IStorage {
   deleteSchedulePreference(id: string): Promise<boolean>;
 
   // Analytics
-  getLeadStats(): Promise<{
+  getLeadStats(orgId: string): Promise<{
     total: number;
     byStatus: Record<string, number>;
     bySource: Record<string, number>;
@@ -130,71 +133,80 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  // Property operations
-  async getAllProperties(): Promise<Property[]> {
-    return db.select().from(properties).orderBy(desc(properties.createdAt));
-  }
-
-  async getProperty(id: string): Promise<Property | undefined> {
-    const result = await db.select().from(properties).where(eq(properties.id, id)).limit(1);
+  // Organization & Membership operations
+  async getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined> {
+    const result = await db.select({
+      orgId: memberships.orgId,
+      role: memberships.role,
+    }).from(memberships).where(eq(memberships.userId, userId)).limit(1);
     return result[0];
   }
 
-  async createProperty(property: InsertProperty): Promise<Property> {
+  // Property operations
+  async getAllProperties(orgId: string): Promise<Property[]> {
+    return db.select().from(properties).where(eq(properties.orgId, orgId)).orderBy(desc(properties.createdAt));
+  }
+
+  async getProperty(id: string, orgId: string): Promise<Property | undefined> {
+    const result = await db.select().from(properties).where(and(eq(properties.id, id), eq(properties.orgId, orgId))).limit(1);
+    return result[0];
+  }
+
+  async createProperty(property: InsertProperty & { orgId: string }): Promise<Property> {
     const result = await db.insert(properties).values(property).returning();
     return result[0];
   }
 
-  async updateProperty(id: string, propertyData: Partial<InsertProperty>): Promise<Property | undefined> {
-    const result = await db.update(properties).set(propertyData).where(eq(properties.id, id)).returning();
+  async updateProperty(id: string, propertyData: Partial<InsertProperty>, orgId: string): Promise<Property | undefined> {
+    const result = await db.update(properties).set(propertyData).where(and(eq(properties.id, id), eq(properties.orgId, orgId))).returning();
     return result[0];
   }
 
-  async deleteProperty(id: string): Promise<boolean> {
-    const result = await db.delete(properties).where(eq(properties.id, id)).returning();
+  async deleteProperty(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(properties).where(and(eq(properties.id, id), eq(properties.orgId, orgId))).returning();
     return result.length > 0;
   }
 
   // Lead operations
-  async getAllLeads(): Promise<Lead[]> {
-    return db.select().from(leads).orderBy(desc(leads.lastContactAt));
+  async getAllLeads(orgId: string): Promise<Lead[]> {
+    return db.select().from(leads).where(eq(leads.orgId, orgId)).orderBy(desc(leads.lastContactAt));
   }
 
-  async getLeadsByStatus(status: string): Promise<Lead[]> {
-    return db.select().from(leads).where(eq(leads.status, status)).orderBy(desc(leads.lastContactAt));
+  async getLeadsByStatus(status: string, orgId: string): Promise<Lead[]> {
+    return db.select().from(leads).where(and(eq(leads.status, status), eq(leads.orgId, orgId))).orderBy(desc(leads.lastContactAt));
   }
 
-  async getLead(id: string): Promise<Lead | undefined> {
-    const result = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
+  async getLead(id: string, orgId: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).limit(1);
     return result[0];
   }
 
-  async getLeadByEmail(email: string): Promise<Lead | undefined> {
-    const result = await db.select().from(leads).where(eq(leads.email, email)).limit(1);
+  async getLeadByEmail(email: string, orgId: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(and(eq(leads.email, email), eq(leads.orgId, orgId))).limit(1);
     return result[0];
   }
 
-  async getLeadByPhone(phone: string): Promise<Lead | undefined> {
-    const result = await db.select().from(leads).where(eq(leads.phone, phone)).limit(1);
+  async getLeadByPhone(phone: string, orgId: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(and(eq(leads.phone, phone), eq(leads.orgId, orgId))).limit(1);
     return result[0];
   }
 
-  async createLead(lead: InsertLead): Promise<Lead> {
+  async createLead(lead: InsertLead & { orgId: string }): Promise<Lead> {
     const result = await db.insert(leads).values(lead).returning();
     return result[0];
   }
 
-  async updateLead(id: string, leadData: Partial<InsertLead>): Promise<Lead | undefined> {
-    const result = await db.update(leads).set(leadData).where(eq(leads.id, id)).returning();
+  async updateLead(id: string, leadData: Partial<InsertLead>, orgId: string): Promise<Lead | undefined> {
+    const result = await db.update(leads).set(leadData).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).returning();
     return result[0];
   }
 
-  async deleteLead(id: string): Promise<boolean> {
+  async deleteLead(id: string, orgId: string): Promise<boolean> {
     // Delete related conversations and notes first
     await db.delete(conversations).where(eq(conversations.leadId, id));
     await db.delete(notes).where(eq(notes.leadId, id));
     
-    const result = await db.delete(leads).where(eq(leads.id, id)).returning();
+    const result = await db.delete(leads).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).returning();
     return result.length > 0;
   }
 
@@ -224,13 +236,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   // AI Settings operations
-  async getAISettings(category: string): Promise<AISetting[]> {
-    return db.select().from(aiSettings).where(eq(aiSettings.category, category));
+  async getAISettings(category: string, orgId: string): Promise<AISetting[]> {
+    return db.select().from(aiSettings).where(and(eq(aiSettings.category, category), eq(aiSettings.orgId, orgId)));
   }
 
-  async upsertAISetting(setting: InsertAISetting): Promise<AISetting> {
+  async upsertAISetting(setting: InsertAISetting & { orgId: string }): Promise<AISetting> {
     const existing = await db.select().from(aiSettings)
-      .where(and(eq(aiSettings.category, setting.category), eq(aiSettings.key, setting.key)))
+      .where(and(
+        eq(aiSettings.category, setting.category),
+        eq(aiSettings.key, setting.key),
+        eq(aiSettings.orgId, setting.orgId)
+      ))
       .limit(1);
 
     if (existing.length > 0) {
@@ -246,14 +262,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Integration Config operations
-  async getIntegrationConfig(service: string): Promise<IntegrationConfig | undefined> {
-    const result = await db.select().from(integrationConfig).where(eq(integrationConfig.service, service)).limit(1);
+  async getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined> {
+    const result = await db.select().from(integrationConfig).where(and(eq(integrationConfig.service, service), eq(integrationConfig.orgId, orgId))).limit(1);
     return result[0];
   }
 
-  async upsertIntegrationConfig(config: InsertIntegrationConfig): Promise<IntegrationConfig> {
+  async upsertIntegrationConfig(config: InsertIntegrationConfig & { orgId: string }): Promise<IntegrationConfig> {
     const existing = await db.select().from(integrationConfig)
-      .where(eq(integrationConfig.service, config.service))
+      .where(and(eq(integrationConfig.service, config.service), eq(integrationConfig.orgId, config.orgId)))
       .limit(1);
 
     if (existing.length > 0) {
@@ -268,13 +284,51 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Pending Reply operations
-  async getAllPendingReplies(): Promise<PendingReply[]> {
-    return db.select().from(pendingReplies).orderBy(desc(pendingReplies.createdAt));
+  // Pending Reply operations (tenant-scoped through lead relationship)
+  async getAllPendingReplies(orgId: string): Promise<PendingReply[]> {
+    return db.select({ 
+      id: pendingReplies.id,
+      leadId: pendingReplies.leadId,
+      leadName: pendingReplies.leadName,
+      leadEmail: pendingReplies.leadEmail,
+      subject: pendingReplies.subject,
+      content: pendingReplies.content,
+      originalMessage: pendingReplies.originalMessage,
+      channel: pendingReplies.channel,
+      status: pendingReplies.status,
+      threadId: pendingReplies.threadId,
+      inReplyTo: pendingReplies.inReplyTo,
+      references: pendingReplies.references,
+      createdAt: pendingReplies.createdAt,
+      approvedAt: pendingReplies.approvedAt,
+    })
+      .from(pendingReplies)
+      .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
+      .where(eq(leads.orgId, orgId))
+      .orderBy(desc(pendingReplies.createdAt));
   }
 
-  async getPendingReply(id: string): Promise<PendingReply | undefined> {
-    const result = await db.select().from(pendingReplies).where(eq(pendingReplies.id, id)).limit(1);
+  async getPendingReply(id: string, orgId: string): Promise<PendingReply | undefined> {
+    const result = await db.select({
+      id: pendingReplies.id,
+      leadId: pendingReplies.leadId,
+      leadName: pendingReplies.leadName,
+      leadEmail: pendingReplies.leadEmail,
+      subject: pendingReplies.subject,
+      content: pendingReplies.content,
+      originalMessage: pendingReplies.originalMessage,
+      channel: pendingReplies.channel,
+      status: pendingReplies.status,
+      threadId: pendingReplies.threadId,
+      inReplyTo: pendingReplies.inReplyTo,
+      references: pendingReplies.references,
+      createdAt: pendingReplies.createdAt,
+      approvedAt: pendingReplies.approvedAt,
+    })
+      .from(pendingReplies)
+      .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
+      .where(and(eq(pendingReplies.id, id), eq(leads.orgId, orgId)))
+      .limit(1);
     return result[0];
   }
 
@@ -283,17 +337,30 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updatePendingReplyStatus(id: string, status: string): Promise<PendingReply | undefined> {
+  async updatePendingReplyStatus(id: string, status: string, orgId: string): Promise<PendingReply | undefined> {
     const updates: any = { status };
     if (status === 'approved' || status === 'sent') {
       updates.approvedAt = new Date();
     }
-    const result = await db.update(pendingReplies).set(updates).where(eq(pendingReplies.id, id)).returning();
+    const result = await db.update(pendingReplies)
+      .set(updates)
+      .from(leads)
+      .where(and(
+        eq(pendingReplies.id, id),
+        eq(pendingReplies.leadId, leads.id),
+        eq(leads.orgId, orgId)
+      ))
+      .returning();
     return result[0];
   }
 
-  async deletePendingReply(id: string): Promise<boolean> {
-    const result = await db.delete(pendingReplies).where(eq(pendingReplies.id, id)).returning();
+  async deletePendingReply(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(pendingReplies)
+      .where(and(
+        eq(pendingReplies.id, id),
+        sql`${pendingReplies.leadId} IN (SELECT id FROM ${leads} WHERE ${leads.orgId} = ${orgId})`
+      ))
+      .returning();
     return result.length > 0;
   }
 
@@ -475,12 +542,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics
-  async getLeadStats(): Promise<{
+  async getLeadStats(orgId: string): Promise<{
     total: number;
     byStatus: Record<string, number>;
     bySource: Record<string, number>;
   }> {
-    const allLeads = await db.select().from(leads);
+    const allLeads = await db.select().from(leads).where(eq(leads.orgId, orgId));
     
     const byStatus: Record<string, number> = {};
     const bySource: Record<string, number> = {};

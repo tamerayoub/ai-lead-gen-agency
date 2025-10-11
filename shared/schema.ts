@@ -15,6 +15,14 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
+// Multi-tenant: Organizations table
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // User storage table
 // Updated to support multiple OAuth providers (Google, Facebook, Microsoft, Apple) and email/password auth
 export const users = pgTable("users", {
@@ -33,8 +41,20 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Multi-tenant: User-to-Organization memberships
+export const memberships = pgTable("memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  role: text("role").notNull().default("member"), // 'owner', 'admin', 'member'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserOrg: sql`UNIQUE (user_id, org_id)`,
+}));
+
 export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   address: text("address").notNull(),
   units: integer("units").notNull(),
@@ -45,6 +65,7 @@ export const properties = pgTable("properties", {
 
 export const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
@@ -82,6 +103,7 @@ export const notes = pgTable("notes", {
 
 export const aiSettings = pgTable("ai_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
   category: text("category").notNull(),
   key: text("key").notNull(),
   value: text("value").notNull(),
@@ -90,11 +112,14 @@ export const aiSettings = pgTable("ai_settings", {
 
 export const integrationConfig = pgTable("integration_config", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  service: text("service").notNull().unique(),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
+  service: text("service").notNull(),
   config: jsonb("config").notNull(),
   isActive: boolean("is_active").default(true),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueOrgService: sql`UNIQUE (org_id, service)`,
+}));
 
 export const pendingReplies = pgTable("pending_replies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -264,3 +289,20 @@ export type CalendarEvent = typeof calendarEvents.$inferSelect;
 
 export type InsertSchedulePreference = z.infer<typeof insertSchedulePreferenceSchema>;
 export type SchedulePreference = typeof schedulePreferences.$inferSelect;
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMembershipSchema = createInsertSchema(memberships).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type Organization = typeof organizations.$inferSelect;
+
+export type InsertMembership = z.infer<typeof insertMembershipSchema>;
+export type Membership = typeof memberships.$inferSelect;

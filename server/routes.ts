@@ -16,18 +16,39 @@ function isAuthenticated(req: any, res: any, next: any) {
   res.status(401).json({ message: "Unauthorized" });
 }
 
+// Middleware to attach organization context to request
+async function attachOrgContext(req: any, res: any, next: any) {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const membership = await storage.getUserOrganization(req.user.id);
+    if (!membership) {
+      return res.status(403).json({ message: "User not assigned to any organization" });
+    }
+    
+    req.orgId = membership.orgId;
+    req.role = membership.role;
+    next();
+  } catch (error) {
+    console.error("[Org Context] Error attaching org context:", error);
+    res.status(500).json({ message: "Failed to load organization context" });
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // ===== AUTH ROUTES =====
   app.use('/api/auth', authRouter);
 
   // ===== LEAD ROUTES =====
-  app.get("/api/leads", isAuthenticated, async (req, res) => {
+  app.get("/api/leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const { status } = req.query;
       const leads = status 
-        ? await storage.getLeadsByStatus(status as string)
-        : await storage.getAllLeads();
+        ? await storage.getLeadsByStatus(status as string, req.orgId)
+        : await storage.getAllLeads(req.orgId);
       res.json(leads);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch leads" });
@@ -40,9 +61,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(syncProgressTracker.getProgress());
   });
 
-  app.get("/api/leads/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const lead = await storage.getLead(req.params.id);
+      const lead = await storage.getLead(req.params.id, req.orgId);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -56,30 +77,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", isAuthenticated, async (req, res) => {
+  app.post("/api/leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertLeadSchema.parse(req.body);
-      const lead = await storage.createLead(validatedData);
+      const lead = await storage.createLead({ ...validatedData, orgId: req.orgId });
       res.status(201).json(lead);
     } catch (error) {
       res.status(400).json({ error: "Invalid lead data" });
     }
   });
 
-  app.patch("/api/leads/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const partialSchema = insertLeadSchema.partial();
       const validatedData = partialSchema.parse(req.body);
       
       // Check for duplicate email if email is being updated
       if (validatedData.email) {
-        const existingLead = await storage.getLeadByEmail(validatedData.email);
+        const existingLead = await storage.getLeadByEmail(validatedData.email, req.orgId);
         if (existingLead && existingLead.id !== req.params.id) {
           return res.status(409).json({ error: "A lead with this email already exists" });
         }
       }
       
-      const lead = await storage.updateLead(req.params.id, validatedData);
+      const lead = await storage.updateLead(req.params.id, validatedData, req.orgId);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -89,9 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteLead(req.params.id);
+      const deleted = await storage.deleteLead(req.params.id, req.orgId);
       if (!deleted) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -102,12 +123,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== PROPERTY ROUTES =====
-  app.get("/api/properties", isAuthenticated, async (req, res) => {
+  app.get("/api/properties", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const properties = await storage.getAllProperties();
+      const properties = await storage.getAllProperties(req.orgId);
       
       // Enhance with lead counts
-      const leads = await storage.getAllLeads();
+      const leads = await storage.getAllLeads(req.orgId);
       const propertiesWithStats = properties.map(property => {
         const propertyLeads = leads.filter(lead => lead.propertyId === property.id);
         const activeLeads = propertyLeads.filter(lead => 
@@ -132,9 +153,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/properties/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/properties/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const property = await storage.getProperty(req.params.id);
+      const property = await storage.getProperty(req.params.id, req.orgId);
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
@@ -144,21 +165,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/properties", isAuthenticated, async (req, res) => {
+  app.post("/api/properties", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertPropertySchema.parse(req.body);
-      const property = await storage.createProperty(validatedData);
+      const property = await storage.createProperty({ ...validatedData, orgId: req.orgId });
       res.status(201).json(property);
     } catch (error) {
       res.status(400).json({ error: "Invalid property data" });
     }
   });
 
-  app.patch("/api/properties/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/properties/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const partialSchema = insertPropertySchema.partial();
       const validatedData = partialSchema.parse(req.body);
-      const property = await storage.updateProperty(req.params.id, validatedData);
+      const property = await storage.updateProperty(req.params.id, validatedData, req.orgId);
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
@@ -168,9 +189,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/properties/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/properties/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const deleted = await storage.deleteProperty(req.params.id);
+      const deleted = await storage.deleteProperty(req.params.id, req.orgId);
       if (!deleted) {
         return res.status(404).json({ error: "Property not found" });
       }
@@ -190,13 +211,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/conversations", isAuthenticated, async (req, res) => {
+  app.post("/api/conversations", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertConversationSchema.parse(req.body);
       const conversation = await storage.createConversation(validatedData);
       
       // Update lead's lastContactAt
-      await storage.updateLead(validatedData.leadId, { lastContactAt: new Date() } as any);
+      await storage.updateLead(validatedData.leadId, { lastContactAt: new Date() } as any, req.orgId);
       
       res.status(201).json(conversation);
     } catch (error) {
@@ -205,13 +226,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate AI reply for a specific lead
-  app.post("/api/leads/:leadId/ai-reply", isAuthenticated, async (req, res) => {
+  app.post("/api/leads/:leadId/ai-reply", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const leadId = req.params.leadId;
       
       // Get lead details
-      const lead = await storage.getLead(leadId);
+      const lead = await storage.getLead(leadId, req.orgId);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -306,19 +327,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== AI SETTINGS ROUTES =====
-  app.get("/api/ai-settings/:category", isAuthenticated, async (req, res) => {
+  app.get("/api/ai-settings/:category", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const settings = await storage.getAISettings(req.params.category);
+      const settings = await storage.getAISettings(req.params.category, req.orgId);
       res.json(settings);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch AI settings" });
     }
   });
 
-  app.post("/api/ai-settings", isAuthenticated, async (req, res) => {
+  app.post("/api/ai-settings", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertAISettingSchema.parse(req.body);
-      const setting = await storage.upsertAISetting(validatedData);
+      const setting = await storage.upsertAISetting({ ...validatedData, orgId: req.orgId });
       res.status(201).json(setting);
     } catch (error) {
       res.status(400).json({ error: "Invalid AI setting data" });
@@ -326,19 +347,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== INTEGRATION CONFIG ROUTES =====
-  app.get("/api/integrations/:service", isAuthenticated, async (req, res) => {
+  app.get("/api/integrations/:service", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const config = await storage.getIntegrationConfig(req.params.service);
+      const config = await storage.getIntegrationConfig(req.params.service, req.orgId);
       res.json(config || null);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch integration config" });
     }
   });
 
-  app.post("/api/integrations", isAuthenticated, async (req, res) => {
+  app.post("/api/integrations", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertIntegrationConfigSchema.parse(req.body);
-      const config = await storage.upsertIntegrationConfig(validatedData);
+      const config = await storage.upsertIntegrationConfig({ ...validatedData, orgId: req.orgId });
       res.status(201).json(config);
     } catch (error) {
       res.status(400).json({ error: "Invalid integration config data" });
@@ -589,12 +610,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== ANALYTICS ROUTES =====
-  app.get("/api/analytics/stats", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/stats", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const stats = await storage.getLeadStats();
+      const stats = await storage.getLeadStats(req.orgId);
       
       // Calculate additional metrics
-      const allLeads = await storage.getAllLeads();
+      const allLeads = await storage.getAllLeads(req.orgId);
       const totalLeads = stats.total;
       const approvedLeads = stats.byStatus.approved || 0;
       const conversionRate = totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 100) : 0;
@@ -603,7 +624,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const avgResponseTime = "2.3 min";
       
       // Get active properties count
-      const properties = await storage.getAllProperties();
+      const properties = await storage.getAllProperties(req.orgId);
       
       res.json({
         totalLeads,
@@ -636,9 +657,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== AI ACTIVITY FEED =====
-  app.get("/api/ai-activity", isAuthenticated, async (req, res) => {
+  app.get("/api/ai-activity", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const conversations = await storage.getAllLeads();
+      const conversations = await storage.getAllLeads(req.orgId);
       
       // Get recent AI-generated conversations
       const activities = [];
@@ -689,6 +710,13 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       // Exchange code for tokens
       const tokens = await getGmailTokensFromCode(code as string);
 
+      // Note: This route needs orgId but Gmail OAuth callback doesn't have attachOrgContext
+      // For now, we need to get the user's orgId manually
+      const membership = await storage.getUserOrganization(req.user.id);
+      if (!membership) {
+        return res.redirect("/settings?gmail=error&reason=no_org");
+      }
+      
       // Store tokens in integrationConfig
       await storage.upsertIntegrationConfig({
         service: "gmail",
@@ -700,6 +728,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           token_type: tokens.token_type,
         },
         isActive: true,
+        orgId: membership.orgId,
       });
 
       // Redirect back to settings with success message
@@ -711,7 +740,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== GMAIL LEAD SYNC =====
-  app.post("/api/leads/sync-from-gmail", isAuthenticated, async (req, res) => {
+  app.post("/api/leads/sync-from-gmail", isAuthenticated, attachOrgContext, async (req: any, res) => {
     const { syncProgressTracker } = await import("./syncProgress");
     
     try {
@@ -723,7 +752,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       syncProgressTracker.updateStep('Initializing sync...');
       
       // Get Gmail integration config
-      const gmailConfig = await storage.getIntegrationConfig("gmail");
+      const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
       const tokens = gmailConfig?.config as any;
       if (!gmailConfig || !tokens?.access_token) {
         syncProgressTracker.fail("Gmail not connected");
@@ -733,7 +762,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       syncProgressTracker.addLog('info', '✓ Gmail credentials verified');
 
       // Get all properties to match against
-      const properties = await storage.getAllProperties();
+      const properties = await storage.getAllProperties(req.orgId);
       syncProgressTracker.addLog('info', `✓ Loaded ${properties.length} properties`);
 
       // Fetch comprehensive email history (up to 5000 emails)
@@ -927,15 +956,15 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           let existingLead = null;
           if (threadId && threadLeadMap.has(threadId)) {
             const leadId = threadLeadMap.get(threadId)!;
-            existingLead = await storage.getLead(leadId);
+            existingLead = await storage.getLead(leadId, req.orgId);
             syncProgressTracker.addLog('info', `🔗 Thread match: Using existing lead from thread`);
           }
           
           // If not in thread map, check if lead already exists by email or phone
           if (!existingLead) {
-            existingLead = await storage.getLeadByEmail(leadEmail);
+            existingLead = await storage.getLeadByEmail(leadEmail, req.orgId);
             if (!existingLead && leadPhone) {
-              existingLead = await storage.getLeadByPhone(leadPhone);
+              existingLead = await storage.getLeadByPhone(leadPhone, req.orgId);
             }
           }
 
@@ -972,7 +1001,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             }
             
             if (Object.keys(updates).length > 0) {
-              await storage.updateLead(existingLead.id, updates);
+              await storage.updateLead(existingLead.id, updates, req.orgId);
               syncProgressTracker.addLog('info', `✏️  Updated lead info for ${existingLead.name}`);
             }
           } else {
@@ -1009,6 +1038,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
                 bedrooms: parsedData.bedrooms || null,
                 petPolicy: parsedData.petPolicy || null,
               },
+              orgId: req.orgId,
             });
             syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
           }
@@ -1070,7 +1100,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             const aiReplyContent = replyCompletion.choices[0].message.content || "";
 
             // Check if auto-pilot mode is enabled
-            const autoPilotSettings = await storage.getAISettings("automation");
+            const autoPilotSettings = await storage.getAISettings("automation", req.orgId);
             const autoPilotMode = autoPilotSettings.find(s => s.key === "auto_pilot_mode")?.value === "true";
 
             if (autoPilotMode) {
@@ -1195,9 +1225,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== PENDING REPLIES ROUTES =====
-  app.get("/api/pending-replies", isAuthenticated, async (req, res) => {
+  app.get("/api/pending-replies", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const pendingReplies = await storage.getAllPendingReplies();
+      const pendingReplies = await storage.getAllPendingReplies(req.orgId);
       res.json(pendingReplies);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch pending replies" });
@@ -1214,15 +1244,15 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.patch("/api/pending-replies/:id/approve", isAuthenticated, async (req, res) => {
+  app.patch("/api/pending-replies/:id/approve", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const reply = await storage.getPendingReply(req.params.id);
+      const reply = await storage.getPendingReply(req.params.id, req.orgId);
       if (!reply) {
         return res.status(404).json({ error: "Pending reply not found" });
       }
 
       // Get Gmail integration for sending
-      const gmailConfig = await storage.getIntegrationConfig("gmail");
+      const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
       const tokens = gmailConfig?.config as any;
 
       if (!tokens?.access_token) {
@@ -1250,7 +1280,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         });
 
         // Update reply status
-        await storage.updatePendingReplyStatus(req.params.id, 'sent');
+        await storage.updatePendingReplyStatus(req.params.id, 'sent', req.orgId);
         
         res.json({ success: true, message: "Email sent successfully" });
       } else {
@@ -1262,9 +1292,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.delete("/api/pending-replies/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/pending-replies/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const deleted = await storage.deletePendingReply(req.params.id);
+      const deleted = await storage.deletePendingReply(req.params.id, req.orgId);
       if (!deleted) {
         return res.status(404).json({ error: "Pending reply not found" });
       }
@@ -1274,12 +1304,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/scan-unanswered-leads", isAuthenticated, async (req, res) => {
+  app.post("/api/scan-unanswered-leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
       // Find all leads from infinimoji@gmail.com that haven't been replied to
-      const allLeads = await storage.getAllLeads();
+      const allLeads = await storage.getAllLeads(req.orgId);
       const testLeads = allLeads.filter(lead => 
         lead.email.toLowerCase().includes('infinimoji@gmail.com')
       );
@@ -1296,7 +1326,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         }
 
         // Check if there's already a pending reply for this lead
-        const pendingReplies = await storage.getAllPendingReplies();
+        const pendingReplies = await storage.getAllPendingReplies(req.orgId);
         const hasPendingReply = pendingReplies.some((pr: any) => pr.leadId === lead.id && pr.status === 'pending');
         
         if (hasPendingReply) {
