@@ -27,6 +27,15 @@ passport.deserializeUser(async (id: string, done) => {
   }
 });
 
+// Helper to get base URL
+const getBaseUrl = () => {
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
+  if (replitDomain) {
+    return `https://${replitDomain}`;
+  }
+  return process.env.BASE_URL || "http://localhost:5000";
+};
+
 // Google OAuth Strategy
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   passport.use(
@@ -34,7 +43,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       {
         clientID: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: "/api/auth/google/callback",
+        callbackURL: `${getBaseUrl()}/api/auth/google/callback`,
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
@@ -89,7 +98,7 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
       {
         clientID: process.env.FACEBOOK_APP_ID,
         clientSecret: process.env.FACEBOOK_APP_SECRET,
-        callbackURL: "/api/auth/facebook/callback",
+        callbackURL: `${getBaseUrl()}/api/auth/facebook/callback`,
         profileFields: ["id", "emails", "name", "picture"],
       },
       async (accessToken, refreshToken, profile, done) => {
@@ -142,7 +151,7 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
       {
         clientID: process.env.MICROSOFT_CLIENT_ID,
         clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
-        callbackURL: "/api/auth/microsoft/callback",
+        callbackURL: `${getBaseUrl()}/api/auth/microsoft/callback`,
         scope: ["user.read"],
       },
       // @ts-ignore - Microsoft strategy types are incomplete
@@ -196,7 +205,7 @@ if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPL
         teamID: process.env.APPLE_TEAM_ID,
         keyID: process.env.APPLE_KEY_ID,
         privateKeyString: process.env.APPLE_PRIVATE_KEY,
-        callbackURL: "/api/auth/apple/callback",
+        callbackURL: `${getBaseUrl()}/api/auth/apple/callback`,
       },
       // @ts-ignore - Apple strategy types are incomplete
       async (accessToken, refreshToken, idToken, profile, done) => {
