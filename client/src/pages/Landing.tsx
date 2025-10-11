@@ -5,7 +5,7 @@ import { Building2, Mail, Calendar, Sparkles, MessageSquare, BarChart3, CheckCir
 
 export default function Landing() {
   const handleSignIn = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
   };
 
   return (

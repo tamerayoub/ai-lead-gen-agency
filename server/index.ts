@@ -1,10 +1,44 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { Pool } from "@neondatabase/serverless";
+import passport from "./passport";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// Validate required environment variables
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be set. Generate a strong secret with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"");
+}
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Session store setup
+const PgSession = connectPgSimple(session);
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+app.use(
+  session({
+    store: new PgSession({
+      pool,
+      tableName: "sessions",
+    }),
+    secret: process.env.SESSION_SECRET!,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    },
+  })
+);
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 app.use((req, res, next) => {
   const start = Date.now();

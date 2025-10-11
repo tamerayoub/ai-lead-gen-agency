@@ -6,26 +6,20 @@ import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, send
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
-// (blueprint:javascript_log_in_with_replit) Import Replit Auth
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import authRouter from "./auth";
+
+// Middleware to check if user is authenticated
+function isAuthenticated(req: any, res: any, next: any) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ message: "Unauthorized" });
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // (blueprint:javascript_log_in_with_replit) Setup authentication
-  await setupAuth(app);
-
   // ===== AUTH ROUTES =====
-  // (blueprint:javascript_log_in_with_replit) Auth user route
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  app.use('/api/auth', authRouter);
 
   // ===== LEAD ROUTES =====
   app.get("/api/leads", isAuthenticated, async (req, res) => {

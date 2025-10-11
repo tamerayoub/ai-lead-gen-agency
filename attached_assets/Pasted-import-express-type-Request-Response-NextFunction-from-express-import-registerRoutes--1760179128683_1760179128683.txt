@@ -1,0 +1,72 @@
+import express, { type Request, Response, NextFunction } from "express";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
+
+const app = express();
+
+// Ensure Express knows the environment early.
+// Default to "production" so hosted environments (Replit/cPanel/etc.) don't spin up Vite dev by mistake.
+app.set("env", process.env.NODE_ENV || "production");
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path = req.path;
+  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+
+  const originalResJson = res.json;
+  // @ts-expect-error extending res.json signature for capture
+  res.json = function (bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        try {
+          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        } catch {
+          // ignore JSON stringify errors
+        }
+      }
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+      log(logLine);
+    }
+  });
+
+  next();
+});
+
+(async () => {
+  const server = await registerRoutes(app);
+
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    throw err;
+  });
+
+  // In development we mount Vite's middleware; in production we serve the built client.
+  // Using NODE_ENV first, then Express env as a fallback.
+  const runtimeEnv = process.env.NODE_ENV || app.get("env");
+  if (runtimeEnv !== "production") {
+    await setupVite(app, server);
+  } else {
+    // serve files from dist/public at runtime
+    serveStatic(app);
+  }
+
+  // Works locally and on Replit (which sets PORT). Defaults to 5000 if not provided.
+  const port = parseInt(process.env.PORT || "5000", 10);
+  server.listen(port, "0.0.0.0", () => {
+    log(`serving on port ${port}`);
+  });
+})();

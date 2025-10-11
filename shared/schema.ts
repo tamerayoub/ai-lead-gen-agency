@@ -16,15 +16,19 @@ export const sessions = pgTable(
 );
 
 // User storage table
-// (blueprint:javascript_log_in_with_replit) Updated to support Replit Auth OAuth
+// Updated to support multiple OAuth providers (Google, Facebook, Microsoft, Apple) and email/password auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: text("email").unique(),
+  email: text("email").unique().notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),
   profileImageUrl: text("profile_image_url"),
   company: text("company"),
   phone: text("phone"),
+  // Auth provider fields
+  provider: text("provider").notNull().default("email"), // 'google', 'facebook', 'microsoft', 'apple', 'email'
+  providerId: text("provider_id"), // OAuth provider's user ID (null for email/password)
+  passwordHash: text("password_hash"), // Only for email/password auth (null for OAuth)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -113,6 +117,20 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+// Schema for email/password registration
+export const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+});
+
+// Schema for email/password login
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
 export const insertPropertySchema = createInsertSchema(properties).omit({

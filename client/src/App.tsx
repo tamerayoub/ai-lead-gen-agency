@@ -11,6 +11,8 @@ import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
 // (blueprint:javascript_log_in_with_replit) Import useAuth hook
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
 import Properties from "@/pages/Properties";
@@ -30,11 +32,13 @@ function Router() {
   // (blueprint:javascript_log_in_with_replit) Conditional routing based on auth status
   const { isAuthenticated, isLoading } = useAuth();
 
-  // Redirect to landing for unauthenticated access to protected routes
+  // Show public routes for unauthenticated users
   if (!isLoading && !isAuthenticated) {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
         <Route component={Landing} /> {/* Catch-all: redirect to landing */}
       </Switch>
     );
