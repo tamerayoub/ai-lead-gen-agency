@@ -16,7 +16,7 @@ The frontend uses React with TypeScript, Wouter for routing, and Vite for buildi
 
 ### Technical Implementations
 
-The backend is built with Express.js and TypeScript, providing a REST API. It utilizes PostgreSQL via Neon serverless driver and Drizzle ORM for type-safe data access. The schema includes tables for users, properties, leads, conversations, AI settings, and integration configurations. Authentication is planned using session-based methods with a PostgreSQL session store.
+The backend is built with Express.js and TypeScript, providing a REST API. It utilizes PostgreSQL via Neon serverless driver and Drizzle ORM for type-safe data access. The schema includes tables for users (with OAuth support), sessions, properties, leads, conversations, AI settings, and integration configurations. Authentication is fully implemented using Replit Auth with session-based methods and PostgreSQL session store.
 
 ### Feature Specifications
 
@@ -55,5 +55,23 @@ A component-based architecture is used for the frontend, with clear separation b
     - **Google Calendar (OAuth 2.0):** For availability management and scheduling, including event sync and user-configurable schedule preferences for AI.
 - **Property Management Systems (PMS):** Supported providers include Buildium, AppFolio, Yardi, and Rent Manager, configured via API keys.
 
-### Session Management (Planned)
-- `connect-pg-simple` for PostgreSQL session storage and Express session middleware.
+### Authentication & Session Management (Implemented)
+
+**Replit Auth Integration:**
+- Full OAuth 2.0 support via Replit Auth: Google, GitHub, X (Twitter), and Apple sign-in
+- Email/password authentication also supported
+- Session-based authentication using PostgreSQL session store (`connect-pg-simple`)
+- 7-day session expiration with automatic token refresh
+
+**Implementation Details:**
+- **Backend:** `server/replitAuth.ts` handles OAuth flow (/api/login, /api/callback, /api/logout)
+- **Middleware:** `isAuthenticated` middleware protects ALL API routes except auth endpoints
+- **Frontend:** `useAuth` hook provides auth state and user data
+- **Protected Routes:** Unauthenticated users see Landing page only; all other routes redirect to landing
+- **Database:** Sessions stored in `sessions` table; users stored in `users` table with OAuth fields (firstName, lastName, profileImageUrl)
+
+**Security:**
+- HttpOnly, Secure cookies for session management
+- All sensitive API endpoints require authentication
+- Expired tokens automatically refreshed via refresh_token
+- Session cleared on logout
