@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema } from "@shared/schema";
+import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
+import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -322,6 +323,249 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       res.status(201).json(config);
     } catch (error) {
       res.status(400).json({ error: "Invalid integration config data" });
+    }
+  });
+
+  // ===== CALENDAR ROUTES =====
+  
+  // Google Calendar OAuth
+  app.get("/api/auth/google-calendar", async (req, res) => {
+    try {
+      const authUrl = getCalendarAuthUrl();
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Error generating Google Calendar auth URL:", error);
+      res.status(500).json({ error: "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/auth/google-calendar/callback", async (req, res) => {
+    try {
+      const { code } = req.query;
+      if (!code || typeof code !== 'string') {
+        return res.status(400).send("Missing authorization code");
+      }
+
+      const tokens = await getCalendarTokensFromCode(code);
+      
+      // Get calendar list to get primary calendar info
+      const calendars = await listCalendars(tokens.access_token!);
+      const primaryCalendar = calendars.find(cal => cal.primary) || calendars[0];
+
+      // Store calendar connection
+      await storage.createCalendarConnection({
+        userId: null, // TODO: Add user session support
+        provider: 'google',
+        email: primaryCalendar?.id || 'unknown',
+        accessToken: tokens.access_token || '',
+        refreshToken: tokens.refresh_token || '',
+        expiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null,
+        calendarId: primaryCalendar?.id || 'primary',
+        calendarName: primaryCalendar?.summary || 'Google Calendar',
+        isActive: true,
+      });
+
+      res.redirect('/#/schedule?connected=google');
+    } catch (error) {
+      console.error("Error in Google Calendar callback:", error);
+      res.status(500).send("Failed to connect Google Calendar");
+    }
+  });
+
+  // Calendar connections
+  app.get("/api/calendar/connections", async (req, res) => {
+    try {
+      const connections = await storage.getCalendarConnections();
+      // Don't expose tokens in response
+      const safeConnections = connections.map(conn => ({
+        id: conn.id,
+        provider: conn.provider,
+        email: conn.email,
+        calendarName: conn.calendarName,
+        isActive: conn.isActive,
+        createdAt: conn.createdAt,
+      }));
+      res.json(safeConnections);
+    } catch (error) {
+      console.error("Error fetching calendar connections:", error);
+      res.status(500).json({ error: "Failed to fetch calendar connections" });
+    }
+  });
+
+  app.delete("/api/calendar/connections/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteCalendarConnection(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting calendar connection:", error);
+      res.status(500).json({ error: "Failed to delete connection" });
+    }
+  });
+
+  // Sync calendar events
+  app.post("/api/calendar/sync/:connectionId", async (req, res) => {
+    try {
+      const connection = await storage.getCalendarConnection(req.params.connectionId);
+      if (!connection) {
+        return res.status(404).json({ error: "Connection not found" });
+      }
+
+      if (connection.provider === 'google') {
+        let accessToken = connection.accessToken!;
+        
+        // Check if token is expired and refresh if needed
+        if (connection.expiresAt && connection.expiresAt < new Date()) {
+          if (connection.refreshToken) {
+            try {
+              const newTokens = await refreshCalendarToken(connection.refreshToken);
+              accessToken = newTokens.access_token!;
+              
+              // Update connection with new tokens
+              await storage.updateCalendarConnection(connection.id, {
+                accessToken: newTokens.access_token || connection.accessToken,
+                expiresAt: newTokens.expiry_date ? new Date(newTokens.expiry_date) : connection.expiresAt,
+              });
+            } catch (refreshError) {
+              console.error("Error refreshing token:", refreshError);
+              return res.status(401).json({ error: "Token expired and refresh failed. Please reconnect your calendar." });
+            }
+          } else {
+            return res.status(401).json({ error: "Token expired. Please reconnect your calendar." });
+          }
+        }
+
+        // Sync next 30 days of events
+        const now = new Date();
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + 30);
+
+        const events = await listCalendarEvents(
+          accessToken,
+          connection.calendarId!,
+          now,
+          futureDate
+        );
+
+        let syncedCount = 0;
+        for (const event of events) {
+          if (!event.id) continue;
+
+          const startTime = event.start?.dateTime || event.start?.date;
+          const endTime = event.end?.dateTime || event.end?.date;
+          
+          if (!startTime || !endTime) continue;
+
+          await storage.upsertCalendarEvent({
+            connectionId: connection.id,
+            externalId: event.id,
+            title: event.summary || 'Untitled Event',
+            description: event.description || null,
+            startTime: new Date(startTime),
+            endTime: new Date(endTime),
+            location: event.location || null,
+            attendees: event.attendees ? event.attendees as any : null,
+            isAllDay: !!event.start?.date,
+            status: event.status || 'confirmed',
+          });
+          syncedCount++;
+        }
+
+        res.json({ success: true, syncedCount });
+      } else {
+        res.status(400).json({ error: "Provider not supported for sync yet" });
+      }
+    } catch (error) {
+      console.error("Error syncing calendar:", error);
+      res.status(500).json({ error: "Failed to sync calendar" });
+    }
+  });
+
+  // Get calendar events (with optional date range)
+  app.get("/api/calendar/events", async (req, res) => {
+    try {
+      const { startTime, endTime } = req.query;
+      
+      const start = startTime ? new Date(startTime as string) : undefined;
+      const end = endTime ? new Date(endTime as string) : undefined;
+
+      const events = await storage.getAllCalendarEvents(start, end);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching calendar events:", error);
+      res.status(500).json({ error: "Failed to fetch events" });
+    }
+  });
+
+  // Schedule preferences
+  app.get("/api/schedule/preferences", async (req, res) => {
+    try {
+      const preferences = await storage.getSchedulePreferences();
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching schedule preferences:", error);
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  app.post("/api/schedule/preferences", async (req, res) => {
+    try {
+      const validatedData = insertSchedulePreferenceSchema.parse(req.body);
+      const preference = await storage.createSchedulePreference(validatedData);
+      res.status(201).json(preference);
+    } catch (error) {
+      console.error("Error creating schedule preference:", error);
+      res.status(400).json({ error: "Invalid preference data" });
+    }
+  });
+
+  app.delete("/api/schedule/preferences/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteSchedulePreference(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Preference not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting schedule preference:", error);
+      res.status(500).json({ error: "Failed to delete preference" });
+    }
+  });
+
+  // Get availability (free/busy times)
+  app.get("/api/calendar/availability", async (req, res) => {
+    try {
+      const { date } = req.query;
+      if (!date || typeof date !== 'string') {
+        return res.status(400).json({ error: "Date parameter required" });
+      }
+
+      const targetDate = new Date(date);
+      const dayStart = new Date(targetDate.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(targetDate.setHours(23, 59, 59, 999));
+
+      // Get all events for the day
+      const events = await storage.getAllCalendarEvents(dayStart, dayEnd);
+
+      // Get schedule preferences for this day
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayOfWeek = dayNames[targetDate.getDay()];
+      const preferences = await storage.getSchedulePreferences();
+      const dayPreference = preferences.find(p => p.dayOfWeek.toLowerCase() === dayOfWeek);
+
+      res.json({
+        date,
+        events,
+        preferredTimes: dayPreference ? {
+          startTime: dayPreference.startTime,
+          endTime: dayPreference.endTime,
+        } : null,
+      });
+    } catch (error) {
+      console.error("Error fetching availability:", error);
+      res.status(500).json({ error: "Failed to fetch availability" });
     }
   });
 
