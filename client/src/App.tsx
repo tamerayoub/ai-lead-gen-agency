@@ -30,22 +30,27 @@ function Router() {
   // (blueprint:javascript_log_in_with_replit) Conditional routing based on auth status
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Redirect to landing for unauthenticated access to protected routes
+  if (!isLoading && !isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route component={Landing} /> {/* Catch-all: redirect to landing */}
+      </Switch>
+    );
+  }
+
+  // Show authenticated routes
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/leads" component={Leads} />
-          <Route path="/properties" component={Properties} />
-          <Route path="/analytics" component={Analytics} />
-          <Route path="/ai-training" component={AITraining} />
-          <Route path="/ai-activity" component={AIActivityCenter} />
-          <Route path="/schedule" component={Schedule} />
-          <Route path="/settings" component={Settings} />
-        </>
-      )}
+      <Route path="/" component={Dashboard} />
+      <Route path="/leads" component={Leads} />
+      <Route path="/properties" component={Properties} />
+      <Route path="/analytics" component={Analytics} />
+      <Route path="/ai-training" component={AITraining} />
+      <Route path="/ai-activity" component={AIActivityCenter} />
+      <Route path="/schedule" component={Schedule} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

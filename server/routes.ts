@@ -41,12 +41,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync progress route must come before :id route to avoid matching "sync-progress" as an id
-  app.get("/api/leads/sync-progress", async (req, res) => {
+  app.get("/api/leads/sync-progress", isAuthenticated, async (req, res) => {
     const { syncProgressTracker } = await import("./syncProgress");
     res.json(syncProgressTracker.getProgress());
   });
 
-  app.get("/api/leads/:id", async (req, res) => {
+  app.get("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const lead = await storage.getLead(req.params.id);
       if (!lead) {
@@ -62,7 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/leads", async (req, res) => {
+  app.post("/api/leads", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertLeadSchema.parse(req.body);
       const lead = await storage.createLead(validatedData);
@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/leads/:id", async (req, res) => {
+  app.patch("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const partialSchema = insertLeadSchema.partial();
       const validatedData = partialSchema.parse(req.body);
@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/leads/:id", async (req, res) => {
+  app.delete("/api/leads/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteLead(req.params.id);
       if (!deleted) {
@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== PROPERTY ROUTES =====
-  app.get("/api/properties", async (req, res) => {
+  app.get("/api/properties", isAuthenticated, async (req, res) => {
     try {
       const properties = await storage.getAllProperties();
       
@@ -138,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/properties/:id", async (req, res) => {
+  app.get("/api/properties/:id", isAuthenticated, async (req, res) => {
     try {
       const property = await storage.getProperty(req.params.id);
       if (!property) {
@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/properties", async (req, res) => {
+  app.post("/api/properties", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPropertySchema.parse(req.body);
       const property = await storage.createProperty(validatedData);
@@ -160,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/properties/:id", async (req, res) => {
+  app.patch("/api/properties/:id", isAuthenticated, async (req, res) => {
     try {
       const partialSchema = insertPropertySchema.partial();
       const validatedData = partialSchema.parse(req.body);
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/properties/:id", async (req, res) => {
+  app.delete("/api/properties/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deleteProperty(req.params.id);
       if (!deleted) {
@@ -187,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== CONVERSATION ROUTES =====
-  app.get("/api/conversations/:leadId", async (req, res) => {
+  app.get("/api/conversations/:leadId", isAuthenticated, async (req, res) => {
     try {
       const conversations = await storage.getConversationsByLeadId(req.params.leadId);
       res.json(conversations);
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/conversations", async (req, res) => {
+  app.post("/api/conversations", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertConversationSchema.parse(req.body);
       const conversation = await storage.createConversation(validatedData);
@@ -211,7 +211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate AI reply for a specific lead
-  app.post("/api/leads/:leadId/ai-reply", async (req, res) => {
+  app.post("/api/leads/:leadId/ai-reply", isAuthenticated, async (req, res) => {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const leadId = req.params.leadId;
@@ -292,7 +292,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== NOTE ROUTES =====
-  app.get("/api/notes/:leadId", async (req, res) => {
+  app.get("/api/notes/:leadId", isAuthenticated, async (req, res) => {
     try {
       const notes = await storage.getNotesByLeadId(req.params.leadId);
       res.json(notes);
@@ -301,7 +301,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/notes", async (req, res) => {
+  app.post("/api/notes", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertNoteSchema.parse(req.body);
       const note = await storage.createNote(validatedData);
@@ -312,7 +312,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== AI SETTINGS ROUTES =====
-  app.get("/api/ai-settings/:category", async (req, res) => {
+  app.get("/api/ai-settings/:category", isAuthenticated, async (req, res) => {
     try {
       const settings = await storage.getAISettings(req.params.category);
       res.json(settings);
@@ -321,7 +321,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/ai-settings", async (req, res) => {
+  app.post("/api/ai-settings", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertAISettingSchema.parse(req.body);
       const setting = await storage.upsertAISetting(validatedData);
@@ -332,7 +332,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== INTEGRATION CONFIG ROUTES =====
-  app.get("/api/integrations/:service", async (req, res) => {
+  app.get("/api/integrations/:service", isAuthenticated, async (req, res) => {
     try {
       const config = await storage.getIntegrationConfig(req.params.service);
       res.json(config || null);
@@ -341,7 +341,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/integrations", async (req, res) => {
+  app.post("/api/integrations", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertIntegrationConfigSchema.parse(req.body);
       const config = await storage.upsertIntegrationConfig(validatedData);
@@ -354,7 +354,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   // ===== CALENDAR ROUTES =====
   
   // Google Calendar OAuth
-  app.get("/api/auth/google-calendar", async (req, res) => {
+  app.get("/api/auth/google-calendar", isAuthenticated, async (req, res) => {
     try {
       const authUrl = getCalendarAuthUrl();
       res.json({ authUrl });
@@ -364,7 +364,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/auth/google-calendar/callback", async (req, res) => {
+  app.get("/api/auth/google-calendar/callback", isAuthenticated, async (req, res) => {
     try {
       const { code } = req.query;
       if (!code || typeof code !== 'string') {
@@ -398,7 +398,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Calendar connections
-  app.get("/api/calendar/connections", async (req, res) => {
+  app.get("/api/calendar/connections", isAuthenticated, async (req, res) => {
     try {
       const connections = await storage.getCalendarConnections();
       // Don't expose tokens in response
@@ -417,7 +417,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.delete("/api/calendar/connections/:id", async (req, res) => {
+  app.delete("/api/calendar/connections/:id", isAuthenticated, async (req, res) => {
     try {
       const success = await storage.deleteCalendarConnection(req.params.id);
       if (!success) {
@@ -431,7 +431,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Sync calendar events
-  app.post("/api/calendar/sync/:connectionId", async (req, res) => {
+  app.post("/api/calendar/sync/:connectionId", isAuthenticated, async (req, res) => {
     try {
       const connection = await storage.getCalendarConnection(req.params.connectionId);
       if (!connection) {
@@ -509,7 +509,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Get calendar events (with optional date range)
-  app.get("/api/calendar/events", async (req, res) => {
+  app.get("/api/calendar/events", isAuthenticated, async (req, res) => {
     try {
       const { startTime, endTime } = req.query;
       
@@ -525,7 +525,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Schedule preferences
-  app.get("/api/schedule/preferences", async (req, res) => {
+  app.get("/api/schedule/preferences", isAuthenticated, async (req, res) => {
     try {
       const preferences = await storage.getSchedulePreferences();
       res.json(preferences);
@@ -535,7 +535,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/schedule/preferences", async (req, res) => {
+  app.post("/api/schedule/preferences", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertSchedulePreferenceSchema.parse(req.body);
       const preference = await storage.createSchedulePreference(validatedData);
@@ -546,7 +546,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.delete("/api/schedule/preferences/:id", async (req, res) => {
+  app.delete("/api/schedule/preferences/:id", isAuthenticated, async (req, res) => {
     try {
       const success = await storage.deleteSchedulePreference(req.params.id);
       if (!success) {
@@ -560,7 +560,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Get availability (free/busy times)
-  app.get("/api/calendar/availability", async (req, res) => {
+  app.get("/api/calendar/availability", isAuthenticated, async (req, res) => {
     try {
       const { date } = req.query;
       if (!date || typeof date !== 'string') {
@@ -595,7 +595,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== ANALYTICS ROUTES =====
-  app.get("/api/analytics/stats", async (req, res) => {
+  app.get("/api/analytics/stats", isAuthenticated, async (req, res) => {
     try {
       const stats = await storage.getLeadStats();
       
@@ -624,7 +624,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/analytics/trends", async (req, res) => {
+  app.get("/api/analytics/trends", isAuthenticated, async (req, res) => {
     try {
       // Mock trend data for now
       const trends = [
@@ -642,7 +642,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== AI ACTIVITY FEED =====
-  app.get("/api/ai-activity", async (req, res) => {
+  app.get("/api/ai-activity", isAuthenticated, async (req, res) => {
     try {
       const conversations = await storage.getAllLeads();
       
@@ -672,7 +672,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== GMAIL OAUTH ROUTES =====
-  app.get("/api/auth/google", async (req, res) => {
+  app.get("/api/auth/google", isAuthenticated, async (req, res) => {
     try {
       // In production, you'd get the actual user ID from session
       // For now, using a placeholder
@@ -684,7 +684,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/auth/google/callback", async (req, res) => {
+  app.get("/api/auth/google/callback", isAuthenticated, async (req, res) => {
     try {
       const { code, state: userId } = req.query;
       
@@ -717,7 +717,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== GMAIL LEAD SYNC =====
-  app.post("/api/leads/sync-from-gmail", async (req, res) => {
+  app.post("/api/leads/sync-from-gmail", isAuthenticated, async (req, res) => {
     const { syncProgressTracker } = await import("./syncProgress");
     
     try {
@@ -1201,7 +1201,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== PENDING REPLIES ROUTES =====
-  app.get("/api/pending-replies", async (req, res) => {
+  app.get("/api/pending-replies", isAuthenticated, async (req, res) => {
     try {
       const pendingReplies = await storage.getAllPendingReplies();
       res.json(pendingReplies);
@@ -1210,7 +1210,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/pending-replies", async (req, res) => {
+  app.post("/api/pending-replies", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPendingReplySchema.parse(req.body);
       const reply = await storage.createPendingReply(validatedData);
@@ -1220,7 +1220,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.patch("/api/pending-replies/:id/approve", async (req, res) => {
+  app.patch("/api/pending-replies/:id/approve", isAuthenticated, async (req, res) => {
     try {
       const reply = await storage.getPendingReply(req.params.id);
       if (!reply) {
@@ -1268,7 +1268,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.delete("/api/pending-replies/:id", async (req, res) => {
+  app.delete("/api/pending-replies/:id", isAuthenticated, async (req, res) => {
     try {
       const deleted = await storage.deletePendingReply(req.params.id);
       if (!deleted) {
@@ -1280,7 +1280,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.post("/api/scan-unanswered-leads", async (req, res) => {
+  app.post("/api/scan-unanswered-leads", isAuthenticated, async (req, res) => {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
