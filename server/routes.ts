@@ -190,6 +190,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate AI reply for a specific lead
+  app.post("/api/leads/:leadId/ai-reply", async (req, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const leadId = req.params.leadId;
+      
+      // Get lead details
+      const lead = await storage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Get conversations for this lead
+      const conversations = await storage.getConversationsByLeadId(leadId);
+      
+      // Find the most recent incoming message
+      const incomingMessage = conversations
+        .filter((c: any) => c.type === 'incoming' || c.type === 'received')
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
+      if (!incomingMessage) {
+        return res.status(400).json({ error: "No incoming message to reply to" });
+      }
+
+      // Generate AI reply based on the lead's inquiry
+      const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
+      
+Lead Information:
+- Name: ${lead.name}
+- Property Interested In: ${lead.propertyName || 'our property'}
+- Move-in Date: ${lead.moveInDate || 'Not specified'}
+- Their Message: ${incomingMessage.message}
+
+Write a friendly, professional email response that:
+1. Thanks them for their interest
+2. Confirms receipt of their inquiry
+3. Briefly addresses their specific questions or needs
+4. Mentions next steps (viewing, application, etc.)
+5. Signs off warmly
+
+Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
+
+      const replyCompletion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: replyPrompt }],
+        temperature: 0.7,
+      });
+
+      const aiReplyContent = replyCompletion.choices[0].message.content || "";
+
+      // Create pending reply for review
+      const pendingReply = await storage.createPendingReply({
+        leadId: lead.id,
+        replyContent: aiReplyContent,
+        originalMessageId: incomingMessage.externalId || incomingMessage.id,
+        status: 'pending',
+      });
+
+      res.status(201).json({ 
+        message: "AI reply generated successfully",
+        pendingReply 
+      });
+    } catch (error) {
+      console.error("Error generating AI reply:", error);
+      res.status(500).json({ error: "Failed to generate AI reply" });
+    }
+  });
+
   // ===== NOTE ROUTES =====
   app.get("/api/notes/:leadId", async (req, res) => {
     try {

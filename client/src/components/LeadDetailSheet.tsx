@@ -139,6 +139,66 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     resetToServerData();
   };
 
+  const sendMessageMutation = useMutation({
+    mutationFn: async (message: string) => {
+      return apiRequest("/api/conversations", {
+        method: "POST",
+        body: JSON.stringify({
+          leadId: lead?.id,
+          type: "outgoing",
+          channel: "email", // Default to email, could be made dynamic
+          message,
+          aiGenerated: false,
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Message sent",
+        description: "Your message has been sent successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const aiReplyMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest(`/api/leads/${lead?.id}/ai-reply`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pending-replies"] });
+      toast({
+        title: "AI reply generated",
+        description: "AI reply has been generated and saved for review",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to generate AI reply",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSendMessage = async (message: string) => {
+    await sendMessageMutation.mutateAsync(message);
+  };
+
+  const handleAIReply = () => {
+    aiReplyMutation.mutate();
+  };
+
   if (!lead) return null;
 
   const initials = lead.name
@@ -315,7 +375,12 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               <TabsTrigger value="notes" className="flex-1" data-testid="tab-notes">Notes</TabsTrigger>
             </TabsList>
             <TabsContent value="conversation" className="space-y-4 mt-4">
-              <ConversationTimeline messages={lead.conversations} />
+              <ConversationTimeline 
+                messages={lead.conversations} 
+                leadName={lead.name}
+                onSendMessage={handleSendMessage}
+                onAIReply={handleAIReply}
+              />
             </TabsContent>
             <TabsContent value="notes" className="space-y-3 mt-4">
               {lead.notes.map((note) => (
