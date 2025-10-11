@@ -6,8 +6,11 @@ import { Search, Plus, Filter } from "lucide-react";
 import { LeadCard } from "@/components/LeadCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { LeadStatus } from "@/components/LeadCard";
 
 const statusColors: Record<string, string> = {
   new: "bg-status-new text-white",
@@ -28,11 +31,39 @@ const statusTitles: Record<string, string> = {
 export default function Leads() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const { toast } = useToast();
   const { data: leads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
   const { data: selectedLeadData } = useQuery({
     queryKey: ["/api/leads", selectedLeadId],
     enabled: !!selectedLeadId,
   });
+
+  // Mutation to update lead status
+  const updateLeadStatusMutation = useMutation({
+    mutationFn: async ({ leadId, status }: { leadId: string; status: LeadStatus }) => {
+      const res = await apiRequest("PATCH", `/api/leads/${leadId}`, { status });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Lead updated",
+        description: "Lead status has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update lead status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle lead status change from drag and drop
+  const handleLeadStatusChange = (leadId: string, newStatus: LeadStatus) => {
+    updateLeadStatusMutation.mutate({ leadId, status: newStatus });
+  };
 
   // Filter leads based on search query
   const filteredLeads = leads.filter((lead) => {
@@ -104,7 +135,7 @@ export default function Leads() {
           <TabsTrigger value="list" data-testid="tab-list">List View</TabsTrigger>
         </TabsList>
         <TabsContent value="pipeline" className="mt-6">
-          <LeadPipeline stages={pipelineStages} />
+          <LeadPipeline stages={pipelineStages} onLeadStatusChange={handleLeadStatusChange} />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
