@@ -33,7 +33,7 @@ interface LeadDetails {
   qualificationScore?: number;
   conversations: Array<{
     id: string;
-    type: "ai" | "user" | "system";
+    type: "received" | "incoming" | "outgoing" | "sent" | "ai" | "user" | "system";
     channel: "email" | "sms" | "phone" | "system";
     message: string;
     timestamp: string;
@@ -141,15 +141,12 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
-      return apiRequest("/api/conversations", {
-        method: "POST",
-        body: JSON.stringify({
-          leadId: lead?.id,
-          type: "outgoing",
-          channel: "email", // Default to email, could be made dynamic
-          message,
-          aiGenerated: false,
-        }),
+      return apiRequest("POST", "/api/conversations", {
+        leadId: lead?.id,
+        type: "outgoing",
+        channel: "email", // Default to email, could be made dynamic
+        message,
+        aiGenerated: false,
       });
     },
     onSuccess: () => {
@@ -170,9 +167,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   const aiReplyMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest(`/api/leads/${lead?.id}/ai-reply`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/leads/${lead?.id}/ai-reply`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });

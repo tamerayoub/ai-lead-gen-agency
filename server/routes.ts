@@ -243,9 +243,16 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       // Create pending reply for review
       const pendingReply = await storage.createPendingReply({
         leadId: lead.id,
-        replyContent: aiReplyContent,
-        originalMessageId: incomingMessage.externalId || incomingMessage.id,
+        leadName: lead.name,
+        leadEmail: lead.email,
+        subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+        content: aiReplyContent,
+        originalMessage: incomingMessage.message,
+        channel: incomingMessage.channel || 'email',
         status: 'pending',
+        threadId: (incomingMessage as any).threadId,
+        inReplyTo: incomingMessage.externalId,
+        references: incomingMessage.externalId,
       });
 
       res.status(201).json({ 

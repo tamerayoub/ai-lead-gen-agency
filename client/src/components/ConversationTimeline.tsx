@@ -9,7 +9,7 @@ import { useState } from "react";
 
 interface ConversationMessage {
   id: string;
-  type: "received" | "outgoing" | "sent" | "ai" | "user" | "system";
+  type: "received" | "incoming" | "outgoing" | "sent" | "ai" | "user" | "system";
   channel: "email" | "sms" | "phone" | "system";
   message: string;
   timestamp: string;
@@ -34,8 +34,8 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // Determine if message is from lead (received) or from us (outgoing/sent)
-  const isFromLead = (type: string) => type === "received";
+  // Determine if message is from lead (received/incoming/user) or from us (outgoing/sent/ai)
+  const isFromLead = (type: string) => type === "received" || type === "incoming" || type === "user";
   const isFromUs = (type: string) => type === "outgoing" || type === "sent" || type === "ai";
 
   const handleSend = async () => {
