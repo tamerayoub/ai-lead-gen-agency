@@ -37,6 +37,8 @@ export const users = pgTable("users", {
   provider: text("provider").notNull().default("email"), // 'google', 'facebook', 'microsoft', 'apple', 'email'
   providerId: text("provider_id"), // OAuth provider's user ID (null for email/password)
   passwordHash: text("password_hash"), // Only for email/password auth (null for OAuth)
+  // Multi-tenant: Current active organization
+  currentOrgId: varchar("current_org_id").references(() => organizations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

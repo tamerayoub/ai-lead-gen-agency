@@ -23,7 +23,20 @@ async function attachOrgContext(req: any, res: any, next: any) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    const membership = await storage.getUserOrganization(req.user.id);
+    // Get user to check their preferred organization
+    const user = await storage.getUser(req.user.id);
+    let membership;
+    
+    // Use user's preferred org if set
+    if (user?.currentOrgId) {
+      membership = await storage.getMembership(req.user.id, user.currentOrgId);
+    }
+    
+    // Fallback to first membership if no preference or membership not found
+    if (!membership) {
+      membership = await storage.getUserOrganization(req.user.id);
+    }
+    
     if (!membership) {
       return res.status(403).json({ message: "User not assigned to any organization" });
     }
@@ -54,16 +67,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current organization (from session or first membership)
+  // Get current organization (from user preference or first membership)
   app.get("/api/organizations/current", isAuthenticated, async (req: any, res) => {
     try {
-      console.log("[Orgs] Session currentOrgId:", req.session.currentOrgId);
+      const user = await storage.getUser(req.user.id);
       
-      // Check if there's a current org in the session
-      if (req.session.currentOrgId) {
-        const membership = await storage.getMembership(req.user.id, req.session.currentOrgId);
+      // Check if user has a preferred org
+      if (user?.currentOrgId) {
+        const membership = await storage.getMembership(req.user.id, user.currentOrgId);
         if (membership) {
-          console.log("[Orgs] Found membership from session:", membership);
           return res.json(membership);
         }
       }
@@ -74,9 +86,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No organization found" });
       }
       
-      console.log("[Orgs] Using default membership:", membership);
-      // Store in session for future requests
-      req.session.currentOrgId = membership.orgId;
+      // Update user's preference to this org
+      await storage.updateUser(req.user.id, { currentOrgId: membership.orgId });
       res.json(membership);
     } catch (error) {
       console.error("[Orgs] Failed to fetch current org:", error);
@@ -114,19 +125,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "You are not a member of this organization" });
       }
 
-      // Store the active org in the session
-      req.session.currentOrgId = orgId;
-      console.log("[Orgs] Switching to org:", orgId, "Session ID:", req.sessionID);
+      // Update user's current organization preference in database
+      await storage.updateUser(req.user.id, { currentOrgId: orgId });
       
-      // Save session and return membership
-      req.session.save((err: any) => {
-        if (err) {
-          console.error("[Orgs] Failed to save session:", err);
-          return res.status(500).json({ error: "Failed to save session" });
-        }
-        console.log("[Orgs] Session saved successfully");
-        res.json(membership);
-      });
+      res.json(membership);
     } catch (error) {
       console.error("[Orgs] Failed to switch organization:", error);
       res.status(500).json({ error: "Failed to switch organization" });

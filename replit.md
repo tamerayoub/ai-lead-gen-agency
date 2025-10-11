@@ -8,6 +8,20 @@ LeadGenAI is an AI-powered CRM system for property management companies. Its cor
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### October 11, 2025 - Organization Switching Persistence Fixed
+**Problem:** Organization switching used session storage which didn't persist reliably across requests.
+
+**Solution:** Migrated to database-based organization storage:
+- Added `currentOrgId` field to users table
+- Updated `/api/organizations/current` endpoint to read from database
+- Updated `/api/organizations/switch` endpoint to update database
+- Updated `attachOrgContext` middleware to use database field
+- Implemented robust fallback to first membership if preference is unset
+
+**Result:** Organization selection now persists correctly across page refreshes and navigation. Verified with end-to-end testing.
+
 ## System Architecture
 
 ### UI/UX Decisions
@@ -29,6 +43,8 @@ The backend is built with Express.js and TypeScript, providing a REST API. It ut
 ### System Design Choices
 
 A component-based architecture is used for the frontend, with clear separation between UI primitives, feature-specific components, and page-level components. Backend API design is RESTful, organized by resource, with Zod for request validation and consistent error handling. Data storage follows a schema-first approach with an abstract `IStorage` interface. Lead deduplication is implemented at the thread level for email and also by normalized email and phone to ensure all communications for a person are linked to a single lead.
+
+**Multi-Tenant Organization Management:** User's currently active organization is stored in the `users.currentOrgId` database field (not session storage) for reliable persistence across requests. When switching organizations, the database is updated via `POST /api/organizations/switch`. The `GET /api/organizations/current` endpoint retrieves the current organization from the user's database record, falling back to the first membership if none is set.
 
 ## External Dependencies
 
