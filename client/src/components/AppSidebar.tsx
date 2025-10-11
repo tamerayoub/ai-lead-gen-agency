@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3, Activity, Calendar, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3, Activity, Calendar, LogOut, ChevronDown, Plus, Check } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,29 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -30,6 +53,76 @@ const menuItems = [
 export function AppSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [newOrgName, setNewOrgName] = useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  // Fetch current organization
+  const { data: currentOrg } = useQuery<{ orgId: string; role: string }>({
+    queryKey: ["/api/organizations/current"],
+    enabled: !!user,
+  });
+
+  // Fetch all organizations
+  const { data: organizations = [] } = useQuery<Array<{ orgId: string; orgName: string; role: string }>>({
+    queryKey: ["/api/organizations"],
+    enabled: !!user,
+  });
+
+  // Create organization mutation
+  const createOrgMutation = useMutation({
+    mutationFn: async (name: string) => {
+      return await apiRequest<{ id: string; name: string }>("/api/organizations", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/current"] });
+      setNewOrgName("");
+      setIsCreateDialogOpen(false);
+      toast({
+        title: "Organization created",
+        description: `${data.name} has been created successfully.`,
+      });
+      // Reload the page to refresh all data with new org context
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create organization",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Switch organization mutation
+  const switchOrgMutation = useMutation({
+    mutationFn: async (orgId: string) => {
+      return await apiRequest<{ orgId: string; role: string }>("/api/organizations/switch", {
+        method: "POST",
+        body: JSON.stringify({ orgId }),
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/organizations/current"] });
+      toast({
+        title: "Organization switched",
+        description: "Successfully switched to selected organization.",
+      });
+      // Reload the page to refresh all data with new org context
+      window.location.reload();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to switch organization",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleLogout = async () => {
     try {
@@ -40,6 +133,12 @@ export function AppSidebar() {
       console.error("Logout error:", error);
       // Still redirect to login even if the API call fails
       window.location.href = "/login";
+    }
+  };
+
+  const handleCreateOrg = () => {
+    if (newOrgName.trim()) {
+      createOrgMutation.mutate(newOrgName.trim());
     }
   };
 
@@ -96,6 +195,102 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4 border-t">
+        {/* Organization Switcher */}
+        <div className="mb-3">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-between gap-2"
+                data-testid="button-org-switcher"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  <span className="truncate">
+                    {organizations.find(org => org.orgId === currentOrg?.orgId)?.orgName || "Select Organization"}
+                  </span>
+                </div>
+                <ChevronDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {organizations.map((org) => (
+                <DropdownMenuItem
+                  key={org.orgId}
+                  onClick={() => {
+                    if (org.orgId !== currentOrg?.orgId) {
+                      switchOrgMutation.mutate(org.orgId);
+                    }
+                  }}
+                  data-testid={`menu-item-org-${org.orgId}`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span>{org.orgName}</span>
+                    {org.orgId === currentOrg?.orgId && (
+                      <Check className="h-4 w-4" />
+                    )}
+                  </div>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <DropdownMenuItem 
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setIsCreateDialogOpen(true);
+                    }}
+                    data-testid="menu-item-create-org"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Organization
+                  </DropdownMenuItem>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Organization</DialogTitle>
+                    <DialogDescription>
+                      Create a new organization to manage your properties and leads separately.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="org-name">Organization Name</Label>
+                      <Input
+                        id="org-name"
+                        placeholder="My Property Business"
+                        value={newOrgName}
+                        onChange={(e) => setNewOrgName(e.target.value)}
+                        data-testid="input-org-name"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                      data-testid="button-cancel-create-org"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleCreateOrg}
+                      disabled={!newOrgName.trim() || createOrgMutation.isPending}
+                      data-testid="button-confirm-create-org"
+                    >
+                      {createOrgMutation.isPending ? "Creating..." : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* User Info */}
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.profileImageUrl || undefined} />
@@ -106,6 +301,8 @@ export function AppSidebar() {
             <p className="text-xs text-muted-foreground truncate" data-testid="text-user-email">{user?.email}</p>
           </div>
         </div>
+
+        {/* Logout Button */}
         <Button 
           variant="outline" 
           size="sm" 

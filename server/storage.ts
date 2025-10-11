@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
-  calendarConnections, calendarEvents, schedulePreferences, memberships,
+  calendarConnections, calendarEvents, schedulePreferences, memberships, organizations,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -26,6 +26,8 @@ export interface IStorage {
 
   // Organization & Membership operations
   getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined>;
+  getUserOrganizations(userId: string): Promise<Array<{ orgId: string; orgName: string; role: string }>>;
+  getMembership(userId: string, orgId: string): Promise<{ orgId: string; role: string } | undefined>;
 
   // Property operations
   getAllProperties(orgId: string): Promise<Property[]>;
@@ -139,6 +141,28 @@ export class DatabaseStorage implements IStorage {
       orgId: memberships.orgId,
       role: memberships.role,
     }).from(memberships).where(eq(memberships.userId, userId)).limit(1);
+    return result[0];
+  }
+
+  async getUserOrganizations(userId: string): Promise<Array<{ orgId: string; orgName: string; role: string }>> {
+    const result = await db.select({
+      orgId: memberships.orgId,
+      orgName: organizations.name,
+      role: memberships.role,
+    })
+    .from(memberships)
+    .innerJoin(organizations, eq(memberships.orgId, organizations.id))
+    .where(eq(memberships.userId, userId));
+    return result;
+  }
+
+  async getMembership(userId: string, orgId: string): Promise<{ orgId: string; role: string } | undefined> {
+    const result = await db.select({
+      orgId: memberships.orgId,
+      role: memberships.role,
+    }).from(memberships)
+    .where(and(eq(memberships.userId, userId), eq(memberships.orgId, orgId)))
+    .limit(1);
     return result[0];
   }
 

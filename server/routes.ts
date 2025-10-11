@@ -42,6 +42,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== AUTH ROUTES =====
   app.use('/api/auth', authRouter);
 
+  // ===== ORGANIZATION ROUTES =====
+  // Get all organizations the user is a member of
+  app.get("/api/organizations", isAuthenticated, async (req: any, res) => {
+    try {
+      const orgs = await storage.getUserOrganizations(req.user.id);
+      res.json(orgs);
+    } catch (error) {
+      console.error("[Orgs] Failed to fetch organizations:", error);
+      res.status(500).json({ error: "Failed to fetch organizations" });
+    }
+  });
+
+  // Get current organization (from session or first membership)
+  app.get("/api/organizations/current", isAuthenticated, async (req: any, res) => {
+    try {
+      const membership = await storage.getUserOrganization(req.user.id);
+      if (!membership) {
+        return res.status(404).json({ error: "No organization found" });
+      }
+      res.json(membership);
+    } catch (error) {
+      console.error("[Orgs] Failed to fetch current org:", error);
+      res.status(500).json({ error: "Failed to fetch current organization" });
+    }
+  });
+
+  // Create a new organization
+  app.post("/api/organizations", isAuthenticated, async (req: any, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== 'string') {
+        return res.status(400).json({ error: "Organization name is required" });
+      }
+
+      const org = await storage.createOrganization(name, req.user.id);
+      res.json(org);
+    } catch (error) {
+      console.error("[Orgs] Failed to create organization:", error);
+      res.status(500).json({ error: "Failed to create organization" });
+    }
+  });
+
+  // Switch to a different organization (update user's active org)
+  app.post("/api/organizations/switch", isAuthenticated, async (req: any, res) => {
+    try {
+      const { orgId } = req.body;
+      if (!orgId) {
+        return res.status(400).json({ error: "Organization ID is required" });
+      }
+
+      // Verify user is a member of this org
+      const membership = await storage.getMembership(req.user.id, orgId);
+      if (!membership) {
+        return res.status(403).json({ error: "You are not a member of this organization" });
+      }
+
+      // In a full implementation, we'd store the active org in the session or user preferences
+      // For now, just return the membership
+      res.json(membership);
+    } catch (error) {
+      console.error("[Orgs] Failed to switch organization:", error);
+      res.status(500).json({ error: "Failed to switch organization" });
+    }
+  });
+
   // ===== LEAD ROUTES =====
   app.get("/api/leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
@@ -687,14 +752,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== GMAIL OAUTH ROUTES =====
-  app.get("/api/auth/google", isAuthenticated, async (req, res) => {
+  app.get("/api/auth/google", isAuthenticated, async (req: any, res) => {
     try {
-      // In production, you'd get the actual user ID from session
-      // For now, using a placeholder
-      const userId = req.query.userId as string || "default-user";
+      // Use the authenticated user's ID for Gmail OAuth
+      const userId = req.user.id;
       const authUrl = getGmailAuthUrl(userId);
       res.json({ url: authUrl });
     } catch (error) {
+      console.error("[Gmail OAuth] Failed to generate auth URL:", error);
       res.status(500).json({ error: "Failed to generate auth URL" });
     }
   });
