@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
   calendarConnections, calendarEvents, schedulePreferences,
-  type User, type InsertUser,
+  type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
   type Conversation, type InsertConversation,
@@ -18,8 +18,9 @@ import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
+  // (blueprint:javascript_log_in_with_replit) Mandatory for Replit Auth
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
 
@@ -98,13 +99,24 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // User operations
+  // (blueprint:javascript_log_in_with_replit) Mandatory for Replit Auth
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const result = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return result[0];
   }
 

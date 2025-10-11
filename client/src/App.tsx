@@ -8,6 +8,9 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
+// (blueprint:javascript_log_in_with_replit) Import useAuth hook
+import { useAuth } from "@/hooks/useAuth";
+import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
 import Properties from "@/pages/Properties";
@@ -24,16 +27,25 @@ function BackgroundSyncWrapper() {
 }
 
 function Router() {
+  // (blueprint:javascript_log_in_with_replit) Conditional routing based on auth status
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/leads" component={Leads} />
-      <Route path="/properties" component={Properties} />
-      <Route path="/analytics" component={Analytics} />
-      <Route path="/ai-training" component={AITraining} />
-      <Route path="/ai-activity" component={AIActivityCenter} />
-      <Route path="/schedule" component={Schedule} />
-      <Route path="/settings" component={Settings} />
+      {isLoading || !isAuthenticated ? (
+        <Route path="/" component={Landing} />
+      ) : (
+        <>
+          <Route path="/" component={Dashboard} />
+          <Route path="/leads" component={Leads} />
+          <Route path="/properties" component={Properties} />
+          <Route path="/analytics" component={Analytics} />
+          <Route path="/ai-training" component={AITraining} />
+          <Route path="/ai-activity" component={AIActivityCenter} />
+          <Route path="/schedule" component={Schedule} />
+          <Route path="/settings" component={Settings} />
+        </>
+      )}
       <Route component={NotFound} />
     </Switch>
   );
@@ -50,24 +62,38 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <BackgroundSyncWrapper />
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <header className="flex items-center justify-between p-4 border-b">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <ThemeToggle />
-                </header>
-                <main className="flex-1 overflow-y-auto p-6">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AuthenticatedLayout style={style} />
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function AuthenticatedLayout({ style }: { style: Record<string, string> }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show Landing page without sidebar for unauthenticated users
+  if (isLoading || !isAuthenticated) {
+    return <Router />;
+  }
+
+  // Show full app with sidebar for authenticated users
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="flex items-center justify-between p-4 border-b">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <ThemeToggle />
+          </header>
+          <main className="flex-1 overflow-y-auto p-6">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
 
