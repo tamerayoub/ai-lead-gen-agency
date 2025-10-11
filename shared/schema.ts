@@ -136,6 +136,66 @@ export const insertPendingReplySchema = createInsertSchema(pendingReplies).omit(
   approvedAt: true,
 });
 
+export const calendarConnections = pgTable("calendar_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  provider: text("provider").notNull(), // 'google', 'outlook', 'icloud'
+  email: text("email").notNull(),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  expiresAt: timestamp("expires_at"),
+  calendarId: text("calendar_id"), // External calendar ID
+  calendarName: text("calendar_name"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  connectionId: varchar("connection_id").references(() => calendarConnections.id, { onDelete: 'cascade' }).notNull(),
+  externalId: text("external_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  location: text("location"),
+  attendees: jsonb("attendees"),
+  isAllDay: boolean("is_all_day").default(false),
+  status: text("status"), // 'confirmed', 'tentative', 'cancelled'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueConnectionEvent: sql`UNIQUE (connection_id, external_id)`,
+}));
+
+export const schedulePreferences = pgTable("schedule_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  dayOfWeek: text("day_of_week").notNull(), // 'monday', 'tuesday', etc.
+  startTime: text("start_time").notNull(), // '09:00'
+  endTime: text("end_time").notNull(), // '17:00'
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCalendarConnectionSchema = createInsertSchema(calendarConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSchedulePreferenceSchema = createInsertSchema(schedulePreferences).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -159,3 +219,12 @@ export type IntegrationConfig = typeof integrationConfig.$inferSelect;
 
 export type InsertPendingReply = z.infer<typeof insertPendingReplySchema>;
 export type PendingReply = typeof pendingReplies.$inferSelect;
+
+export type InsertCalendarConnection = z.infer<typeof insertCalendarConnectionSchema>;
+export type CalendarConnection = typeof calendarConnections.$inferSelect;
+
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+
+export type InsertSchedulePreference = z.infer<typeof insertSchedulePreferenceSchema>;
+export type SchedulePreference = typeof schedulePreferences.$inferSelect;

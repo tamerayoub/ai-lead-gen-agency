@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
+  calendarConnections, calendarEvents, schedulePreferences,
   type User, type InsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -8,9 +9,12 @@ import {
   type Note, type InsertNote,
   type AISetting, type InsertAISetting,
   type IntegrationConfig, type InsertIntegrationConfig,
-  type PendingReply, type InsertPendingReply
+  type PendingReply, type InsertPendingReply,
+  type CalendarConnection, type InsertCalendarConnection,
+  type CalendarEvent, type InsertCalendarEvent,
+  type SchedulePreference, type InsertSchedulePreference
 } from "@shared/schema";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -59,6 +63,30 @@ export interface IStorage {
   createPendingReply(reply: InsertPendingReply): Promise<PendingReply>;
   updatePendingReplyStatus(id: string, status: string): Promise<PendingReply | undefined>;
   deletePendingReply(id: string): Promise<boolean>;
+
+  // Calendar Connection operations
+  getCalendarConnections(userId?: string): Promise<CalendarConnection[]>;
+  getCalendarConnection(id: string): Promise<CalendarConnection | undefined>;
+  getCalendarConnectionByProvider(userId: string, provider: string): Promise<CalendarConnection | undefined>;
+  createCalendarConnection(connection: InsertCalendarConnection): Promise<CalendarConnection>;
+  updateCalendarConnection(id: string, connection: Partial<InsertCalendarConnection>): Promise<CalendarConnection | undefined>;
+  deleteCalendarConnection(id: string): Promise<boolean>;
+
+  // Calendar Event operations
+  getCalendarEvents(connectionId: string, startTime?: Date, endTime?: Date): Promise<CalendarEvent[]>;
+  getAllCalendarEvents(startTime?: Date, endTime?: Date): Promise<CalendarEvent[]>;
+  getCalendarEventByExternalId(connectionId: string, externalId: string): Promise<CalendarEvent | undefined>;
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  upsertCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  updateCalendarEvent(id: string, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined>;
+  deleteCalendarEvent(id: string): Promise<boolean>;
+  deleteEventsByConnection(connectionId: string): Promise<boolean>;
+
+  // Schedule Preference operations
+  getSchedulePreferences(userId?: string): Promise<SchedulePreference[]>;
+  createSchedulePreference(preference: InsertSchedulePreference): Promise<SchedulePreference>;
+  updateSchedulePreference(id: string, preference: Partial<InsertSchedulePreference>): Promise<SchedulePreference | undefined>;
+  deleteSchedulePreference(id: string): Promise<boolean>;
 
   // Analytics
   getLeadStats(): Promise<{
@@ -254,6 +282,183 @@ export class DatabaseStorage implements IStorage {
 
   async deletePendingReply(id: string): Promise<boolean> {
     const result = await db.delete(pendingReplies).where(eq(pendingReplies.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Calendar Connection operations
+  async getCalendarConnections(userId?: string): Promise<CalendarConnection[]> {
+    if (userId) {
+      return db.select().from(calendarConnections)
+        .where(eq(calendarConnections.userId, userId))
+        .orderBy(desc(calendarConnections.createdAt));
+    }
+    return db.select().from(calendarConnections).orderBy(desc(calendarConnections.createdAt));
+  }
+
+  async getCalendarConnection(id: string): Promise<CalendarConnection | undefined> {
+    const result = await db.select().from(calendarConnections).where(eq(calendarConnections.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getCalendarConnectionByProvider(userId: string, provider: string): Promise<CalendarConnection | undefined> {
+    const result = await db.select().from(calendarConnections)
+      .where(and(eq(calendarConnections.userId, userId), eq(calendarConnections.provider, provider)))
+      .limit(1);
+    return result[0];
+  }
+
+  async createCalendarConnection(connection: InsertCalendarConnection): Promise<CalendarConnection> {
+    const result = await db.insert(calendarConnections).values(connection).returning();
+    return result[0];
+  }
+
+  async updateCalendarConnection(id: string, connectionData: Partial<InsertCalendarConnection>): Promise<CalendarConnection | undefined> {
+    const result = await db.update(calendarConnections)
+      .set({ ...connectionData, updatedAt: new Date() })
+      .where(eq(calendarConnections.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCalendarConnection(id: string): Promise<boolean> {
+    const result = await db.delete(calendarConnections).where(eq(calendarConnections.id, id)).returning();
+    return result.length > 0;
+  }
+
+  // Calendar Event operations
+  async getCalendarEvents(connectionId: string, startTime?: Date, endTime?: Date): Promise<CalendarEvent[]> {
+    const conditions = [eq(calendarEvents.connectionId, connectionId)];
+    
+    if (startTime && endTime) {
+      if (startTime.getTime() === endTime.getTime()) {
+        // Point-in-time query: find events that contain this specific moment
+        conditions.push(sql`${calendarEvents.startTime} <= ${startTime}`);
+        conditions.push(sql`${calendarEvents.endTime} >= ${startTime}`);
+      } else {
+        // Range query: find events that overlap the range
+        // Event overlaps if: event.start < rangeEnd AND event.end > rangeStart
+        conditions.push(sql`${calendarEvents.startTime} < ${endTime}`);
+        conditions.push(sql`${calendarEvents.endTime} > ${startTime}`);
+      }
+    } else if (startTime) {
+      // Start bound only: find events that end after startTime
+      conditions.push(sql`${calendarEvents.endTime} > ${startTime}`);
+    } else if (endTime) {
+      // End bound only: find events that start before endTime
+      conditions.push(sql`${calendarEvents.startTime} < ${endTime}`);
+    }
+    
+    return db.select().from(calendarEvents)
+      .where(and(...conditions))
+      .orderBy(calendarEvents.startTime);
+  }
+
+  async getAllCalendarEvents(startTime?: Date, endTime?: Date): Promise<CalendarEvent[]> {
+    const conditions: any[] = [];
+    
+    if (startTime && endTime) {
+      if (startTime.getTime() === endTime.getTime()) {
+        // Point-in-time query: find events that contain this specific moment
+        conditions.push(sql`${calendarEvents.startTime} <= ${startTime}`);
+        conditions.push(sql`${calendarEvents.endTime} >= ${startTime}`);
+      } else {
+        // Range query: find events that overlap the range
+        // Event overlaps if: event.start < rangeEnd AND event.end > rangeStart
+        conditions.push(sql`${calendarEvents.startTime} < ${endTime}`);
+        conditions.push(sql`${calendarEvents.endTime} > ${startTime}`);
+      }
+    } else if (startTime) {
+      // Start bound only: find events that end after startTime
+      conditions.push(sql`${calendarEvents.endTime} > ${startTime}`);
+    } else if (endTime) {
+      // End bound only: find events that start before endTime
+      conditions.push(sql`${calendarEvents.startTime} < ${endTime}`);
+    }
+    
+    if (conditions.length > 0) {
+      return db.select().from(calendarEvents)
+        .where(and(...conditions))
+        .orderBy(calendarEvents.startTime);
+    }
+    
+    return db.select().from(calendarEvents).orderBy(calendarEvents.startTime);
+  }
+
+  async getCalendarEventByExternalId(connectionId: string, externalId: string): Promise<CalendarEvent | undefined> {
+    const result = await db.select().from(calendarEvents)
+      .where(and(
+        eq(calendarEvents.connectionId, connectionId),
+        eq(calendarEvents.externalId, externalId)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const result = await db.insert(calendarEvents).values(event).returning();
+    return result[0];
+  }
+
+  async upsertCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent> {
+    const existing = await this.getCalendarEventByExternalId(event.connectionId, event.externalId);
+    
+    if (existing) {
+      const result = await db.update(calendarEvents)
+        .set({ ...event, updatedAt: new Date() })
+        .where(eq(calendarEvents.id, existing.id))
+        .returning();
+      return result[0];
+    } else {
+      const result = await db.insert(calendarEvents).values(event).returning();
+      return result[0];
+    }
+  }
+
+  async updateCalendarEvent(id: string, eventData: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined> {
+    const result = await db.update(calendarEvents)
+      .set({ ...eventData, updatedAt: new Date() })
+      .where(eq(calendarEvents.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCalendarEvent(id: string): Promise<boolean> {
+    const result = await db.delete(calendarEvents).where(eq(calendarEvents.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deleteEventsByConnection(connectionId: string): Promise<boolean> {
+    const result = await db.delete(calendarEvents).where(eq(calendarEvents.connectionId, connectionId)).returning();
+    return result.length > 0;
+  }
+
+  // Schedule Preference operations
+  async getSchedulePreferences(userId?: string): Promise<SchedulePreference[]> {
+    if (userId) {
+      return db.select().from(schedulePreferences)
+        .where(and(eq(schedulePreferences.userId, userId), eq(schedulePreferences.isActive, true)))
+        .orderBy(schedulePreferences.createdAt);
+    }
+    return db.select().from(schedulePreferences)
+      .where(eq(schedulePreferences.isActive, true))
+      .orderBy(schedulePreferences.createdAt);
+  }
+
+  async createSchedulePreference(preference: InsertSchedulePreference): Promise<SchedulePreference> {
+    const result = await db.insert(schedulePreferences).values(preference).returning();
+    return result[0];
+  }
+
+  async updateSchedulePreference(id: string, preferenceData: Partial<InsertSchedulePreference>): Promise<SchedulePreference | undefined> {
+    const result = await db.update(schedulePreferences)
+      .set(preferenceData)
+      .where(eq(schedulePreferences.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSchedulePreference(id: string): Promise<boolean> {
+    const result = await db.delete(schedulePreferences).where(eq(schedulePreferences.id, id)).returning();
     return result.length > 0;
   }
 
