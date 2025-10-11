@@ -869,6 +869,11 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       syncProgressTracker.start(0);
       syncProgressTracker.updateStep('Initializing sync...');
       
+      // Check for cancellation before starting
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled before start" });
+      }
+      
       // Get Gmail integration config
       const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
       const tokens = gmailConfig?.config as any;
@@ -879,15 +884,30 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       syncProgressTracker.addLog('info', '✓ Gmail credentials verified');
 
+      // Check for cancellation
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled" });
+      }
+
       // Get all properties to match against
       const properties = await storage.getAllProperties(req.orgId);
       syncProgressTracker.addLog('info', `✓ Loaded ${properties.length} properties`);
 
+      // Check for cancellation before fetching emails
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled" });
+      }
+
       // Fetch comprehensive email history (up to 5000 emails)
       syncProgressTracker.addLog('info', '📧 Fetching emails from Gmail...');
       syncProgressTracker.updateStep('Fetching emails from Gmail...');
-      const messages = await listMessages(tokens, 5000);
+      const messages = await listMessages(tokens, 5000, () => syncProgressTracker.isCancelled());
       
+      // Check if cancelled during fetch
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled during email fetch" });
+      }
+
       // Update total count now that we know how many emails we have (without resetting logs)
       syncProgressTracker.setTotal(messages.length);
       syncProgressTracker.addLog('success', `✓ Fetched ${messages.length} emails`);

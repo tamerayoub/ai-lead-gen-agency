@@ -42,7 +42,11 @@ export async function getGmailClient(tokens: { access_token: string; refresh_tok
   return google.gmail({ version: "v1", auth: oauth2Client });
 }
 
-export async function listMessages(tokens: any, maxResults: number = 20) {
+export async function listMessages(
+  tokens: any, 
+  maxResults: number = 20,
+  checkCancellation?: () => boolean
+) {
   const gmail = await getGmailClient(tokens);
   const allMessages: any[] = [];
   const seenIds = new Set<string>(); // Track unique message IDs
@@ -53,6 +57,12 @@ export async function listMessages(tokens: any, maxResults: number = 20) {
   let page = 0;
   
   while (allMessages.length < maxResults) {
+    // Check for cancellation before each page fetch
+    if (checkCancellation && checkCancellation()) {
+      console.log(`[Gmail] Sync cancelled during email fetch at page ${page}`);
+      break;
+    }
+
     page++;
     const response: any = await gmail.users.messages.list({
       userId: "me",
