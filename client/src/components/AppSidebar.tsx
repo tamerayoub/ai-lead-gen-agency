@@ -72,10 +72,8 @@ export function AppSidebar() {
   // Create organization mutation
   const createOrgMutation = useMutation({
     mutationFn: async (name: string) => {
-      return await apiRequest<{ id: string; name: string }>("/api/organizations", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-      });
+      const res = await apiRequest("POST", "/api/organizations", { name });
+      return await res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
@@ -101,10 +99,8 @@ export function AppSidebar() {
   // Switch organization mutation
   const switchOrgMutation = useMutation({
     mutationFn: async (orgId: string) => {
-      return await apiRequest<{ orgId: string; role: string }>("/api/organizations/switch", {
-        method: "POST",
-        body: JSON.stringify({ orgId }),
-      });
+      const res = await apiRequest("POST", "/api/organizations/switch", { orgId });
+      return await res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/organizations/current"] });
