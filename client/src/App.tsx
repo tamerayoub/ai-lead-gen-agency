@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
 // (blueprint:javascript_log_in_with_replit) Import useAuth hook
 import { useAuth } from "@/hooks/useAuth";
@@ -107,7 +108,10 @@ function AuthenticatedLayout({ style }: { style: Record<string, string> }) {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-y-auto p-6">
             <Router />
