@@ -1,13 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema } from "@shared/schema";
+import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
+import { db } from "./db";
+import { zillowListings, properties, organizations } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Middleware to check if user is authenticated
 function isAuthenticated(req: any, res: any, next: any) {
@@ -1606,6 +1609,242 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error("Failed to delete notification:", error);
       res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
+  // ===== ZILLOW INTEGRATION ROUTES =====
+  app.get("/api/integrations/zillow", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const integration = await storage.getZillowIntegration(req.orgId);
+      if (!integration) {
+        return res.json({ configured: false });
+      }
+      res.json({
+        configured: true,
+        id: integration.id,
+        isActive: integration.isActive,
+        createdAt: integration.createdAt,
+        updatedAt: integration.updatedAt,
+      });
+    } catch (error) {
+      console.error("Failed to fetch Zillow integration:", error);
+      res.status(500).json({ error: "Failed to fetch Zillow integration" });
+    }
+  });
+
+  app.post("/api/integrations/zillow", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const validationResult = insertZillowIntegrationSchema.safeParse({
+        apiKey: req.body.apiKey,
+        webhookSecret: req.body.webhookSecret,
+        isActive: true,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ error: "Invalid input", details: validationResult.error.errors });
+      }
+
+      const { apiKey, webhookSecret } = validationResult.data;
+      const existing = await storage.getZillowIntegration(req.orgId);
+
+      if (existing) {
+        const updated = await storage.updateZillowIntegration(req.orgId, {
+          apiKey,
+          webhookSecret,
+          isActive: true,
+        });
+        return res.json(updated);
+      }
+
+      const integration = await storage.createZillowIntegration({
+        orgId: req.orgId,
+        apiKey,
+        webhookSecret,
+        isActive: true,
+      });
+      res.json(integration);
+    } catch (error) {
+      console.error("Failed to create/update Zillow integration:", error);
+      res.status(500).json({ error: "Failed to create/update Zillow integration" });
+    }
+  });
+
+  app.delete("/api/integrations/zillow", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const success = await storage.deleteZillowIntegration(req.orgId);
+      if (!success) {
+        return res.status(404).json({ error: "Zillow integration not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete Zillow integration:", error);
+      res.status(500).json({ error: "Failed to delete Zillow integration" });
+    }
+  });
+
+  // ===== ZILLOW LISTINGS ROUTES =====
+  app.get("/api/zillow/listings", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const listings = await storage.getZillowListings(req.orgId);
+      res.json(listings);
+    } catch (error) {
+      console.error("Failed to fetch Zillow listings:", error);
+      res.status(500).json({ error: "Failed to fetch Zillow listings" });
+    }
+  });
+
+  app.post("/api/zillow/listings", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const validationResult = insertZillowListingSchema.safeParse({
+        propertyId: req.body.propertyId,
+        zillowListingId: req.body.zillowListingId,
+        listingUrl: req.body.listingUrl || null,
+        isActive: true,
+      });
+
+      if (!validationResult.success) {
+        return res.status(400).json({ error: "Invalid input", details: validationResult.error.errors });
+      }
+
+      const { propertyId, zillowListingId, listingUrl } = validationResult.data;
+
+      // Check if property exists
+      const property = await storage.getProperty(propertyId, req.orgId);
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Check if property is already listed
+      const existingPropertyListing = await storage.getZillowListingByPropertyId(propertyId, req.orgId);
+      if (existingPropertyListing) {
+        return res.status(400).json({ error: "Property is already listed on Zillow" });
+      }
+
+      // Check if Zillow listing ID is already used
+      const existingZillowListing = await storage.getZillowListingByZillowId(zillowListingId, req.orgId);
+      if (existingZillowListing) {
+        return res.status(400).json({ error: "Zillow listing ID is already in use" });
+      }
+
+      const listing = await storage.createZillowListing({
+        orgId: req.orgId,
+        propertyId,
+        zillowListingId,
+        listingUrl: listingUrl || null,
+        isActive: true,
+      });
+      res.json(listing);
+    } catch (error) {
+      console.error("Failed to create Zillow listing:", error);
+      res.status(500).json({ error: "Failed to create Zillow listing" });
+    }
+  });
+
+  app.delete("/api/zillow/listings/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const success = await storage.deleteZillowListing(req.params.id, req.orgId);
+      if (!success) {
+        return res.status(404).json({ error: "Zillow listing not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      console.error("Failed to delete Zillow listing:", error);
+      res.status(500).json({ error: "Failed to delete Zillow listing" });
+    }
+  });
+
+  // ===== ZILLOW WEBHOOK ENDPOINT =====
+  app.post("/api/webhooks/zillow", async (req, res) => {
+    try {
+      const { listingId, name, email, phone, movingDate, message, leadType, webhookSecret } = req.body;
+
+      if (!listingId) {
+        return res.status(400).json({ error: "Listing ID is required" });
+      }
+
+      // Find the listing and integration
+      const listing = await db.select({
+        zillowListing: zillowListings,
+        property: properties,
+        org: organizations,
+      })
+        .from(zillowListings)
+        .innerJoin(properties, eq(zillowListings.propertyId, properties.id))
+        .innerJoin(organizations, eq(properties.orgId, organizations.id))
+        .where(eq(zillowListings.zillowListingId, listingId))
+        .limit(1);
+
+      if (!listing || listing.length === 0) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+
+      const { zillowListing, property, org } = listing[0];
+
+      // Validate webhook secret for security
+      const integration = await storage.getZillowIntegration(org.id);
+      if (!integration || integration.webhookSecret !== webhookSecret) {
+        return res.status(401).json({ error: "Unauthorized: Invalid webhook secret" });
+      }
+
+      // Normalize contact info for deduplication
+      const normalizedEmail = email?.toLowerCase().trim() || '';
+      const normalizedPhone = phone?.replace(/\D/g, '') || '';
+
+      // Look for existing lead by email or phone
+      let lead;
+      if (normalizedEmail) {
+        lead = await storage.getLeadByEmail(normalizedEmail, org.id);
+      }
+      if (!lead && normalizedPhone) {
+        lead = await storage.getLeadByPhone(normalizedPhone, org.id);
+      }
+
+      if (lead) {
+        // Update existing lead
+        lead = await storage.updateLead(lead.id, {
+          lastContactAt: new Date(),
+          moveInDate: movingDate || lead.moveInDate,
+          propertyId: property.id,
+          propertyName: property.name,
+        }, org.id);
+      } else {
+        // Create new lead
+        lead = await storage.createLead({
+          orgId: org.id,
+          name: name || 'Unknown',
+          email: normalizedEmail || 'no-email@zillow.lead',
+          phone: normalizedPhone || 'no-phone',
+          propertyId: property.id,
+          propertyName: property.name,
+          status: 'new',
+          source: 'zillow',
+          aiHandled: false,
+          moveInDate: movingDate || null,
+        });
+      }
+
+      // Record conversation
+      const conversationType = leadType === 'tourRequest' ? 'tour_request' : 
+                              leadType === 'applicationRequest' ? 'application_request' : 
+                              'question';
+
+      await storage.createConversation({
+        leadId: lead!.id,
+        type: conversationType,
+        channel: 'zillow',
+        message: message || 'Inquiry from Zillow',
+        aiGenerated: false,
+        externalId: `zillow_${listingId}_${Date.now()}`,
+      });
+
+      res.json({ 
+        success: true, 
+        leadId: lead!.id,
+        message: "Lead processed successfully" 
+      });
+    } catch (error) {
+      console.error("Zillow webhook error:", error);
+      res.status(500).json({ error: "Failed to process Zillow lead" });
     }
   });
 
