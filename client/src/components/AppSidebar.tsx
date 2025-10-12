@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3, Activity, Calendar, LogOut, ChevronDown, Plus, Check } from "lucide-react";
+import { LayoutDashboard, Users, Building2, Settings, Bot, BarChart3, Activity, Calendar, LogOut, ChevronDown, Plus, Check, Plug } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +47,7 @@ const menuItems = [
   { title: "AI Training", url: "/ai-training", icon: Bot },
   { title: "AI Activity", url: "/ai-activity", icon: Activity },
   { title: "Schedule", url: "/schedule", icon: Calendar },
+  { title: "Integrations", url: "/integrations", icon: Plug },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

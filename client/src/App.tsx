@@ -21,6 +21,7 @@ import Analytics from "@/pages/Analytics";
 import AITraining from "@/pages/AITraining";
 import AIActivityCenter from "@/pages/AIActivityCenter";
 import Schedule from "@/pages/Schedule";
+import Integrations from "@/pages/Integrations";
 import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
@@ -67,6 +68,7 @@ function Router() {
       <Route path="/ai-training" component={AITraining} />
       <Route path="/ai-activity" component={AIActivityCenter} />
       <Route path="/schedule" component={Schedule} />
+      <Route path="/integrations" component={Integrations} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
