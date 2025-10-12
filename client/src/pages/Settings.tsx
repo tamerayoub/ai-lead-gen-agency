@@ -475,6 +475,7 @@ export default function Settings() {
 
   const syncGmailLeads = () => {
     setShowSyncLogs(true);
+    setUserClosedLogs(false); // Reset flag when starting new sync
     startPolling();
     syncGmailMutation.mutate();
   };
@@ -822,6 +823,7 @@ export default function Settings() {
                               } else {
                                 // If sync is complete, just close logs
                                 setShowSyncLogs(false);
+                                setUserClosedLogs(true); // Mark that user explicitly closed logs
                               }
                             }}
                             data-testid="button-close-sync-logs"
