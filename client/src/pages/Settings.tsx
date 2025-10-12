@@ -28,6 +28,12 @@ import { useState, useEffect } from "react";
 export default function Settings() {
   const { toast } = useToast();
   
+  // Handle tab navigation from URL query parameter
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'ai-training';
+  });
+  
   const [greetingTemplate, setGreetingTemplate] = useState("");
   const [followupTemplate, setFollowupTemplate] = useState("");
   const [minIncome, setMinIncome] = useState("");
@@ -479,7 +485,7 @@ export default function Settings() {
         <p className="text-muted-foreground mt-1">Configure your AI assistant and system preferences</p>
       </div>
 
-      <Tabs defaultValue="ai-training" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="ai-training" data-testid="tab-ai-training">
             <Brain className="h-4 w-4 mr-2" />
