@@ -415,6 +415,28 @@ export default function Integrations() {
                                   </div>
                                 )}
                               </div>
+                              
+                              {progress.logs && progress.logs.length > 0 && (
+                                <div className="mt-3 max-h-48 overflow-y-auto rounded bg-black/5 dark:bg-white/5 p-3 font-mono text-xs space-y-0.5">
+                                  {progress.logs.map((log: any, idx: number) => {
+                                    const logType = log?.type || 'info';
+                                    const logMessage = String(log?.message || log || '');
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className={`
+                                          ${logType === 'error' ? 'text-red-600 dark:text-red-400' : ''}
+                                          ${logType === 'success' ? 'text-green-600 dark:text-green-400' : ''}
+                                          ${logType === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : ''}
+                                          ${logType === 'info' ? 'text-muted-foreground' : ''}
+                                        `}
+                                      >
+                                        {logMessage}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
