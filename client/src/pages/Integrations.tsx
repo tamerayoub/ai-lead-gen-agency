@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SiGoogle, SiZillow, SiMeta, SiFacebook, SiMicrosoft } from "react-icons/si";
+import { SiGoogle, SiZillow, SiMeta, SiFacebook } from "react-icons/si";
 import { Mail, Building2, CheckCircle2, Settings as SettingsIcon, RefreshCw, XCircle, AlertCircle, Info, Phone, MessageSquare, FileSpreadsheet, Home } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -48,7 +48,7 @@ export default function Integrations() {
     }
   }, [progress?.isRunning, isPolling, startPolling, userClosedLogs]);
 
-  const { data: gmailConfig, isLoading: gmailLoading } = useQuery({ 
+  const { data: gmailConfig, isLoading: gmailLoading } = useQuery<any>({ 
     queryKey: ["/api/integrations/gmail"],
   });
 
@@ -56,7 +56,7 @@ export default function Integrations() {
     gmailConfig && gmailConfig.config?.access_token && gmailConfig.isActive !== false
   );
 
-  const { data: outlookConfig, isLoading: outlookLoading } = useQuery({ 
+  const { data: outlookConfig, isLoading: outlookLoading } = useQuery<any>({ 
     queryKey: ["/api/integrations/outlook"],
   });
 
@@ -102,7 +102,7 @@ export default function Integrations() {
       id: "outlook",
       name: "Outlook",
       description: "Sync emails and manage leads directly from your Outlook inbox.",
-      icon: <SiMicrosoft className="h-8 w-8" />,
+      icon: <Mail className="h-8 w-8" />,
       status: isOutlookConnected ? "configured" : "available",
       category: "Email",
       provider: "microsoft",
