@@ -36,6 +36,8 @@ export default function Integrations() {
   const [showSyncLogs, setShowSyncLogs] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showStopSyncDialog, setShowStopSyncDialog] = useState(false);
+  const [showOutlookDisconnectDialog, setShowOutlookDisconnectDialog] = useState(false);
+  const [showOutlookStopSyncDialog, setShowOutlookStopSyncDialog] = useState(false);
   const [userClosedLogs, setUserClosedLogs] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
@@ -76,7 +78,7 @@ export default function Integrations() {
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
-    enabled: isGmailConnected,
+    enabled: isGmailConnected || isOutlookConnected,
   });
 
   const gmailNewLeadsNotifications = notifications.filter(
@@ -84,6 +86,15 @@ export default function Integrations() {
   );
   
   const totalNewLeads = gmailNewLeadsNotifications.reduce(
+    (sum, n) => sum + (n.metadata?.newMessageCount || 0),
+    0
+  );
+
+  const outlookNewLeadsNotifications = notifications.filter(
+    (n) => n.type === "outlook_new_leads" && !n.read
+  );
+  
+  const totalOutlookNewLeads = outlookNewLeadsNotifications.reduce(
     (sum, n) => sum + (n.metadata?.newMessageCount || 0),
     0
   );
@@ -343,7 +354,24 @@ export default function Integrations() {
     },
   });
 
-  const disconnectOutlook = (deleteLeads: boolean = false) => {
+  const disconnectOutlook = () => {
+    if (isPolling || progress?.isRunning) {
+      setShowOutlookDisconnectDialog(true);
+    } else {
+      disconnectOutlookMutation.mutate(false);
+    }
+  };
+
+  const handleDisconnectOutlook = (deleteLeads: boolean) => {
+    setShowOutlookDisconnectDialog(false);
+    disconnectOutlookMutation.mutate(deleteLeads);
+  };
+
+  const handleStopOutlookSync = (deleteLeads: boolean) => {
+    setShowOutlookStopSyncDialog(false);
+    setShowSyncLogs(false);
+    setUserClosedLogs(true);
+    stopPolling();
     disconnectOutlookMutation.mutate(deleteLeads);
   };
 
@@ -534,6 +562,15 @@ export default function Integrations() {
                   {/* Outlook-specific content */}
                   {integration.id === "outlook" && isOutlookConnected && (
                     <>
+                      {totalOutlookNewLeads > 0 && (
+                        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <AlertDescription className="text-blue-800 dark:text-blue-200">
+                            <strong>{totalOutlookNewLeads} new potential leads</strong> detected in your Outlook inbox
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
                       {showSyncLogs && (
                         <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
                           <div className="flex items-center justify-between gap-3">
@@ -548,13 +585,13 @@ export default function Integrations() {
                               size="sm"
                               onClick={() => {
                                 if (progress?.isRunning) {
-                                  setShowStopSyncDialog(true);
+                                  setShowOutlookStopSyncDialog(true);
                                 } else {
                                   setShowSyncLogs(false);
                                   setUserClosedLogs(true);
                                 }
                               }}
-                              data-testid="button-close-sync-logs"
+                              data-testid="button-close-outlook-sync-logs"
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -640,12 +677,17 @@ export default function Integrations() {
                           data-testid="button-outlook-sync"
                         >
                           <RefreshCw className={`h-4 w-4 mr-2 ${(syncOutlookMutation.isPending || progress?.isRunning) ? 'animate-spin' : ''}`} />
+                          {totalOutlookNewLeads > 0 && (
+                            <Badge variant="destructive" className="mr-2 h-5 px-1.5">
+                              {totalOutlookNewLeads}
+                            </Badge>
+                          )}
                           Sync Now
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => disconnectOutlook(false)}
+                          onClick={disconnectOutlook}
                           disabled={disconnectOutlookMutation.isPending}
                           data-testid="button-outlook-disconnect"
                         >
@@ -739,6 +781,60 @@ export default function Integrations() {
             </AlertDialogAction>
             <AlertDialogAction
               onClick={() => handleStopSync(true)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Leads & Stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Disconnect Outlook Dialog */}
+      <AlertDialog open={showOutlookDisconnectDialog} onOpenChange={setShowOutlookDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Outlook?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A sync is currently in progress. What would you like to do with the leads that have been imported?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDisconnectOutlook(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Disconnect
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDisconnectOutlook(true)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Leads & Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Stop Outlook Sync Dialog */}
+      <AlertDialog open={showOutlookStopSyncDialog} onOpenChange={setShowOutlookStopSyncDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Stop Outlook Sync?</AlertDialogTitle>
+            <AlertDialogDescription>
+              What would you like to do with the leads that have been imported so far?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleStopOutlookSync(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Stop
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleStopOutlookSync(true)}
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete Leads & Stop
