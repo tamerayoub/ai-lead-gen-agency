@@ -1,4 +1,4 @@
-# LeadGenAI Design Guidelines
+# LeaseLoopAI Design Guidelines
 
 ## Design Approach
 

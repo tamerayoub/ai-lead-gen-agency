@@ -909,7 +909,7 @@ export default function Settings() {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      Connect your Gmail account to read and respond to emails directly from LeadGenAI.
+                      Connect your Gmail account to read and respond to emails directly from LeaseLoopAI.
                       This uses secure OAuth authentication.
                     </p>
                     <Button onClick={connectGmail} data-testid="button-connect-gmail">

@@ -86,7 +86,7 @@ export default function Login() {
             <Building2 className="h-12 w-12 text-primary" data-testid="icon-logo" />
           </div>
           <CardTitle className="text-2xl font-bold" data-testid="text-login-title">
-            Welcome to LeadGenAI
+            Welcome to LeaseLoopAI
           </CardTitle>
           <CardDescription data-testid="text-login-subtitle">
             Sign in to access your property management CRM

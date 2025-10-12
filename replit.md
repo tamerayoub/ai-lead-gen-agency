@@ -1,8 +1,8 @@
-# LeadGenAI - AI-Powered Property Management CRM
+# LeaseLoopAI - AI-Powered Property Management CRM
 
 ## Overview
 
-LeadGenAI is an AI-powered CRM system for property management companies. Its core purpose is to automate lead generation and qualification across multiple communication channels (email, SMS, phone, listing platforms). The system provides automated responses, lead pre-qualification based on customizable criteria, and comprehensive management of the rental pipeline from initial contact to application approval. Property managers gain a dashboard to monitor AI interactions, track lead status, manage properties, analyze conversion metrics, and intervene manually as needed.
+LeaseLoopAI is an AI-powered CRM system for property management companies. Its core purpose is to automate lead generation and qualification across multiple communication channels (email, SMS, phone, listing platforms). The system provides automated responses, lead pre-qualification based on customizable criteria, and comprehensive management of the rental pipeline from initial contact to application approval. Property managers gain a dashboard to monitor AI interactions, track lead status, manage properties, analyze conversion metrics, and intervene manually as needed.
 
 ## User Preferences
 

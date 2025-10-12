@@ -168,7 +168,7 @@ export function AppSidebar() {
             <Bot className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h2 className="text-base font-semibold">LeadGenAI</h2>
+            <h2 className="text-base font-semibold">LeaseLoopAI</h2>
             <p className="text-xs text-muted-foreground">Property CRM</p>
           </div>
         </div>

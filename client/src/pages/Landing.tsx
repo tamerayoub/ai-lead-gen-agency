@@ -15,7 +15,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Building2 className="h-6 w-6 text-primary" />
-            <span className="text-xl font-semibold">LeadGenAI</span>
+            <span className="text-xl font-semibold">LeaseLoopAI</span>
           </div>
           <Button onClick={handleSignIn} data-testid="button-signin-header">
             Sign In
@@ -128,7 +128,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t py-8">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2025 LeadGenAI. AI-powered property management made simple.</p>
+          <p>© 2025 LeaseLoopAI. AI-powered property management made simple.</p>
         </div>
       </footer>
     </div>

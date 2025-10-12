@@ -42,7 +42,7 @@ export default function Register() {
       
       toast({
         title: "Account created!",
-        description: "Welcome to LeadGenAI. Your account has been created successfully.",
+        description: "Welcome to LeaseLoopAI. Your account has been created successfully.",
       });
       
       // Refresh user data and redirect
@@ -74,7 +74,7 @@ export default function Register() {
             Create your account
           </CardTitle>
           <CardDescription data-testid="text-register-subtitle">
-            Get started with LeadGenAI today
+            Get started with LeaseLoopAI today
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
