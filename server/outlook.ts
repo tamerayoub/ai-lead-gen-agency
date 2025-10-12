@@ -54,6 +54,9 @@ export async function getOutlookTokensFromCode(code: string) {
     clientId,
     redirectUri,
     hasClientSecret: !!clientSecret,
+    secretStartsWith: clientSecret?.substring(0, 8) + '...',
+    secretLength: clientSecret?.length || 0,
+    looksLikeUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientSecret || ''),
     codeLength: code.length
   });
   
