@@ -1404,23 +1404,39 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/integrations/outlook/callback", isAuthenticated, async (req, res) => {
+  app.get("/api/integrations/outlook/callback", async (req, res) => {
     try {
-      const { code, state: userId } = req.query;
+      console.log("[Outlook Callback] Received callback with query:", req.query);
+      const { code, state: userId, error, error_description } = req.query;
+      
+      if (error) {
+        console.error("[Outlook Callback] OAuth error:", error, error_description);
+        return res.redirect("/integrations?outlook=error&reason=" + error);
+      }
       
       if (!code) {
+        console.error("[Outlook Callback] No authorization code provided");
         return res.status(400).send("Authorization code missing");
       }
 
+      if (!userId) {
+        console.error("[Outlook Callback] No user ID in state parameter");
+        return res.redirect("/integrations?outlook=error&reason=no_user");
+      }
+
+      console.log("[Outlook Callback] Exchanging code for tokens for user:", userId);
       // Exchange code for tokens
       const tokens = await getOutlookTokensFromCode(code as string);
+      console.log("[Outlook Callback] Received tokens, scopes:", tokens.scope);
 
       // Get user's organization
-      const membership = await storage.getUserOrganization(req.user.id);
+      const membership = await storage.getUserOrganization(userId as string);
       if (!membership) {
+        console.error("[Outlook Callback] No organization found for user:", userId);
         return res.redirect("/integrations?outlook=error&reason=no_org");
       }
       
+      console.log("[Outlook Callback] Storing tokens for org:", membership.orgId);
       // Store tokens in integrationConfig
       await storage.upsertIntegrationConfig({
         service: "outlook",
@@ -1435,10 +1451,11 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         orgId: membership.orgId,
       });
 
+      console.log("[Outlook Callback] Successfully stored Outlook integration");
       // Redirect back to integrations page with success message
       res.redirect("/integrations?outlook=connected");
     } catch (error) {
-      console.error("Outlook OAuth error:", error);
+      console.error("[Outlook Callback] Error:", error);
       res.redirect("/integrations?outlook=error");
     }
   });
@@ -1482,7 +1499,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       if (outlookConfig) {
         await storage.upsertIntegrationConfig({
           service: "outlook",
-          config: outlookConfig.config,
+          config: outlookConfig.config as any,
           isActive: false,
           orgId: req.orgId,
         });

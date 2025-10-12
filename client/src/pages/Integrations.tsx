@@ -378,9 +378,20 @@ export default function Integrations() {
     if (params.get('gmail') === 'connected') {
       queryClient.refetchQueries({ queryKey: ["/api/integrations/gmail"], type: 'active' });
       toast({ title: "Gmail connected successfully!" });
+      window.history.replaceState({}, '', '/integrations');
     }
     if (params.get('outlook') === 'connected') {
       queryClient.refetchQueries({ queryKey: ["/api/integrations/outlook"], type: 'active' });
+      toast({ title: "Outlook connected successfully!" });
+      window.history.replaceState({}, '', '/integrations');
+    }
+    if (params.get('outlook') === 'error') {
+      const reason = params.get('reason') || 'unknown';
+      toast({ 
+        title: "Failed to connect Outlook", 
+        description: `Error: ${reason}`,
+        variant: "destructive" 
+      });
       window.history.replaceState({}, '', '/integrations');
     }
   }, []);
