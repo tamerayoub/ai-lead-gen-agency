@@ -137,14 +137,39 @@ export class GmailScanner {
         const members = await storage.getOrganizationMembers(orgId);
 
         for (const member of members) {
+          // Check if there's already an unread gmail_new_leads notification for this user
+          const existingNotifications = await storage.getUserNotifications(member.userId, orgId);
+          const unreadGmailNotifications = existingNotifications.filter(
+            n => n.type === 'gmail_new_leads' && !n.read
+          );
+
+          // Merge with existing unread notifications to get total count
+          let allThreadIds = [...newThreadIds];
+          
+          if (unreadGmailNotifications.length > 0) {
+            console.log(`[Gmail Scanner] Merging ${newThreadIds.length} new leads with existing notification for user ${member.userId}`);
+            
+            // Collect all thread IDs from existing notifications
+            for (const notification of unreadGmailNotifications) {
+              const existingThreadIds = ((notification.metadata as any)?.threadIds || []) as string[];
+              allThreadIds = [...new Set([...allThreadIds, ...existingThreadIds])]; // Deduplicate
+            }
+            
+            // Delete all existing unread gmail_new_leads notifications
+            for (const notification of unreadGmailNotifications) {
+              await storage.deleteNotification(notification.id, member.userId);
+            }
+          }
+
+          // Create new/updated notification with total count of all unsynced leads
           await storage.createNotification({
             userId: member.userId,
             orgId,
             type: "gmail_new_leads",
             title: "New leads detected in Gmail",
-            message: `We found ${newThreadIds.length} new lead${newThreadIds.length > 1 ? 's' : ''} in your email. Click to sync them to your CRM.`,
+            message: `We found ${allThreadIds.length} new lead${allThreadIds.length > 1 ? 's' : ''} in your email. Click to sync them to your CRM.`,
             actionUrl: "/settings?tab=integrations",
-            metadata: { newMessageCount: newThreadIds.length, threadIds: newThreadIds },
+            metadata: { newMessageCount: allThreadIds.length, threadIds: allThreadIds },
             read: false,
           });
         }

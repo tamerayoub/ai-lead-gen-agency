@@ -1056,7 +1056,7 @@ export default function Settings() {
               What would you like to do with the leads found so far?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row sm:flex-wrap gap-2">
             <AlertDialogCancel data-testid="button-cancel-stop-sync">Cancel</AlertDialogCancel>
             <Button
               variant="outline"
@@ -1088,7 +1088,7 @@ export default function Settings() {
               What would you like to do with the leads found from Gmail?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row sm:flex-wrap gap-2">
             <AlertDialogCancel data-testid="button-cancel-disconnect">Cancel</AlertDialogCancel>
             <Button
               variant="outline"

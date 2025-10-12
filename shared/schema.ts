@@ -80,6 +80,7 @@ export const leads = pgTable("leads", {
   moveInDate: text("move_in_date"),
   qualificationScore: integer("qualification_score"),
   profileData: jsonb("profile_data"),
+  gmailThreadId: text("gmail_thread_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastContactAt: timestamp("last_contact_at").defaultNow().notNull(),
 });
