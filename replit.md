@@ -10,6 +10,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 12, 2025 - Gmail Integration Migrated to Dedicated Integrations Page
+**Problem:** Gmail integration logic was duplicated across Settings and Integrations pages, causing maintenance issues and confusing UX.
+
+**Solution:** Consolidated all integration management into dedicated Integrations page:
+- **Settings Cleanup:** Removed all integration code (Gmail, Twilio, Outlook) from Settings.tsx - no queries, mutations, state, or UI components
+- **Settings Redirect:** Integrations tab in Settings now shows only a redirect card directing users to the dedicated Integrations page
+- **Gmail Preservation:** All Gmail functionality preserved in Integrations.tsx including:
+  - OAuth connection flow with redirect handling
+  - Manual sync with real-time progress tracking and polling
+  - Disconnect with keep/delete leads option
+  - Stop sync with keep/delete leads option  
+  - Notification integration with unread count badges
+  - Sync logs display with collapsible UI
+- **Code Quality:** Removed all unused imports, state variables, queries, and mutations from Settings - clean LSP state with no TypeScript errors
+- **Single Source of Truth:** Gmail integration exists only in `client/src/pages/Integrations.tsx` - no duplication
+
+**Result:** Clean separation of concerns with AI training/configuration in Settings and all integrations (Gmail, Zillow, future integrations) in dedicated Integrations page. Eliminates code duplication and provides centralized integration management.
+
 ### October 11, 2025 - Notification System and Gmail Lead Detection
 **Problem:** Users had no way to know when new potential leads arrived in their Gmail inbox without manually running sync.
 
