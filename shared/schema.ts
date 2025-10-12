@@ -254,6 +254,32 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const zillowIntegrations = pgTable("zillow_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  apiKey: text("api_key").notNull(),
+  webhookSecret: text("webhook_secret").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueOrg: sql`UNIQUE (org_id)`,
+}));
+
+export const zillowListings = pgTable("zillow_listings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  propertyId: varchar("property_id").references(() => properties.id, { onDelete: 'cascade' }).notNull(),
+  zillowListingId: text("zillow_listing_id").notNull(),
+  listingUrl: text("listing_url"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueProperty: sql`UNIQUE (property_id)`,
+  uniqueZillowListing: sql`UNIQUE (org_id, zillow_listing_id)`,
+}));
+
 export const insertCalendarConnectionSchema = createInsertSchema(calendarConnections).omit({
   id: true,
   createdAt: true,
@@ -274,6 +300,18 @@ export const insertSchedulePreferenceSchema = createInsertSchema(schedulePrefere
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertZillowIntegrationSchema = createInsertSchema(zillowIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertZillowListingSchema = createInsertSchema(zillowListings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -330,3 +368,9 @@ export type Organization = typeof organizations.$inferSelect;
 
 export type InsertMembership = z.infer<typeof insertMembershipSchema>;
 export type Membership = typeof memberships.$inferSelect;
+
+export type InsertZillowIntegration = z.infer<typeof insertZillowIntegrationSchema>;
+export type ZillowIntegration = typeof zillowIntegrations.$inferSelect;
+
+export type InsertZillowListing = z.infer<typeof insertZillowListingSchema>;
+export type ZillowListing = typeof zillowListings.$inferSelect;

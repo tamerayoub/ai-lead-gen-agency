@@ -2,6 +2,7 @@ import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
   calendarConnections, calendarEvents, schedulePreferences, memberships, organizations, notifications,
+  zillowIntegrations, zillowListings,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -13,7 +14,9 @@ import {
   type CalendarConnection, type InsertCalendarConnection,
   type CalendarEvent, type InsertCalendarEvent,
   type SchedulePreference, type InsertSchedulePreference,
-  type Notification, type InsertNotification
+  type Notification, type InsertNotification,
+  type ZillowIntegration, type InsertZillowIntegration,
+  type ZillowListing, type InsertZillowListing
 } from "@shared/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
@@ -112,6 +115,21 @@ export interface IStorage {
     byStatus: Record<string, number>;
     bySource: Record<string, number>;
   }>;
+
+  // Zillow Integration operations
+  getZillowIntegration(orgId: string): Promise<ZillowIntegration | undefined>;
+  createZillowIntegration(integration: InsertZillowIntegration & { orgId: string }): Promise<ZillowIntegration>;
+  updateZillowIntegration(orgId: string, integration: Partial<InsertZillowIntegration>): Promise<ZillowIntegration | undefined>;
+  deleteZillowIntegration(orgId: string): Promise<boolean>;
+
+  // Zillow Listing operations
+  getZillowListings(orgId: string): Promise<ZillowListing[]>;
+  getZillowListing(id: string, orgId: string): Promise<ZillowListing | undefined>;
+  getZillowListingByPropertyId(propertyId: string, orgId: string): Promise<ZillowListing | undefined>;
+  getZillowListingByZillowId(zillowListingId: string, orgId: string): Promise<ZillowListing | undefined>;
+  createZillowListing(listing: InsertZillowListing & { orgId: string }): Promise<ZillowListing>;
+  updateZillowListing(id: string, listing: Partial<InsertZillowListing>, orgId: string): Promise<ZillowListing | undefined>;
+  deleteZillowListing(id: string, orgId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -697,6 +715,86 @@ export class DatabaseStorage implements IStorage {
       byStatus,
       bySource,
     };
+  }
+
+  // Zillow Integration operations
+  async getZillowIntegration(orgId: string): Promise<ZillowIntegration | undefined> {
+    const result = await db.select().from(zillowIntegrations)
+      .where(eq(zillowIntegrations.orgId, orgId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createZillowIntegration(integration: InsertZillowIntegration & { orgId: string }): Promise<ZillowIntegration> {
+    const result = await db.insert(zillowIntegrations).values(integration).returning();
+    return result[0];
+  }
+
+  async updateZillowIntegration(orgId: string, integrationData: Partial<InsertZillowIntegration>): Promise<ZillowIntegration | undefined> {
+    const result = await db.update(zillowIntegrations)
+      .set({ ...integrationData, updatedAt: new Date() })
+      .where(eq(zillowIntegrations.orgId, orgId))
+      .returning();
+    return result[0];
+  }
+
+  async deleteZillowIntegration(orgId: string): Promise<boolean> {
+    const result = await db.delete(zillowIntegrations).where(eq(zillowIntegrations.orgId, orgId)).returning();
+    return result.length > 0;
+  }
+
+  // Zillow Listing operations
+  async getZillowListings(orgId: string): Promise<ZillowListing[]> {
+    return db.select().from(zillowListings)
+      .where(eq(zillowListings.orgId, orgId))
+      .orderBy(desc(zillowListings.createdAt));
+  }
+
+  async getZillowListing(id: string, orgId: string): Promise<ZillowListing | undefined> {
+    const result = await db.select().from(zillowListings)
+      .where(and(eq(zillowListings.id, id), eq(zillowListings.orgId, orgId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async getZillowListingByPropertyId(propertyId: string, orgId: string): Promise<ZillowListing | undefined> {
+    const result = await db.select().from(zillowListings)
+      .where(and(
+        eq(zillowListings.propertyId, propertyId),
+        eq(zillowListings.orgId, orgId)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async getZillowListingByZillowId(zillowListingId: string, orgId: string): Promise<ZillowListing | undefined> {
+    const result = await db.select().from(zillowListings)
+      .where(and(
+        eq(zillowListings.zillowListingId, zillowListingId),
+        eq(zillowListings.orgId, orgId)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async createZillowListing(listing: InsertZillowListing & { orgId: string }): Promise<ZillowListing> {
+    const result = await db.insert(zillowListings).values(listing).returning();
+    return result[0];
+  }
+
+  async updateZillowListing(id: string, listingData: Partial<InsertZillowListing>, orgId: string): Promise<ZillowListing | undefined> {
+    const result = await db.update(zillowListings)
+      .set({ ...listingData, updatedAt: new Date() })
+      .where(and(eq(zillowListings.id, id), eq(zillowListings.orgId, orgId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteZillowListing(id: string, orgId: string): Promise<boolean> {
+    const result = await db.delete(zillowListings)
+      .where(and(eq(zillowListings.id, id), eq(zillowListings.orgId, orgId)))
+      .returning();
+    return result.length > 0;
   }
 }
 
