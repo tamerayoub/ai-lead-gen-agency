@@ -76,6 +76,7 @@ export interface IStorage {
   getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined>;
   upsertIntegrationConfig(config: InsertIntegrationConfig & { orgId: string }): Promise<IntegrationConfig>;
   getAllGmailIntegrations(): Promise<Array<{ orgId: string; config: any }>>;
+  getAllOutlookIntegrations(): Promise<Array<{ orgId: string; config: any }>>;
   getOrganizationMembers(orgId: string): Promise<Array<{ userId: string }>>;
 
   // Pending Reply operations
@@ -427,6 +428,13 @@ export class DatabaseStorage implements IStorage {
     const configs = await db.select()
       .from(integrationConfig)
       .where(and(eq(integrationConfig.service, "gmail"), eq(integrationConfig.isActive, true)));
+    return configs.map(c => ({ orgId: c.orgId, config: c.config }));
+  }
+
+  async getAllOutlookIntegrations(): Promise<Array<{ orgId: string; config: any }>> {
+    const configs = await db.select()
+      .from(integrationConfig)
+      .where(and(eq(integrationConfig.service, "outlook"), eq(integrationConfig.isActive, true)));
     return configs.map(c => ({ orgId: c.orgId, config: c.config }));
   }
 
