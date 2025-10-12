@@ -480,14 +480,13 @@ export default function Integrations() {
                             <>
                               <Progress value={progressPercentage} className="h-2" />
                               <div className="text-xs text-muted-foreground space-y-1">
-                                <div>Status: {progress.status}</div>
-                                {progress.processedCount > 0 && (
-                                  <div>Processed: {progress.processedCount} / {progress.totalCount || '?'}</div>
+                                <div>Status: {progress.currentStep}</div>
+                                {progress.processedEmails > 0 && (
+                                  <div>Processed: {progress.processedEmails} / {progress.totalEmails || '?'}</div>
                                 )}
                                 {progress.summary && (
                                   <div className="mt-2 p-2 rounded bg-background">
                                     <div>Created: {progress.summary.created || 0}</div>
-                                    <div>Updated: {progress.summary.updated || 0}</div>
                                     <div>Skipped: {progress.summary.skipped || 0}</div>
                                   </div>
                                 )}
@@ -554,14 +553,13 @@ export default function Integrations() {
                             <>
                               <Progress value={progressPercentage} className="h-2" />
                               <div className="text-xs text-muted-foreground space-y-1">
-                                <div>Status: {progress.status}</div>
-                                {progress.processedCount > 0 && (
-                                  <div>Processed: {progress.processedCount} / {progress.totalCount || '?'}</div>
+                                <div>Status: {progress.currentStep}</div>
+                                {progress.processedEmails > 0 && (
+                                  <div>Processed: {progress.processedEmails} / {progress.totalEmails || '?'}</div>
                                 )}
                                 {progress.summary && (
                                   <div className="mt-2 p-2 rounded bg-background">
                                     <div>Created: {progress.summary.created || 0}</div>
-                                    <div>Updated: {progress.summary.updated || 0}</div>
                                     <div>Skipped: {progress.summary.skipped || 0}</div>
                                   </div>
                                 )}

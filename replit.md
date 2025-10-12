@@ -10,6 +10,36 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 12, 2025 - Outlook Integration Completed
+**Problem:** Users needed Microsoft Outlook email integration alongside Gmail for lead management.
+
+**Solution:** Implemented complete Outlook integration mirroring Gmail functionality:
+- **Backend Infrastructure:**
+  - Created `server/outlook.ts` with Microsoft Graph API OAuth2 client
+  - Implemented `getOutlookAuthUrl()`, `getOutlookTokensFromCode()`, `listOutlookMessages()`, `getUserProfile()`, and `sendOutlookReply()`
+  - Added OAuth routes: `/api/integrations/outlook/auth`, `/callback`
+  - Added status endpoint: `GET /api/integrations/outlook`
+  - Added disconnect endpoint: `POST /api/integrations/outlook/disconnect`
+  - Added sync endpoint: `POST /api/leads/sync-from-outlook` with AI-powered lead parsing
+- **Storage Layer:** Extended `IStorage` with `getAllOutlookIntegrations()` method for background scanning capability
+- **Frontend Integration:**
+  - Added Outlook card to Integrations.tsx with Mail icon, category badge, and status indicators
+  - Implemented connect/disconnect/sync functionality with real-time progress tracking
+  - Added sync logs display with color-coded messages (success/error/warning/info)
+  - OAuth callback handling with success/error redirects
+- **Lead Sync Logic:**
+  - Fetches up to 500 emails from Outlook inbox
+  - AI parsing using GPT-4o-mini to identify rental inquiries and extract lead data
+  - Conversation threading by conversationId for proper email chain consolidation
+  - Lead deduplication by email and phone number
+  - Property matching based on mentioned property names
+  - Multi-tenant organization context enforcement
+- **Configuration:** Requires `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` environment variables
+- **OAuth Redirect URI:** `https://[REPLIT_URL]/api/integrations/outlook/callback`
+- **Required Azure Permissions:** Mail.Read, Mail.Send, offline_access (Delegated)
+
+**Result:** Full Outlook integration with same feature parity as Gmail - OAuth authentication, email syncing with AI lead detection, manual sync with progress tracking, disconnect with keep/delete options, and proper multi-tenant support.
+
 ### October 12, 2025 - Gmail Integration Migrated to Dedicated Integrations Page
 **Problem:** Gmail integration logic was duplicated across Settings and Integrations pages, causing maintenance issues and confusing UX.
 
