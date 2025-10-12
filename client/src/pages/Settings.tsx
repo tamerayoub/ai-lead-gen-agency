@@ -137,17 +137,24 @@ export default function Settings() {
   );
 
   // Get Gmail new leads notifications
-  const { data: notifications = [] } = useQuery({
+  interface Notification {
+    id: string;
+    type: string;
+    read: boolean;
+    metadata?: { newMessageCount?: number };
+  }
+
+  const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     enabled: isGmailConnected,
   });
 
   const gmailNewLeadsNotifications = notifications.filter(
-    (n: any) => n.type === "gmail_new_leads" && !n.read
+    (n) => n.type === "gmail_new_leads" && !n.read
   );
   
   const totalNewLeads = gmailNewLeadsNotifications.reduce(
-    (sum: number, n: any) => sum + (n.metadata?.newMessageCount || 0),
+    (sum, n) => sum + (n.metadata?.newMessageCount || 0),
     0
   );
 

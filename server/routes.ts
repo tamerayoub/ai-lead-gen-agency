@@ -1360,6 +1360,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         await gmailScanner.clearNotifiedThreads(req.orgId, syncedThreadIds);
       }
 
+      // Mark all gmail_new_leads notifications for this org as read
+      const gmailNotifications = await storage.getUserNotifications(req.user.id, req.orgId);
+      const gmailNewLeadsNotifications = gmailNotifications.filter(n => n.type === 'gmail_new_leads' && !n.read);
+      
+      for (const notification of gmailNewLeadsNotifications) {
+        await storage.markNotificationAsRead(notification.id, req.user.id);
+      }
+
       res.json({
         success: true,
         createdLeads,
