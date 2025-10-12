@@ -13,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SiGoogle, SiZillow, SiMeta, SiFacebook } from "react-icons/si";
+import { SiGoogle, SiZillow, SiMeta, SiFacebook, SiMicrosoft } from "react-icons/si";
 import { Mail, Building2, CheckCircle2, Settings as SettingsIcon, RefreshCw, XCircle, AlertCircle, Info, Phone, MessageSquare, FileSpreadsheet, Home } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -56,6 +56,14 @@ export default function Integrations() {
     gmailConfig && gmailConfig.config?.access_token && gmailConfig.isActive !== false
   );
 
+  const { data: outlookConfig, isLoading: outlookLoading } = useQuery({ 
+    queryKey: ["/api/integrations/outlook"],
+  });
+
+  const isOutlookConnected = Boolean(
+    outlookConfig?.connected && outlookConfig?.isActive !== false
+  );
+
   interface Notification {
     id: string;
     type: string;
@@ -89,6 +97,15 @@ export default function Integrations() {
       status: isGmailConnected ? "configured" : "available",
       category: "Email",
       provider: "google",
+    },
+    {
+      id: "outlook",
+      name: "Outlook",
+      description: "Sync emails and manage leads directly from your Outlook inbox.",
+      icon: <SiMicrosoft className="h-8 w-8" />,
+      status: isOutlookConnected ? "configured" : "available",
+      category: "Email",
+      provider: "microsoft",
     },
     {
       id: "zillow",
@@ -299,11 +316,71 @@ export default function Integrations() {
     syncGmailMutation.mutate();
   };
 
+  // ===== OUTLOOK HANDLERS =====
+  const connectOutlook = async () => {
+    try {
+      const res = await fetch("/api/integrations/outlook/auth");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({ title: "Failed to initiate Outlook connection", variant: "destructive" });
+    }
+  };
+
+  const disconnectOutlookMutation = useMutation({
+    mutationFn: (deleteLeads: boolean) => 
+      apiRequest("POST", "/api/integrations/outlook/disconnect", { deleteLeads }),
+    onSuccess: () => {
+      toast({ title: "Outlook disconnected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/outlook"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to disconnect Outlook", variant: "destructive" });
+    },
+  });
+
+  const disconnectOutlook = (deleteLeads: boolean = false) => {
+    disconnectOutlookMutation.mutate(deleteLeads);
+  };
+
+  const syncOutlookMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/leads/sync-from-outlook", {}),
+    onSuccess: (data: any) => {
+      const { summary = {}, total = 0 } = data;
+      const created = summary.created || 0;
+      
+      toast({ 
+        title: `✅ Outlook Sync Complete!`, 
+        description: `Created ${created} new leads from ${total} emails`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to sync Outlook messages", variant: "destructive" });
+    },
+  });
+
+  const syncOutlookLeads = () => {
+    setShowSyncLogs(true);
+    setUserClosedLogs(false);
+    startPolling();
+    syncOutlookMutation.mutate();
+  };
+
   // Handle OAuth redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('gmail') === 'connected') {
       queryClient.refetchQueries({ queryKey: ["/api/integrations/gmail"], type: 'active' });
+      toast({ title: "Gmail connected successfully!" });
+    }
+    if (params.get('outlook') === 'connected') {
+      queryClient.refetchQueries({ queryKey: ["/api/integrations/outlook"], type: 'active' });
       window.history.replaceState({}, '', '/integrations');
     }
   }, []);
@@ -444,6 +521,80 @@ export default function Integrations() {
                     </>
                   )}
 
+                  {/* Outlook-specific content */}
+                  {integration.id === "outlook" && isOutlookConnected && (
+                    <>
+                      {showSyncLogs && (
+                        <div className="space-y-2 rounded-lg border bg-muted/50 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <RefreshCw className={`h-4 w-4 ${progress?.isRunning ? 'animate-spin' : ''}`} />
+                              <span className="text-sm font-medium">
+                                {progress?.isRunning ? 'Syncing Outlook...' : 'Sync Complete'}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (progress?.isRunning) {
+                                  setShowStopSyncDialog(true);
+                                } else {
+                                  setShowSyncLogs(false);
+                                  setUserClosedLogs(true);
+                                }
+                              }}
+                              data-testid="button-close-sync-logs"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          {progress && (
+                            <>
+                              <Progress value={progressPercentage} className="h-2" />
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <div>Status: {progress.status}</div>
+                                {progress.processedCount > 0 && (
+                                  <div>Processed: {progress.processedCount} / {progress.totalCount || '?'}</div>
+                                )}
+                                {progress.summary && (
+                                  <div className="mt-2 p-2 rounded bg-background">
+                                    <div>Created: {progress.summary.created || 0}</div>
+                                    <div>Updated: {progress.summary.updated || 0}</div>
+                                    <div>Skipped: {progress.summary.skipped || 0}</div>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {progress.logs && progress.logs.length > 0 && (
+                                <div className="mt-3 max-h-48 overflow-y-auto rounded bg-black/5 dark:bg-white/5 p-3 font-mono text-xs space-y-0.5">
+                                  {progress.logs.map((log: any, idx: number) => {
+                                    const logType = log?.type || 'info';
+                                    const logMessage = String(log?.message || log || '');
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className={`
+                                          ${logType === 'error' ? 'text-red-600 dark:text-red-400' : ''}
+                                          ${logType === 'success' ? 'text-green-600 dark:text-green-400' : ''}
+                                          ${logType === 'warning' ? 'text-yellow-600 dark:text-yellow-400' : ''}
+                                          ${logType === 'info' ? 'text-muted-foreground' : ''}
+                                        `}
+                                      >
+                                        {logMessage}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   <div className="flex gap-2">
                     {integration.status === "configured" && integration.id === "gmail" ? (
                       <>
@@ -471,6 +622,27 @@ export default function Integrations() {
                           Disconnect
                         </Button>
                       </>
+                    ) : integration.status === "configured" && integration.id === "outlook" ? (
+                      <>
+                        <Button 
+                          size="sm" 
+                          onClick={syncOutlookLeads}
+                          disabled={syncOutlookMutation.isPending || progress?.isRunning}
+                          data-testid="button-outlook-sync"
+                        >
+                          <RefreshCw className={`h-4 w-4 mr-2 ${(syncOutlookMutation.isPending || progress?.isRunning) ? 'animate-spin' : ''}`} />
+                          Sync Now
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => disconnectOutlook(false)}
+                          disabled={disconnectOutlookMutation.isPending}
+                          data-testid="button-outlook-disconnect"
+                        >
+                          Disconnect
+                        </Button>
+                      </>
                     ) : integration.status === "configured" ? (
                       <Button variant="outline" size="sm" data-testid={`button-${integration.id}-manage`}>
                         <SettingsIcon className="h-4 w-4 mr-2" />
@@ -479,7 +651,7 @@ export default function Integrations() {
                     ) : integration.status === "available" ? (
                       <Button 
                         size="sm" 
-                        onClick={integration.id === "gmail" ? connectGmail : undefined}
+                        onClick={integration.id === "gmail" ? connectGmail : integration.id === "outlook" ? connectOutlook : undefined}
                         data-testid={`button-${integration.id}-connect`}
                       >
                         Connect
