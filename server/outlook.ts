@@ -39,28 +39,50 @@ export async function getOutlookTokensFromCode(code: string) {
   
   const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
   
+  // NOTE: Do NOT include 'scope' parameter when exchanging code for tokens
+  // Microsoft uses the scopes from the authorization request
   const params = new URLSearchParams({
     client_id: clientId!,
     client_secret: clientSecret!,
     code: code,
     redirect_uri: redirectUri,
-    grant_type: 'authorization_code',
-    scope: OUTLOOK_SCOPES.join(' ')
+    grant_type: 'authorization_code'
   });
   
-  const response = await axios.post(tokenUrl, params.toString(), {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
+  console.log('[Outlook] Token exchange request:', {
+    url: tokenUrl,
+    clientId,
+    redirectUri,
+    hasClientSecret: !!clientSecret,
+    codeLength: code.length
   });
   
-  return {
-    access_token: response.data.access_token,
-    refresh_token: response.data.refresh_token,
-    expires_in: response.data.expires_in,
-    token_type: response.data.token_type,
-    scope: response.data.scope
-  };
+  try {
+    const response = await axios.post(tokenUrl, params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+    
+    console.log('[Outlook] Token exchange successful, scopes:', response.data.scope);
+    
+    return {
+      access_token: response.data.access_token,
+      refresh_token: response.data.refresh_token,
+      expires_in: response.data.expires_in,
+      token_type: response.data.token_type,
+      scope: response.data.scope
+    };
+  } catch (error: any) {
+    console.error('[Outlook] Token exchange failed:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      error: error.response?.data?.error,
+      errorDescription: error.response?.data?.error_description,
+      message: error.message
+    });
+    throw error;
+  }
 }
 
 export async function refreshOutlookToken(refreshToken: string) {
@@ -69,12 +91,12 @@ export async function refreshOutlookToken(refreshToken: string) {
   
   const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
   
+  // NOTE: Do NOT include 'scope' parameter for refresh tokens either
   const params = new URLSearchParams({
     client_id: clientId!,
     client_secret: clientSecret!,
     refresh_token: refreshToken,
-    grant_type: 'refresh_token',
-    scope: OUTLOOK_SCOPES.join(' ')
+    grant_type: 'refresh_token'
   });
   
   const response = await axios.post(tokenUrl, params.toString(), {
