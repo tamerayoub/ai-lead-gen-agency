@@ -63,16 +63,18 @@ export default function Settings() {
   const [showSyncLogs, setShowSyncLogs] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showStopSyncDialog, setShowStopSyncDialog] = useState(false);
+  const [userClosedLogs, setUserClosedLogs] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
   // Auto-enable polling and show logs if sync is already running (background sync support)
+  // But only if user hasn't explicitly closed the logs
   useEffect(() => {
-    if (progress?.isRunning && !isPolling) {
+    if (progress?.isRunning && !isPolling && !userClosedLogs) {
       setShowSyncLogs(true);
       startPolling();
     }
-  }, [progress?.isRunning, isPolling, startPolling]);
+  }, [progress?.isRunning, isPolling, startPolling, userClosedLogs]);
 
   const { data: responseSettings } = useQuery({ 
     queryKey: ["/api/ai-settings/responses"],
@@ -339,6 +341,7 @@ export default function Settings() {
       stopPolling();
     }
     setShowSyncLogs(false);
+    setUserClosedLogs(true); // Mark that user explicitly closed logs
     
     // Delete leads if requested
     if (deleteLeads) {
@@ -368,6 +371,7 @@ export default function Settings() {
       stopPolling();
     }
     setShowSyncLogs(false);
+    setUserClosedLogs(true); // Mark that user explicitly closed logs
     
     // Delete leads if requested
     if (deleteLeads) {
