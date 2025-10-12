@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
+import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile } from "./outlook";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
@@ -1386,6 +1387,363 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       syncProgressTracker.fail(String(error));
       console.error("Gmail sync error:", error);
       res.status(500).json({ error: "Failed to sync Gmail messages" });
+    }
+  });
+
+  // ===== OUTLOOK OAUTH ROUTES =====
+  app.get("/api/integrations/outlook/auth", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      console.log("[Outlook OAuth] Generating auth URL for user:", userId);
+      const authUrl = getOutlookAuthUrl(userId);
+      console.log("[Outlook OAuth] Generated auth URL:", authUrl);
+      res.json({ url: authUrl });
+    } catch (error) {
+      console.error("[Outlook OAuth] Failed to generate auth URL:", error);
+      res.status(500).json({ error: "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/integrations/outlook/callback", isAuthenticated, async (req, res) => {
+    try {
+      const { code, state: userId } = req.query;
+      
+      if (!code) {
+        return res.status(400).send("Authorization code missing");
+      }
+
+      // Exchange code for tokens
+      const tokens = await getOutlookTokensFromCode(code as string);
+
+      // Get user's organization
+      const membership = await storage.getUserOrganization(req.user.id);
+      if (!membership) {
+        return res.redirect("/integrations?outlook=error&reason=no_org");
+      }
+      
+      // Store tokens in integrationConfig
+      await storage.upsertIntegrationConfig({
+        service: "outlook",
+        config: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          token_type: tokens.token_type,
+          scope: tokens.scope,
+        },
+        isActive: true,
+        orgId: membership.orgId,
+      });
+
+      // Redirect back to integrations page with success message
+      res.redirect("/integrations?outlook=connected");
+    } catch (error) {
+      console.error("Outlook OAuth error:", error);
+      res.redirect("/integrations?outlook=error");
+    }
+  });
+
+  // Get Outlook integration status
+  app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+      
+      if (!outlookConfig || !outlookConfig.isActive) {
+        return res.json({ connected: false });
+      }
+
+      // Get user profile to display email
+      const tokens = outlookConfig.config as any;
+      const profile = await getUserProfile(tokens.access_token);
+      
+      res.json({
+        connected: true,
+        email: profile.email,
+        displayName: profile.displayName,
+        id: outlookConfig.id,
+        config: {
+          scope: tokens.scope,
+        },
+        isActive: outlookConfig.isActive,
+      });
+    } catch (error) {
+      console.error("Error fetching Outlook integration:", error);
+      res.json({ connected: false });
+    }
+  });
+
+  // Disconnect Outlook integration
+  app.post("/api/integrations/outlook/disconnect", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { deleteLeads } = req.body;
+      
+      // Deactivate the integration
+      const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+      if (outlookConfig) {
+        await storage.upsertIntegrationConfig({
+          service: "outlook",
+          config: outlookConfig.config,
+          isActive: false,
+          orgId: req.orgId,
+        });
+      }
+
+      // Optionally delete Outlook-sourced leads
+      if (deleteLeads) {
+        const leads = await storage.getAllLeads(req.orgId);
+        const outlookLeads = leads.filter(l => l.source === 'outlook');
+        
+        for (const lead of outlookLeads) {
+          await storage.deleteLead(lead.id, req.orgId);
+        }
+        
+        console.log(`[Outlook] Deleted ${outlookLeads.length} Outlook-sourced leads for org ${req.orgId}`);
+      }
+
+      res.json({ success: true, message: "Outlook disconnected successfully" });
+    } catch (error) {
+      console.error("Error disconnecting Outlook:", error);
+      res.status(500).json({ error: "Failed to disconnect Outlook" });
+    }
+  });
+
+  // ===== OUTLOOK LEAD SYNC =====
+  app.post("/api/leads/sync-from-outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    const { syncProgressTracker } = await import("./syncProgress");
+    
+    try {
+      syncProgressTracker.reset();
+      syncProgressTracker.start(0);
+      syncProgressTracker.updateStep('Initializing Outlook sync...');
+      
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled before start" });
+      }
+      
+      // Get Outlook integration config
+      const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+      const tokens = outlookConfig?.config as any;
+      if (!outlookConfig || !tokens?.access_token) {
+        syncProgressTracker.fail("Outlook not connected");
+        return res.status(400).json({ error: "Outlook not connected" });
+      }
+
+      syncProgressTracker.addLog('info', '✓ Outlook credentials verified');
+
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled" });
+      }
+
+      // Get all properties to match against
+      const properties = await storage.getAllProperties(req.orgId);
+      syncProgressTracker.addLog('info', `✓ Loaded ${properties.length} properties`);
+
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled" });
+      }
+
+      // Fetch emails from Outlook (up to 500)
+      syncProgressTracker.addLog('info', '📧 Fetching emails from Outlook...');
+      syncProgressTracker.updateStep('Fetching emails from Outlook...');
+      const messages = await listOutlookMessages(tokens.access_token, 500, () => syncProgressTracker.isCancelled());
+      
+      if (syncProgressTracker.isCancelled()) {
+        return res.json({ message: "Sync cancelled during email fetch" });
+      }
+
+      syncProgressTracker.setTotal(messages.length);
+      syncProgressTracker.addLog('success', `✓ Fetched ${messages.length} emails`);
+      syncProgressTracker.updateStep(`Analyzing ${messages.length} emails with AI...`);
+      
+      const createdLeads = [];
+      const duplicates = [];
+      const parseErrors = [];
+      const skipped = [];
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      // Track conversationId -> leadId mapping
+      const conversationLeadMap = new Map<string, string>();
+
+      for (let i = 0; i < messages.length; i++) {
+        const msg = messages[i];
+        
+        if (syncProgressTracker.isCancelled()) {
+          syncProgressTracker.addLog('warning', '⚠️ Sync cancelled by user');
+          break;
+        }
+
+        syncProgressTracker.updateProgress(i + 1);
+        syncProgressTracker.addLog('info', `Processing email ${i + 1}/${messages.length}...`);
+
+        try {
+          const subject = msg.subject || "";
+          const fromEmail = msg.from?.emailAddress?.address || "";
+          const fromName = msg.from?.emailAddress?.name || "";
+          const conversationId = msg.conversationId;
+          
+          // Get email body
+          const bodyContent = msg.body?.content || "";
+          const emailBody = bodyContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+          // Skip if no sender email
+          if (!fromEmail) {
+            syncProgressTracker.addLog('warning', `⚠️ Skipped: no sender email`);
+            skipped.push({ reason: 'No sender email', subject });
+            continue;
+          }
+
+          // Check if this conversation already has a lead
+          let leadToUse = null;
+          if (conversationId && conversationLeadMap.has(conversationId)) {
+            const existingLeadId = conversationLeadMap.get(conversationId);
+            leadToUse = await storage.getLead(existingLeadId!, req.orgId);
+            
+            if (leadToUse) {
+              syncProgressTracker.addLog('info', `📎 Email belongs to existing conversation for ${leadToUse.name}`);
+              
+              // Just create conversation record
+              await storage.createConversation({
+                leadId: leadToUse.id,
+                type: "received",
+                message: emailBody.substring(0, 500),
+                channel: "email",
+                aiGenerated: false,
+                externalId: msg.id,
+              });
+              
+              duplicates.push({ email: fromEmail, reason: 'Same conversation thread' });
+              continue;
+            }
+          }
+
+          // AI parsing to determine if it's a rental inquiry
+          const aiPrompt = `Analyze this email and determine if it's a rental property inquiry. Extract key information.
+
+Email Subject: ${subject}
+From: ${fromName} <${fromEmail}>
+Body: ${emailBody.substring(0, 1000)}
+
+Return JSON with:
+{
+  "isRentalInquiry": boolean,
+  "firstName": string,
+  "lastName": string,
+  "phone": string or null,
+  "propertyName": string or null,
+  "message": string (brief summary),
+  "income": string or null,
+  "moveInDate": string or null
+}`;
+
+          const aiResponse = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: aiPrompt }],
+            response_format: { type: "json_object" },
+          });
+
+          const parsedData = JSON.parse(aiResponse.choices[0].message.content || "{}");
+
+          if (!parsedData.isRentalInquiry) {
+            syncProgressTracker.addLog('info', `⏭️ Skipped: not a rental inquiry`);
+            skipped.push({ reason: 'Not a rental inquiry', subject, email: fromEmail });
+            continue;
+          }
+
+          // Check for duplicate by email or phone
+          const leadEmail = fromEmail.toLowerCase().trim();
+          const leadPhone = (parsedData.phone || "").trim();
+          
+          const existingLead = await storage.getLeadByEmail(leadEmail, req.orgId) || 
+                              (leadPhone ? await storage.getLeadByPhone(leadPhone, req.orgId) : null);
+
+          if (existingLead) {
+            leadToUse = existingLead;
+            syncProgressTracker.addLog('info', `📎 Found existing lead: ${existingLead.name}`);
+            duplicates.push({ email: fromEmail, leadId: existingLead.id });
+            
+            // Update lead if new info available
+            const updates: any = {};
+            if (parsedData.income && !existingLead.income) updates.income = parsedData.income;
+            if (parsedData.moveInDate && !existingLead.moveInDate) updates.moveInDate = parsedData.moveInDate;
+            
+            if (Object.keys(updates).length > 0) {
+              await storage.updateLead(existingLead.id, updates, req.orgId);
+              syncProgressTracker.addLog('info', `✏️ Updated lead info for ${existingLead.name}`);
+            }
+          } else {
+            // Match property if mentioned
+            let matchedProperty = null;
+            if (parsedData.propertyName) {
+              matchedProperty = properties.find(p => 
+                p.name.toLowerCase().includes(parsedData.propertyName.toLowerCase()) ||
+                parsedData.propertyName.toLowerCase().includes(p.name.toLowerCase())
+              );
+            }
+
+            // Create new lead
+            leadToUse = await storage.createLead({
+              name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
+              email: leadEmail,
+              phone: leadPhone,
+              propertyId: matchedProperty?.id || properties[0]?.id || "",
+              propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
+              status: "new",
+              source: "outlook",
+              income: parsedData.income || null,
+              moveInDate: parsedData.moveInDate || null,
+              profileData: {},
+              orgId: req.orgId,
+            });
+            syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
+            createdLeads.push(leadToUse);
+          }
+
+          // Store conversationId -> leadId mapping
+          if (conversationId) {
+            conversationLeadMap.set(conversationId, leadToUse.id);
+          }
+
+          // Create conversation record
+          await storage.createConversation({
+            leadId: leadToUse.id,
+            type: "received",
+            message: parsedData.message || emailBody.substring(0, 500),
+            channel: "email",
+            aiGenerated: false,
+            externalId: msg.id,
+          });
+
+        } catch (error) {
+          console.error(`Error processing Outlook message ${i}:`, error);
+          syncProgressTracker.addLog('error', `❌ Error processing email: ${error}`);
+          parseErrors.push({ index: i, error: String(error) });
+        }
+      }
+
+      const summary = {
+        created: createdLeads.length,
+        duplicates: duplicates.length,
+        skipped: skipped.length,
+        errors: parseErrors.length,
+      };
+
+      syncProgressTracker.complete(summary);
+      syncProgressTracker.addLog('success', `✅ Sync complete! Created ${summary.created} leads from ${messages.length} emails`);
+
+      res.json({
+        success: true,
+        createdLeads,
+        duplicates,
+        skipped,
+        parseErrors,
+        total: messages.length,
+        summary,
+      });
+
+    } catch (error) {
+      syncProgressTracker.fail(String(error));
+      console.error("Outlook sync error:", error);
+      res.status(500).json({ error: "Failed to sync Outlook messages" });
     }
   });
 
