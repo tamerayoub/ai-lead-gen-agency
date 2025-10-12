@@ -143,7 +143,10 @@ export default function Settings() {
     id: string;
     type: string;
     read: boolean;
-    metadata?: { newMessageCount?: number };
+    metadata?: { 
+      newMessageCount?: number;
+      threadIds?: string[];
+    };
   }
 
   const { data: notifications = [] } = useQuery<Notification[]>({
