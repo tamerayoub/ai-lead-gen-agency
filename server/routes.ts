@@ -1463,17 +1463,21 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   // Get Outlook integration status
   app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
+      console.log("[Outlook Status] Checking status for org:", req.orgId);
       const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
       
       if (!outlookConfig || !outlookConfig.isActive) {
+        console.log("[Outlook Status] No active config found, returning connected: false");
         return res.json({ connected: false });
       }
 
+      console.log("[Outlook Status] Found active config, fetching user profile...");
       // Get user profile to display email
       const tokens = outlookConfig.config as any;
       const profile = await getUserProfile(tokens.access_token);
+      console.log("[Outlook Status] User profile fetched successfully:", profile.email);
       
-      res.json({
+      const response = {
         connected: true,
         email: profile.email,
         displayName: profile.displayName,
@@ -1482,9 +1486,11 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           scope: tokens.scope,
         },
         isActive: outlookConfig.isActive,
-      });
+      };
+      console.log("[Outlook Status] Returning response:", JSON.stringify(response));
+      res.json(response);
     } catch (error) {
-      console.error("Error fetching Outlook integration:", error);
+      console.error("[Outlook Status] Error fetching Outlook integration:", error);
       res.json({ connected: false });
     }
   });
