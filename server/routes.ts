@@ -1462,23 +1462,29 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  // Get Outlook integration status - REWRITTEN TO FIX CACHING
+  // Get Outlook integration status
   app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
-    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId); // NEW LOG FORMAT
+    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId);
+    
+    // Disable all caching headers
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.removeHeader('ETag');
     
     try {
       const config = await storage.getIntegrationConfig("outlook", req.orgId);
-      console.log("==> Config found:", config ? "YES" : "NO"); // NEW LOG
+      console.log("==> Config found:", config ? "YES" : "NO");
       
       if (!config || !config.isActive) {
-        console.log("==> Returning: NOT CONNECTED"); // NEW LOG
-        return res.json({ connected: false });
+        console.log("==> Returning: NOT CONNECTED");
+        return res.json({ connected: false, _ts: Date.now() }); // Add timestamp
       }
 
-      console.log("==> Fetching Outlook user profile..."); // NEW LOG
+      console.log("==> Fetching Outlook user profile...");
       const tokens = config.config as any;
       const profile = await getUserProfile(tokens.access_token);
-      console.log("==> Profile email:", profile.email); // NEW LOG
+      console.log("==> Profile email:", profile.email);
       
       const result = {
         connected: true,
@@ -1487,13 +1493,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         id: config.id,
         config: { scope: tokens.scope },
         isActive: config.isActive,
+        _ts: Date.now(), // Add timestamp to prevent caching
       };
       
-      console.log("==> Returning CONNECTED state for:", profile.email); // NEW LOG
+      console.log("==> Returning CONNECTED state for:", profile.email);
       return res.json(result);
     } catch (err) {
-      console.error("==> ERROR in Outlook status:", err); // NEW LOG
-      return res.json({ connected: false });
+      console.error("==> ERROR in Outlook status:", err);
+      return res.json({ connected: false, _ts: Date.now() });
     }
   });
 

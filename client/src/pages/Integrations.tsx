@@ -94,6 +94,8 @@ export default function Integrations() {
   const { data: outlookConfig, isLoading: outlookLoading } = useQuery<any>({ 
     queryKey: ["/api/integrations/outlook"],
     staleTime: 0, // Always refetch to get latest status
+    refetchOnMount: 'always', // Force refetch on component mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   const isOutlookConnected = Boolean(
