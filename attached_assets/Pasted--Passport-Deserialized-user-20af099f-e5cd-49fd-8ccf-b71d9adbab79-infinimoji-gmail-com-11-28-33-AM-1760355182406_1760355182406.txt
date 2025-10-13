@@ -1,0 +1,360 @@
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:28:33 AM [express] GET /api/notifications/unread-count 304 in 183ms :: {"count":"1"}
+11:28:33 AM [express] GET /api/notifications 200 in 234ms :: [{"id":"ccaea2b2-79bb-4463-9937-2888aae5…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:28:33 AM [express] GET /api/pending-replies 304 in 175ms :: []
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:28:33 AM [express] GET /api/leads 304 in 205ms :: []
+11:28:33 AM [express] GET /api/ai-activity 304 in 174ms :: []
+11:28:33 AM [express] GET /api/properties 304 in 242ms :: []
+11:28:34 AM [express] GET /api/analytics/stats 304 in 281ms :: {"totalLeads":0,"conversionRate":"0%",…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:29:17 AM [express] GET /api/auth/user 304 in 54ms :: {"id":"20af099f-e5cd-49fd-8ccf-b71d9adbab79",…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:29:18 AM [express] GET /api/auth/user 304 in 45ms :: {"id":"20af099f-e5cd-49fd-8ccf-b71d9adbab79",…
+11:29:18 AM [express] GET /api/organizations 304 in 96ms :: [{"orgId":"21f621ba-3802-460c-869b-a267a1…
+11:29:18 AM [express] GET /api/integrations/gmail 304 in 343ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+11:29:18 AM [express] GET /api/organizations/current 304 in 150ms :: {"orgId":"21f621ba-3802-460c-869…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+11:29:18 AM [express] GET /api/notifications/unread-count 304 in 201ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+11:29:18 AM [express] GET /api/leads/sync-progress 304 in 48ms :: {"isRunning":false,"totalEmails":0,…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:29:18 AM [express] GET /api/organizations 304 in 89ms :: [{"orgId":"21f621ba-3802-460c-869b-a267a1…
+11:29:18 AM [express] GET /api/notifications 200 in 245ms :: [{"id":"ccaea2b2-79bb-4463-9937-2888aae5…
+11:29:18 AM [express] GET /api/integrations/outlook 304 in 183ms :: {"id":"df2c400a-2c19-4c29-8bd0-e1…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+11:29:18 AM [express] GET /api/organizations/current 304 in 147ms :: {"orgId":"21f621ba-3802-460c-869…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+11:29:18 AM [express] GET /api/integrations/gmail 304 in 187ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:29:18 AM [express] GET /api/leads/sync-progress 304 in 47ms :: {"isRunning":false,"totalEmails":0,…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:29:18 AM [express] GET /api/notifications/unread-count 304 in 185ms :: {"count":"1"}
+11:29:18 AM [express] GET /api/notifications 304 in 189ms :: [{"id":"ccaea2b2-79bb-4463-9937-2888aae5…
+11:29:18 AM [express] GET /api/integrations/outlook 304 in 185ms :: {"id":"df2c400a-2c19-4c29-8bd0-e1…
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+error: The endpoint has been disabled. Enable it using Neon API and retry.
+    at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async PGStore._asyncQuery (/home/runner/workspace/node_modules/connect-pg-simple/index.js:322:21)
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:32:19 AM [express] GET /api/notifications/unread-count 304 in 206ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+11:32:33 AM [express] GET /api/integrations/outlook 200 in 193ms :: {"id":"df2c400a-2c19-4c29-8bd0-e1…

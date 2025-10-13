@@ -1462,15 +1462,20 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  // Get Outlook integration status
-  app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
-    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId);
-    
-    // Disable all caching headers
+  // Middleware to prevent ETag caching
+  const noCache = (req: any, res: any, next: any) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.removeHeader('ETag');
+    // Prevent Express from generating ETags for this response
+    res.set('ETag', undefined);
+    next();
+  };
+
+  // Get Outlook integration status
+  app.get("/api/integrations/outlook", isAuthenticated, noCache, attachOrgContext, async (req: any, res) => {
+    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId);
     
     try {
       const config = await storage.getIntegrationConfig("outlook", req.orgId);
