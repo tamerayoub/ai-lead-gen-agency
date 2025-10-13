@@ -468,6 +468,54 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // ===== INTEGRATION CONFIG ROUTES =====
+  
+  // Middleware to prevent ETag caching
+  const noCache = (req: any, res: any, next: any) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.removeHeader('ETag');
+    res.set('ETag', undefined);
+    next();
+  };
+
+  // Get Outlook integration status - MUST be before generic :service route
+  app.get("/api/integrations/outlook", isAuthenticated, noCache, attachOrgContext, async (req: any, res) => {
+    console.log("🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org:", req.orgId);
+    
+    try {
+      const config = await storage.getIntegrationConfig("outlook", req.orgId);
+      console.log("==> Config found:", config ? "YES" : "NO");
+      
+      if (!config || !config.isActive) {
+        console.log("==> Returning: NOT CONNECTED");
+        return res.json({ connected: false, _ts: Date.now() });
+      }
+
+      console.log("==> Fetching Outlook user profile...");
+      const tokens = config.config as any;
+      const profile = await getUserProfile(tokens.access_token);
+      console.log("==> Profile email:", profile.email);
+      
+      const result = {
+        connected: true,
+        email: profile.email,
+        displayName: profile.displayName,
+        id: config.id,
+        config: { scope: tokens.scope },
+        isActive: config.isActive,
+        _ts: Date.now(),
+      };
+      
+      console.log("==> Returning CONNECTED state for:", profile.email);
+      return res.json(result);
+    } catch (err) {
+      console.error("==> ERROR in Outlook status:", err);
+      return res.json({ connected: false, _ts: Date.now() });
+    }
+  });
+
+  // Generic integration config route - catches other services
   app.get("/api/integrations/:service", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const config = await storage.getIntegrationConfig(req.params.service, req.orgId);
@@ -1459,53 +1507,6 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error("[Outlook Callback] Error:", error);
       res.redirect("/integrations?outlook=error");
-    }
-  });
-
-  // Middleware to prevent ETag caching
-  const noCache = (req: any, res: any, next: any) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private, max-age=0');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    res.removeHeader('ETag');
-    // Prevent Express from generating ETags for this response
-    res.set('ETag', undefined);
-    next();
-  };
-
-  // Get Outlook integration status [v2 - DEBUG]
-  app.get("/api/integrations/outlook", isAuthenticated, noCache, attachOrgContext, async (req: any, res) => {
-    console.log("🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org:", req.orgId);
-    
-    try {
-      const config = await storage.getIntegrationConfig("outlook", req.orgId);
-      console.log("==> Config found:", config ? "YES" : "NO");
-      
-      if (!config || !config.isActive) {
-        console.log("==> Returning: NOT CONNECTED");
-        return res.json({ connected: false, _ts: Date.now() }); // Add timestamp
-      }
-
-      console.log("==> Fetching Outlook user profile...");
-      const tokens = config.config as any;
-      const profile = await getUserProfile(tokens.access_token);
-      console.log("==> Profile email:", profile.email);
-      
-      const result = {
-        connected: true,
-        email: profile.email,
-        displayName: profile.displayName,
-        id: config.id,
-        config: { scope: tokens.scope },
-        isActive: config.isActive,
-        _ts: Date.now(), // Add timestamp to prevent caching
-      };
-      
-      console.log("==> Returning CONNECTED state for:", profile.email);
-      return res.json(result);
-    } catch (err) {
-      console.error("==> ERROR in Outlook status:", err);
-      return res.json({ connected: false, _ts: Date.now() });
     }
   });
 
