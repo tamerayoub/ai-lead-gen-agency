@@ -13,6 +13,8 @@ import { db } from "./db";
 import { zillowListings, properties, organizations } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
+console.log("🔥🔥🔥 ROUTES.TS LOADED AT:", new Date().toISOString(), "🔥🔥🔥");
+
 // Middleware to check if user is authenticated
 function isAuthenticated(req: any, res: any, next: any) {
   if (req.isAuthenticated()) {
