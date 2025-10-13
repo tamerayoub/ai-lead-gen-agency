@@ -50,6 +50,39 @@ export default function Integrations() {
     }
   }, [progress?.isRunning, isPolling, startPolling, userClosedLogs]);
 
+  // Handle OAuth callback success - invalidate cache and show toast
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outlookStatus = params.get('outlook');
+    const gmailStatus = params.get('gmail');
+
+    if (outlookStatus === 'connected') {
+      // Invalidate Outlook query to force refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/outlook"] });
+      toast({
+        title: "Outlook Connected",
+        description: "Your Outlook account has been successfully connected.",
+      });
+      // Clean up URL
+      params.delete('outlook');
+      const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+
+    if (gmailStatus === 'connected') {
+      // Invalidate Gmail query to force refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+      toast({
+        title: "Gmail Connected",
+        description: "Your Gmail account has been successfully connected.",
+      });
+      // Clean up URL
+      params.delete('gmail');
+      const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [toast]);
+
   const { data: gmailConfig, isLoading: gmailLoading } = useQuery<any>({ 
     queryKey: ["/api/integrations/gmail"],
   });
