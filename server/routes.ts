@@ -1460,61 +1460,38 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  // Get Outlook integration status
+  // Get Outlook integration status - REWRITTEN TO FIX CACHING
   app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId); // NEW LOG FORMAT
+    
     try {
-      console.log("[Outlook Status] Checking status for org:", req.orgId);
-      const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+      const config = await storage.getIntegrationConfig("outlook", req.orgId);
+      console.log("==> Config found:", config ? "YES" : "NO"); // NEW LOG
       
-      if (!outlookConfig || !outlookConfig.isActive) {
-        console.log("[Outlook Status] No active config found, returning connected: false");
-        // Disable caching for this response
-        res.set({
-          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'ETag': '' // Disable ETag to prevent 304 responses
-        });
+      if (!config || !config.isActive) {
+        console.log("==> Returning: NOT CONNECTED"); // NEW LOG
         return res.json({ connected: false });
       }
 
-      console.log("[Outlook Status] Found active config, fetching user profile...");
-      // Get user profile to display email
-      const tokens = outlookConfig.config as any;
+      console.log("==> Fetching Outlook user profile..."); // NEW LOG
+      const tokens = config.config as any;
       const profile = await getUserProfile(tokens.access_token);
-      console.log("[Outlook Status] User profile fetched successfully:", profile.email);
+      console.log("==> Profile email:", profile.email); // NEW LOG
       
-      const response = {
+      const result = {
         connected: true,
         email: profile.email,
         displayName: profile.displayName,
-        id: outlookConfig.id,
-        config: {
-          scope: tokens.scope,
-        },
-        isActive: outlookConfig.isActive,
-        _timestamp: Date.now(), // Cache buster
+        id: config.id,
+        config: { scope: tokens.scope },
+        isActive: config.isActive,
       };
-      console.log("[Outlook Status] Returning response:", JSON.stringify(response));
       
-      // Disable caching and ETags to ensure fresh data
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'ETag': '' // Disable ETag to prevent 304 responses
-      });
-      
-      res.json(response);
-    } catch (error) {
-      console.error("[Outlook Status] Error fetching Outlook integration:", error);
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'ETag': ''
-      });
-      res.json({ connected: false });
+      console.log("==> Returning CONNECTED state for:", profile.email); // NEW LOG
+      return res.json(result);
+    } catch (err) {
+      console.error("==> ERROR in Outlook status:", err); // NEW LOG
+      return res.json({ connected: false });
     }
   });
 
