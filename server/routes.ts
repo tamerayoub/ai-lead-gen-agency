@@ -1678,11 +1678,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         // Store conversation
         await storage.createConversation({
           leadId: lead.id,
+          type: 'incoming',
           channel: 'messenger',
-          direction: 'inbound',
-          content: msg.text,
+          message: msg.text,
           externalId: msg.messageId,
-          orgId: config.orgId,
         });
         
         console.log('[Messenger] Stored conversation for lead:', lead.id);
