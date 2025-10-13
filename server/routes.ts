@@ -1596,14 +1596,20 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     
     console.log('[Messenger Webhook] Verification request:', { mode, token: token ? 'present' : 'missing', challenge: challenge ? 'present' : 'missing' });
     
-    // Get verify token from integration config
-    const verifyToken = process.env.MESSENGER_VERIFY_TOKEN || 'default_verify_token';
-    
-    if (mode === 'subscribe' && token === verifyToken) {
-      console.log('[Messenger Webhook] Verification successful');
-      res.status(200).send(challenge);
+    // Check against all configured verify tokens in database (multi-tenant)
+    if (mode === 'subscribe') {
+      const allConfigs = await storage.getAllMessengerIntegrations();
+      const validConfig = allConfigs.find((c: any) => c.config?.verifyToken === token);
+      
+      if (validConfig) {
+        console.log('[Messenger Webhook] Verification successful for org:', validConfig.orgId);
+        res.status(200).send(challenge);
+      } else {
+        console.log('[Messenger Webhook] Verification failed - token not found in any configuration');
+        res.sendStatus(403);
+      }
     } else {
-      console.log('[Messenger Webhook] Verification failed');
+      console.log('[Messenger Webhook] Verification failed - invalid mode');
       res.sendStatus(403);
     }
   });
