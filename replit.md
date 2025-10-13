@@ -10,6 +10,36 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 13, 2025 - Facebook Messenger Integration Completed
+**Problem:** Users needed to capture leads from Facebook Messenger conversations on their business pages.
+
+**Solution:** Implemented complete Facebook Messenger webhook integration for real-time lead capture:
+- **Backend Infrastructure:**
+  - Created `server/messenger.ts` with Facebook Graph API utilities
+  - Implemented `parseMessengerWebhook()` for extracting messages from webhook events
+  - Implemented `getMessengerUserProfile()` for fetching user details (name, profile picture)
+  - Implemented `sendMessengerMessage()` for sending replies via Messenger
+  - Added webhook routes: `GET /api/integrations/messenger/webhook` for verification, `POST /api/integrations/messenger/webhook` for message events
+  - Added configuration endpoints: `POST /api/integrations/messenger/configure`, `GET /api/integrations/messenger`, `POST /api/integrations/messenger/disconnect`
+- **Storage Layer:** Extended `IStorage` with `getAllMessengerIntegrations()` method for multi-tenant webhook handling
+- **Frontend Integration:**
+  - Added Messenger card to Integrations.tsx with MessageSquare icon and setup instructions
+  - Implemented configuration dialog with step-by-step Facebook Developer setup guide
+  - Includes webhook URL display and field subscriptions (messages, messaging_postbacks)
+  - Disconnect dialog with keep/delete leads option
+- **Lead Capture Logic:**
+  - Real-time webhook processing with 200 response within 20 seconds (Facebook requirement)
+  - Lead deduplication by `externalId` pattern `messenger_{senderId}`
+  - Automatic user profile fetching from Facebook Graph API
+  - Conversation storage with proper channel tagging ('messenger')
+  - Graceful error handling with profile fetch fallback
+  - Multi-tenant support via pageId matching in webhook handler
+- **Configuration:** Uses Page Access Token and custom Verify Token stored in `integration_config` table
+- **Webhook URL:** `https://[REPLIT_URL]/api/integrations/messenger/webhook`
+- **Required Facebook Subscriptions:** messages, messaging_postbacks
+
+**Result:** Full Messenger integration enabling real-time lead capture from Facebook Page conversations. Webhook properly handles message events, creates leads with user profiles, stores conversations, and manages multi-tenant configurations. Future enhancement: AI auto-response generation (marked as TODO in webhook handler).
+
 ### October 12, 2025 - Outlook Integration Completed
 **Problem:** Users needed Microsoft Outlook email integration alongside Gmail for lead management.
 
