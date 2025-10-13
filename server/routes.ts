@@ -492,23 +492,64 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         return res.json({ connected: false, _ts: Date.now() });
       }
 
-      console.log("==> Fetching Outlook user profile...");
-      const tokens = config.config as any;
-      const profile = await getUserProfile(tokens.access_token);
-      console.log("==> Profile email:", profile.email);
+      let tokens = config.config as any;
       
-      const result = {
-        connected: true,
-        email: profile.email,
-        displayName: profile.displayName,
-        id: config.id,
-        config: { scope: tokens.scope },
-        isActive: config.isActive,
-        _ts: Date.now(),
-      };
-      
-      console.log("==> Returning CONNECTED state for:", profile.email);
-      return res.json(result);
+      // Try to get profile with current access token
+      try {
+        console.log("==> Fetching Outlook user profile...");
+        const profile = await getUserProfile(tokens.access_token);
+        console.log("==> Profile email:", profile.email);
+        
+        const result = {
+          connected: true,
+          email: profile.email,
+          displayName: profile.displayName,
+          id: config.id,
+          config: { scope: tokens.scope },
+          isActive: config.isActive,
+          _ts: Date.now(),
+        };
+        
+        console.log("==> Returning CONNECTED state for:", profile.email);
+        return res.json(result);
+      } catch (profileError: any) {
+        // If 403 Forbidden, token is expired - refresh it
+        if (profileError.response?.status === 403 || profileError.response?.status === 401) {
+          console.log("==> Access token expired, refreshing...");
+          
+          try {
+            const refreshedTokens = await refreshOutlookToken(tokens.refresh_token);
+            console.log("==> Token refreshed successfully");
+            
+            // Update database with new tokens
+            await storage.upsertIntegrationConfig({
+              service: "outlook",
+              config: refreshedTokens,
+              isActive: true,
+              orgId: req.orgId,
+            });
+            
+            // Retry profile fetch with new token
+            const profile = await getUserProfile(refreshedTokens.access_token);
+            console.log("==> Profile fetched with refreshed token:", profile.email);
+            
+            return res.json({
+              connected: true,
+              email: profile.email,
+              displayName: profile.displayName,
+              id: config.id,
+              config: { scope: refreshedTokens.scope },
+              isActive: config.isActive,
+              _ts: Date.now(),
+            });
+          } catch (refreshError) {
+            console.error("==> Token refresh failed:", refreshError);
+            return res.json({ connected: false, error: "token_refresh_failed", _ts: Date.now() });
+          }
+        } else {
+          throw profileError;
+        }
+      }
     } catch (err) {
       console.error("==> ERROR in Outlook status:", err);
       return res.json({ connected: false, _ts: Date.now() });
