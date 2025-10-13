@@ -1473,9 +1473,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     next();
   };
 
-  // Get Outlook integration status
+  // Get Outlook integration status [v2 - DEBUG]
   app.get("/api/integrations/outlook", isAuthenticated, noCache, attachOrgContext, async (req: any, res) => {
-    console.log("==> OUTLOOK STATUS CHECK for org:", req.orgId);
+    console.log("🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org:", req.orgId);
     
     try {
       const config = await storage.getIntegrationConfig("outlook", req.orgId);
