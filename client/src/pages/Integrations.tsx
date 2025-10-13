@@ -60,6 +60,7 @@ export default function Integrations() {
 
   const { data: outlookConfig, isLoading: outlookLoading } = useQuery<any>({ 
     queryKey: ["/api/integrations/outlook"],
+    staleTime: 0, // Always refetch to get latest status
   });
 
   const isOutlookConnected = Boolean(
