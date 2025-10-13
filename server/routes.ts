@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile } from "./outlook";
+import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import OpenAI from "openai";
@@ -1583,6 +1584,197 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error("Error disconnecting Outlook:", error);
       res.status(500).json({ error: "Failed to disconnect Outlook" });
+    }
+  });
+
+  // ===== FACEBOOK MESSENGER WEBHOOK =====
+  // Webhook verification (GET) - Facebook will call this to verify your webhook
+  app.get("/api/integrations/messenger/webhook", async (req: any, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+    
+    console.log('[Messenger Webhook] Verification request:', { mode, token: token ? 'present' : 'missing', challenge: challenge ? 'present' : 'missing' });
+    
+    // Get verify token from integration config
+    const verifyToken = process.env.MESSENGER_VERIFY_TOKEN || 'default_verify_token';
+    
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('[Messenger Webhook] Verification successful');
+      res.status(200).send(challenge);
+    } else {
+      console.log('[Messenger Webhook] Verification failed');
+      res.sendStatus(403);
+    }
+  });
+
+  // Webhook event receiver (POST) - Facebook sends messages here
+  app.post("/api/integrations/messenger/webhook", async (req: any, res) => {
+    console.log('[Messenger Webhook] Received event:', JSON.stringify(req.body, null, 2));
+    
+    try {
+      const messages = parseMessengerWebhook(req.body);
+      
+      for (const msg of messages) {
+        console.log('[Messenger] Processing message:', msg);
+        
+        // Get page access token from integration config
+        // For now, we'll need to match by recipient ID (page ID)
+        const allConfigs = await storage.getAllMessengerIntegrations();
+        const config = allConfigs.find((c: any) => c.config?.pageId === msg.recipientId);
+        
+        if (!config || !config.isActive) {
+          console.log('[Messenger] No active config found for page:', msg.recipientId);
+          continue;
+        }
+        
+        const pageAccessToken = config.config.pageAccessToken;
+        
+        // Get or create lead
+        let lead = await storage.getLeadByExternalId(`messenger_${msg.senderId}`, config.orgId);
+        
+        if (!lead) {
+          // Get user profile from Messenger
+          try {
+            const profile = await getMessengerUserProfile(msg.senderId, pageAccessToken);
+            
+            lead = await storage.createLead({
+              name: `${profile.first_name} ${profile.last_name}`.trim() || 'Unknown',
+              email: null,
+              phone: null,
+              source: 'messenger',
+              status: 'new',
+              externalId: `messenger_${msg.senderId}`,
+              metadata: {
+                messenger_id: msg.senderId,
+                profile_pic: profile.profile_pic
+              },
+              orgId: config.orgId,
+            });
+            
+            console.log('[Messenger] Created new lead:', lead.id);
+          } catch (profileError) {
+            console.error('[Messenger] Failed to get profile, creating basic lead:', profileError);
+            
+            lead = await storage.createLead({
+              name: 'Facebook User',
+              email: null,
+              phone: null,
+              source: 'messenger',
+              status: 'new',
+              externalId: `messenger_${msg.senderId}`,
+              metadata: { messenger_id: msg.senderId },
+              orgId: config.orgId,
+            });
+          }
+        }
+        
+        // Store conversation
+        await storage.createConversation({
+          leadId: lead.id,
+          channel: 'messenger',
+          direction: 'inbound',
+          content: msg.text,
+          externalId: msg.messageId,
+          orgId: config.orgId,
+        });
+        
+        console.log('[Messenger] Stored conversation for lead:', lead.id);
+        
+        // TODO: Generate AI response if auto-respond enabled
+        // For now, just acknowledge receipt
+      }
+      
+      // CRITICAL: Must return 200 within 20 seconds
+      res.status(200).send('EVENT_RECEIVED');
+    } catch (error) {
+      console.error('[Messenger Webhook] Error processing event:', error);
+      // Still return 200 to prevent Facebook from retrying
+      res.status(200).send('EVENT_RECEIVED');
+    }
+  });
+
+  // Get Messenger integration status
+  app.get("/api/integrations/messenger", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const config = await storage.getIntegrationConfig("messenger", req.orgId);
+      
+      if (!config || !config.isActive) {
+        return res.json({ connected: false });
+      }
+      
+      const messengerConfig = config.config as any;
+      return res.json({
+        connected: true,
+        pageName: messengerConfig.pageName,
+        pageId: messengerConfig.pageId,
+        id: config.id,
+        isActive: config.isActive,
+      });
+    } catch (err) {
+      console.error('[Messenger] Error fetching status:', err);
+      return res.json({ connected: false });
+    }
+  });
+
+  // Configure Messenger integration
+  app.post("/api/integrations/messenger/configure", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { pageAccessToken, verifyToken, pageName, pageId } = req.body;
+      
+      if (!pageAccessToken || !verifyToken) {
+        return res.status(400).json({ error: 'Page access token and verify token are required' });
+      }
+      
+      await storage.upsertIntegrationConfig({
+        service: 'messenger',
+        config: {
+          pageAccessToken,
+          verifyToken,
+          pageName: pageName || 'Facebook Page',
+          pageId: pageId || 'unknown'
+        },
+        isActive: true,
+        orgId: req.orgId,
+      });
+      
+      res.json({ success: true, message: 'Messenger configured successfully' });
+    } catch (error) {
+      console.error('[Messenger] Configuration error:', error);
+      res.status(500).json({ error: 'Failed to configure Messenger' });
+    }
+  });
+
+  // Disconnect Messenger integration
+  app.post("/api/integrations/messenger/disconnect", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { deleteLeads } = req.body;
+      
+      const config = await storage.getIntegrationConfig("messenger", req.orgId);
+      if (config) {
+        await storage.upsertIntegrationConfig({
+          service: "messenger",
+          config: config.config as any,
+          isActive: false,
+          orgId: req.orgId,
+        });
+      }
+
+      if (deleteLeads) {
+        const leads = await storage.getAllLeads(req.orgId);
+        const messengerLeads = leads.filter(l => l.source === 'messenger');
+        
+        for (const lead of messengerLeads) {
+          await storage.deleteLead(lead.id, req.orgId);
+        }
+        
+        console.log(`[Messenger] Deleted ${messengerLeads.length} Messenger leads for org ${req.orgId}`);
+      }
+
+      res.json({ success: true, message: "Messenger disconnected successfully" });
+    } catch (error) {
+      console.error("Error disconnecting Messenger:", error);
+      res.status(500).json({ error: "Failed to disconnect Messenger" });
     }
   });
 
