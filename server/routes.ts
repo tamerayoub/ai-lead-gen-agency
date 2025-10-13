@@ -1462,17 +1462,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
   // Get Outlook integration status
   app.get("/api/integrations/outlook", isAuthenticated, attachOrgContext, async (req: any, res) => {
-    // Prevent browser caching
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-    
     try {
       console.log("[Outlook Status] Checking status for org:", req.orgId);
       const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
       
       if (!outlookConfig || !outlookConfig.isActive) {
         console.log("[Outlook Status] No active config found, returning connected: false");
+        // Disable caching for this response
+        res.set({
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'ETag': '' // Disable ETag to prevent 304 responses
+        });
         return res.json({ connected: false });
       }
 
@@ -1491,11 +1493,27 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           scope: tokens.scope,
         },
         isActive: outlookConfig.isActive,
+        _timestamp: Date.now(), // Cache buster
       };
       console.log("[Outlook Status] Returning response:", JSON.stringify(response));
+      
+      // Disable caching and ETags to ensure fresh data
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'ETag': '' // Disable ETag to prevent 304 responses
+      });
+      
       res.json(response);
     } catch (error) {
       console.error("[Outlook Status] Error fetching Outlook integration:", error);
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'ETag': ''
+      });
       res.json({ connected: false });
     }
   });
