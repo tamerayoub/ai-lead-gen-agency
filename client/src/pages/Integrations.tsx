@@ -38,6 +38,12 @@ export default function Integrations() {
   const [showStopSyncDialog, setShowStopSyncDialog] = useState(false);
   const [showOutlookDisconnectDialog, setShowOutlookDisconnectDialog] = useState(false);
   const [showOutlookStopSyncDialog, setShowOutlookStopSyncDialog] = useState(false);
+  const [showMessengerConfigDialog, setShowMessengerConfigDialog] = useState(false);
+  const [showMessengerDisconnectDialog, setShowMessengerDisconnectDialog] = useState(false);
+  const [messengerPageAccessToken, setMessengerPageAccessToken] = useState("");
+  const [messengerVerifyToken, setMessengerVerifyToken] = useState("");
+  const [messengerPageName, setMessengerPageName] = useState("");
+  const [messengerPageId, setMessengerPageId] = useState("");
   const [userClosedLogs, setUserClosedLogs] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
@@ -102,6 +108,14 @@ export default function Integrations() {
     outlookConfig?.connected && outlookConfig?.isActive !== false
   );
 
+  const { data: messengerConfig, isLoading: messengerLoading } = useQuery<any>({ 
+    queryKey: ["/api/integrations/messenger"],
+  });
+
+  const isMessengerConnected = Boolean(
+    messengerConfig?.connected && messengerConfig?.isActive !== false
+  );
+
   interface Notification {
     id: string;
     type: string;
@@ -114,7 +128,7 @@ export default function Integrations() {
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
-    enabled: isGmailConnected || isOutlookConnected,
+    enabled: isGmailConnected || isOutlookConnected || isMessengerConnected,
   });
 
   const gmailNewLeadsNotifications = notifications.filter(
@@ -183,7 +197,7 @@ export default function Integrations() {
       name: "Facebook Messenger",
       description: "Respond to Facebook Messenger inquiries automatically with AI",
       icon: <SiFacebook className="h-8 w-8" />,
-      status: "coming-soon",
+      status: isMessengerConnected ? "configured" : "available",
       category: "Messaging",
     },
     {
@@ -434,6 +448,50 @@ export default function Integrations() {
     setUserClosedLogs(false);
     startPolling();
     syncOutlookMutation.mutate();
+  };
+
+  // ===== MESSENGER HANDLERS =====
+  const configureMessengerMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/integrations/messenger/configure", {
+      pageAccessToken: messengerPageAccessToken,
+      verifyToken: messengerVerifyToken,
+      pageName: messengerPageName || "Facebook Page",
+      pageId: messengerPageId || "unknown"
+    }),
+    onSuccess: () => {
+      toast({ title: "Messenger configured successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/messenger"] });
+      setShowMessengerConfigDialog(false);
+      setMessengerPageAccessToken("");
+      setMessengerVerifyToken("");
+      setMessengerPageName("");
+      setMessengerPageId("");
+    },
+    onError: () => {
+      toast({ title: "Failed to configure Messenger", variant: "destructive" });
+    },
+  });
+
+  const disconnectMessengerMutation = useMutation({
+    mutationFn: (deleteLeads: boolean) => 
+      apiRequest("POST", "/api/integrations/messenger/disconnect", { deleteLeads }),
+    onSuccess: () => {
+      toast({ title: "Messenger disconnected successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/messenger"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      setShowMessengerDisconnectDialog(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to disconnect Messenger", variant: "destructive" });
+    },
+  });
+
+  const configureMessenger = () => {
+    setShowMessengerConfigDialog(true);
+  };
+
+  const handleDisconnectMessenger = (deleteLeads: boolean) => {
+    disconnectMessengerMutation.mutate(deleteLeads);
   };
 
   // Handle OAuth redirect
@@ -730,6 +788,16 @@ export default function Integrations() {
                           Disconnect
                         </Button>
                       </>
+                    ) : integration.status === "configured" && integration.id === "facebook" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMessengerDisconnectDialog(true)}
+                        disabled={disconnectMessengerMutation.isPending}
+                        data-testid="button-messenger-disconnect"
+                      >
+                        Disconnect
+                      </Button>
                     ) : integration.status === "configured" ? (
                       <Button variant="outline" size="sm" data-testid={`button-${integration.id}-manage`}>
                         <SettingsIcon className="h-4 w-4 mr-2" />
@@ -738,10 +806,15 @@ export default function Integrations() {
                     ) : integration.status === "available" ? (
                       <Button 
                         size="sm" 
-                        onClick={integration.id === "gmail" ? connectGmail : integration.id === "outlook" ? connectOutlook : undefined}
+                        onClick={
+                          integration.id === "gmail" ? connectGmail : 
+                          integration.id === "outlook" ? connectOutlook : 
+                          integration.id === "facebook" ? configureMessenger :
+                          undefined
+                        }
                         data-testid={`button-${integration.id}-connect`}
                       >
-                        Connect
+                        {integration.id === "facebook" ? "Configure" : "Connect"}
                       </Button>
                     ) : (
                       <Button size="sm" disabled data-testid={`button-${integration.id}-coming-soon`}>
@@ -874,6 +947,109 @@ export default function Integrations() {
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete Leads & Stop
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Messenger Configuration Dialog */}
+      <AlertDialog open={showMessengerConfigDialog} onOpenChange={setShowMessengerConfigDialog}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Configure Facebook Messenger</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>Follow these steps to connect your Facebook Page to LeaseLoopAI:</p>
+              <ol className="list-decimal list-inside space-y-2 text-sm">
+                <li>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Facebook Developers</a> and create/select your app</li>
+                <li>Add the Messenger product and get your Page Access Token</li>
+                <li>Set up webhooks with the following URL: <code className="bg-muted px-1 py-0.5 rounded text-xs">{window.location.origin}/api/integrations/messenger/webhook</code></li>
+                <li>Subscribe to <strong>messages</strong> and <strong>messaging_postbacks</strong> webhook fields</li>
+                <li>Enter your tokens below:</li>
+              </ol>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Page Name (Optional)</label>
+              <input
+                type="text"
+                value={messengerPageName}
+                onChange={(e) => setMessengerPageName(e.target.value)}
+                placeholder="My Facebook Page"
+                className="w-full px-3 py-2 border rounded-md"
+                data-testid="input-messenger-page-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Page ID (Optional)</label>
+              <input
+                type="text"
+                value={messengerPageId}
+                onChange={(e) => setMessengerPageId(e.target.value)}
+                placeholder="123456789012345"
+                className="w-full px-3 py-2 border rounded-md"
+                data-testid="input-messenger-page-id"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Page Access Token *</label>
+              <input
+                type="password"
+                value={messengerPageAccessToken}
+                onChange={(e) => setMessengerPageAccessToken(e.target.value)}
+                placeholder="EAAxxxxxxxxxxxxxxxxx"
+                className="w-full px-3 py-2 border rounded-md"
+                data-testid="input-messenger-page-access-token"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Verify Token *</label>
+              <input
+                type="text"
+                value={messengerVerifyToken}
+                onChange={(e) => setMessengerVerifyToken(e.target.value)}
+                placeholder="my_verify_token_123"
+                className="w-full px-3 py-2 border rounded-md"
+                data-testid="input-messenger-verify-token"
+              />
+              <p className="text-xs text-muted-foreground">Use this same token when configuring webhooks in Facebook</p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => configureMessengerMutation.mutate()}
+              disabled={!messengerPageAccessToken || !messengerVerifyToken || configureMessengerMutation.isPending}
+              data-testid="button-messenger-save"
+            >
+              {configureMessengerMutation.isPending ? "Saving..." : "Save Configuration"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Disconnect Messenger Dialog */}
+      <AlertDialog open={showMessengerDisconnectDialog} onOpenChange={setShowMessengerDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Messenger?</AlertDialogTitle>
+            <AlertDialogDescription>
+              What would you like to do with the leads that have been imported from Messenger?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDisconnectMessenger(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Disconnect
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDisconnectMessenger(true)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Leads & Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
