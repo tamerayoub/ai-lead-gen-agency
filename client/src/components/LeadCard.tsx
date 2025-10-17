@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Phone, Mail, MessageSquare, Bot } from "lucide-react";
+import { Phone, Mail, MessageSquare, Bot, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type LeadStatus = "new" | "contacted" | "prequalified" | "application" | "approved";
@@ -32,8 +32,6 @@ const sourceIcons = {
   sms: MessageSquare,
   listing: Building2,
 };
-
-import { Building2 } from "lucide-react";
 
 export function LeadCard({ name, email, phone, property, status, source, aiHandled, lastContact, onClick }: LeadCardProps) {
   const initials = name
