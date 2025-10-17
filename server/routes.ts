@@ -963,7 +963,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       // For now, we need to get the user's orgId manually
       const membership = await storage.getUserOrganization(req.user.id);
       if (!membership) {
-        return res.redirect("/settings?gmail=error&reason=no_org");
+        return res.redirect("/integrations?gmail=error&reason=no_org");
       }
       
       // Store tokens in integrationConfig
@@ -980,11 +980,11 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         orgId: membership.orgId,
       });
 
-      // Redirect back to settings with success message
-      res.redirect("/settings?gmail=connected");
+      // Redirect back to integrations page with success message
+      res.redirect("/integrations?gmail=connected");
     } catch (error) {
       console.error("Gmail OAuth error:", error);
-      res.redirect("/settings?gmail=error");
+      res.redirect("/integrations?gmail=error");
     }
   });
 

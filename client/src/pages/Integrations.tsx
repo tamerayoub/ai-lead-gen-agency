@@ -220,6 +220,7 @@ export default function Integrations() {
 
   const connectGmail = async () => {
     try {
+      setIsConnectingGmail(true);
       const res = await fetch("/api/integrations/gmail/auth");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -227,6 +228,7 @@ export default function Integrations() {
         window.location.href = data.url;
       }
     } catch (error) {
+      setIsConnectingGmail(false);
       toast({ title: "Failed to initiate Gmail connection", variant: "destructive" });
     }
   };

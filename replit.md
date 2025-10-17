@@ -39,12 +39,12 @@ The frontend employs a component-based architecture, separating UI primitives, f
 This ensures email conversations are properly threaded and replies are not incorrectly treated as duplicate leads.
 
 **Email Body Cleaning:** The system includes a `cleanEmailBody()` utility function that processes incoming email messages before storage. This function:
-1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns, forwarded email markers)
-2. Fixes artificial line breaks introduced by email clients (Gmail adds breaks at ~76 characters)
-3. Preserves intentional paragraph breaks while removing excessive whitespace
-4. Ensures stored conversations contain only the relevant, original message content
+1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns and everything after)
+2. Removes forwarded email markers ("From:") and everything after them
+3. Preserves EXACT original formatting and line breaks from the email as written
+4. Ensures stored conversations contain only the relevant, original message content without quoted replies
 
-This cleaning is applied to all email conversations stored in the system (Gmail, Outlook, initial messages, and replies).
+The function does NOT reformat or rejoin lines - it preserves the email body exactly as it appears in the original message. This cleaning is applied to all email conversations stored in the system (Gmail, Outlook, initial messages, and replies).
 
 **Multi-Tenant Organization Management:** The user's active organization is persistently stored in the `users.currentOrgId` database field. Organization switching updates this field, and the system defaults to the user's first membership if no preference is set.
 

@@ -1,13 +1,12 @@
 /**
- * Cleans email body by removing quoted content and fixing line breaks
+ * Cleans email body by removing quoted content while preserving exact formatting
  */
 export function cleanEmailBody(emailBody: string): string {
   if (!emailBody) return "";
 
-  // First, try to remove quoted sections using a more robust approach
-  // Look for "On...wrote:" pattern (can span multiple lines)
-  // This pattern matches "On [date/time]..." followed by "wrote:" which may be on the next line
-  emailBody = emailBody.replace(/\n\s*On\s+[\s\S]+?wrote:\s*\n[\s\S]*/gi, '');
+  // Remove "On...wrote:" quoted sections - match the entire pattern including the quoted content after it
+  // This pattern looks for "On " followed by any text including newlines, then "wrote:" and removes everything after
+  emailBody = emailBody.replace(/\n\s*On\s+.+?wrote:\s*[\s\S]*/gi, '');
   
   // Remove lines that start with ">" (quoted text)
   emailBody = emailBody.replace(/^>.*$/gm, '');
@@ -32,31 +31,15 @@ export function cleanEmailBody(emailBody: string): string {
       break; // Stop adding lines
     }
     
-    // Keep non-empty lines or preserve paragraph breaks
-    if (trimmedLine.length > 0) {
-      cleanedLines.push(lines[i]);
-    } else if (cleanedLines.length > 0) {
-      cleanedLines.push('');
-    }
+    // Preserve all lines exactly as they are (including empty lines)
+    cleanedLines.push(lines[i]);
   }
 
-  // Join lines and fix artificial line breaks
-  // Gmail adds line breaks at ~76 chars for formatting, we need to join them back
+  // Join lines preserving exact formatting
   let result = cleanedLines.join('\n');
 
-  // Fix artificial line breaks: If a line doesn't end with punctuation and the next line
-  // doesn't start with whitespace/special chars, join them with a space
-  result = result.replace(/([^\n.!?;:,])\n([^\s>-])/g, '$1 $2');
-
-  // Clean up multiple consecutive spaces
-  result = result.replace(/ {2,}/g, ' ');
-
-  // Trim each line and remove multiple blank lines
-  result = result
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n'); // Max 2 newlines (1 blank line)
+  // Remove multiple blank lines (more than 2 consecutive newlines)
+  result = result.replace(/\n{3,}/g, '\n\n');
 
   return result.trim();
 }
