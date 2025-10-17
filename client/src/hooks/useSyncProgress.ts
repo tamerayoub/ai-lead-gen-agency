@@ -33,6 +33,7 @@ export function useSyncProgress(enabled: boolean = false) {
     enabled: true, // Always enabled to check for running syncs
     refetchInterval: isPolling ? 1000 : false, // Poll every second when active
     refetchIntervalInBackground: true,
+    staleTime: 0, // Never use cached data - always fetch fresh
   });
 
   // Auto-stop polling when sync completes

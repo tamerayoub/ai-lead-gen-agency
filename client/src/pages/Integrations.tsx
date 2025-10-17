@@ -375,6 +375,8 @@ export default function Integrations() {
   });
 
   const syncGmailLeads = () => {
+    // Invalidate sync progress cache to ensure we get fresh data
+    queryClient.invalidateQueries({ queryKey: ["/api/leads/sync-progress"] });
     setShowSyncLogs(true);
     setUserClosedLogs(false);
     startPolling();
@@ -448,6 +450,8 @@ export default function Integrations() {
   });
 
   const syncOutlookLeads = () => {
+    // Invalidate sync progress cache to ensure we get fresh data
+    queryClient.invalidateQueries({ queryKey: ["/api/leads/sync-progress"] });
     setShowSyncLogs(true);
     setUserClosedLogs(false);
     startPolling();
