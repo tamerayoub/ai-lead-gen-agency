@@ -23,6 +23,7 @@ interface SyncProgress {
   error?: string;
   startedAt?: string;
   completedAt?: string;
+  createdLeadIds?: string[]; // Track leads created in this sync
 }
 
 export function useSyncProgress(enabled: boolean = false) {

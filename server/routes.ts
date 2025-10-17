@@ -223,7 +223,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // IMPORTANT: Specific routes must come BEFORE parameterized routes
   app.delete("/api/leads/gmail-sourced", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      const count = await storage.deleteGmailSourcedLeads(req.orgId);
+      const { leadIds } = req.body;
+      let count: number;
+      
+      // If specific lead IDs provided, delete only those; otherwise delete all Gmail leads
+      if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
+        count = await storage.deleteLeadsByIds(leadIds);
+      } else {
+        count = await storage.deleteGmailSourcedLeads(req.orgId);
+      }
+      
       res.json({ 
         message: "Gmail-sourced leads deleted", 
         count 
@@ -1515,6 +1524,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
               orgId: req.orgId,
             });
             syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
+            syncProgressTracker.addCreatedLeadId(leadToUse.id); // Track this lead for current sync
           }
 
           // Store threadId -> leadId mapping for future emails in this thread
@@ -2208,6 +2218,7 @@ Return JSON with:
               orgId: req.orgId,
             });
             syncProgressTracker.addLog('success', `✅ Created new lead: ${leadToUse.name}`);
+            syncProgressTracker.addCreatedLeadId(leadToUse.id); // Track this lead for current sync
             createdLeads.push(leadToUse);
           }
 

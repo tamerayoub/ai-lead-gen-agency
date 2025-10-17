@@ -236,11 +236,14 @@ export default function Integrations() {
   };
 
   const deleteGmailLeadsMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", "/api/leads/gmail-sourced", {}),
+    mutationFn: (leadIds?: string[]) => {
+      const body = leadIds && leadIds.length > 0 ? { leadIds } : {};
+      return apiRequest("DELETE", "/api/leads/gmail-sourced", body);
+    },
     onSuccess: () => {
       toast({ 
         title: "Gmail leads deleted", 
-        description: "All leads from Gmail have been removed" 
+        description: "Leads from current sync have been removed" 
       });
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
@@ -287,12 +290,15 @@ export default function Integrations() {
     if (isPolling) stopPolling();
     setShowSyncLogs(false);
     setUserClosedLogs(true);
-    if (deleteLeads) deleteGmailLeadsMutation.mutate();
+    if (deleteLeads && progress?.createdLeadIds) {
+      // Only delete leads from current sync
+      deleteGmailLeadsMutation.mutate(progress.createdLeadIds);
+    }
     clearSyncProgressMutation.mutate();
     setShowStopSyncDialog(false);
     toast({ 
       title: "Sync stopped", 
-      description: deleteLeads ? "Sync stopped and leads deleted" : "Sync stopped, leads preserved" 
+      description: deleteLeads ? "Sync stopped and current sync leads deleted" : "Sync stopped, leads preserved" 
     });
   };
 
@@ -301,7 +307,10 @@ export default function Integrations() {
     if (isPolling) stopPolling();
     setShowSyncLogs(false);
     setUserClosedLogs(true);
-    if (deleteLeads) deleteGmailLeadsMutation.mutate();
+    if (deleteLeads && progress?.createdLeadIds) {
+      // Only delete leads from current sync
+      deleteGmailLeadsMutation.mutate(progress.createdLeadIds);
+    }
     
     const clearedConfig = {
       ...gmailConfig?.config,
@@ -861,20 +870,22 @@ export default function Integrations() {
               A sync is currently in progress. What would you like to do with the leads that have been imported?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleDisconnectGmail(false)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Keep Leads & Disconnect
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => handleDisconnectGmail(true)}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete Leads & Disconnect
-            </AlertDialogAction>
+            <div className="flex gap-2">
+              <AlertDialogAction
+                onClick={() => handleDisconnectGmail(false)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Keep Leads & Disconnect
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => handleDisconnectGmail(true)}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete Leads & Disconnect
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -888,20 +899,22 @@ export default function Integrations() {
               What would you like to do with the leads that have been imported so far?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleStopSync(false)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Keep Leads & Stop
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => handleStopSync(true)}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete Leads & Stop
-            </AlertDialogAction>
+            <div className="flex gap-2">
+              <AlertDialogAction
+                onClick={() => handleStopSync(false)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Keep Leads & Stop
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => handleStopSync(true)}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete Leads & Stop
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -915,20 +928,22 @@ export default function Integrations() {
               A sync is currently in progress. What would you like to do with the leads that have been imported?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleDisconnectOutlook(false)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Keep Leads & Disconnect
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => handleDisconnectOutlook(true)}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete Leads & Disconnect
-            </AlertDialogAction>
+            <div className="flex gap-2">
+              <AlertDialogAction
+                onClick={() => handleDisconnectOutlook(false)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Keep Leads & Disconnect
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => handleDisconnectOutlook(true)}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete Leads & Disconnect
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -942,20 +957,22 @@ export default function Integrations() {
               What would you like to do with the leads that have been imported so far?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => handleStopOutlookSync(false)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              Keep Leads & Stop
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => handleStopOutlookSync(true)}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete Leads & Stop
-            </AlertDialogAction>
+            <div className="flex gap-2">
+              <AlertDialogAction
+                onClick={() => handleStopOutlookSync(false)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Keep Leads & Stop
+              </AlertDialogAction>
+              <AlertDialogAction
+                onClick={() => handleStopOutlookSync(true)}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Delete Leads & Stop
+              </AlertDialogAction>
+            </div>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -15,6 +15,7 @@ interface SyncProgress {
   startedAt?: Date;
   completedAt?: Date;
   isCancelled?: boolean;
+  createdLeadIds?: string[]; // Track leads created in this sync
 }
 
 interface SyncLog {
@@ -41,8 +42,20 @@ class SyncProgressTracker {
       currentStep: 'Starting sync...',
       logs: [],
       startedAt: new Date(),
+      createdLeadIds: [], // Initialize empty array for tracking
     };
     this.addLog('info', '🔄 Gmail sync started...');
+  }
+
+  addCreatedLeadId(leadId: string) {
+    if (!this.progress.createdLeadIds) {
+      this.progress.createdLeadIds = [];
+    }
+    this.progress.createdLeadIds.push(leadId);
+  }
+
+  getCreatedLeadIds(): string[] {
+    return this.progress.createdLeadIds || [];
   }
 
   setTotal(totalEmails: number) {

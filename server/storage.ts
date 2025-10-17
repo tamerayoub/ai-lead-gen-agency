@@ -53,6 +53,7 @@ export interface IStorage {
   updateLead(id: string, lead: Partial<InsertLead>, orgId: string): Promise<Lead | undefined>;
   deleteLead(id: string, orgId: string): Promise<boolean>;
   deleteGmailSourcedLeads(orgId: string): Promise<number>;
+  deleteLeadsByIds(leadIds: string[]): Promise<number>;
 
   // Conversation operations
   getConversationsByLeadId(leadId: string): Promise<Conversation[]>;
@@ -322,6 +323,26 @@ export class DatabaseStorage implements IStorage {
         eq(leads.orgId, orgId),
         eq(leads.source, 'gmail')
       )
+    ).returning();
+    
+    return result.length;
+  }
+
+  async deleteLeadsByIds(leadIds: string[]): Promise<number> {
+    if (leadIds.length === 0) {
+      return 0;
+    }
+    
+    // Delete related conversations, notes, and pending replies
+    for (const leadId of leadIds) {
+      await db.delete(conversations).where(eq(conversations.leadId, leadId));
+      await db.delete(notes).where(eq(notes.leadId, leadId));
+      await db.delete(pendingReplies).where(eq(pendingReplies.leadId, leadId));
+    }
+    
+    // Delete the leads
+    const result = await db.delete(leads).where(
+      sql`id = ANY(ARRAY[${sql.join(leadIds.map(id => sql`${id}`), sql`, `)}])`
     ).returning();
     
     return result.length;

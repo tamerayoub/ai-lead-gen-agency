@@ -48,6 +48,8 @@ The function does NOT reformat or rejoin lines - it preserves the email body exa
 
 **Multi-Tenant Organization Management:** The user's active organization is persistently stored in the `users.currentOrgId` database field. Organization switching updates this field, and the system defaults to the user's first membership if no preference is set.
 
+**Sync Session Tracking:** Each email sync session tracks the lead IDs created during that specific sync. When users choose to "disconnect and delete leads" or "stop sync and delete leads" during an active sync, the system only deletes leads from the current sync session, preserving all previously imported leads from earlier syncs. This prevents accidental deletion of established lead data.
+
 ## External Dependencies
 
 ### Core Infrastructure
