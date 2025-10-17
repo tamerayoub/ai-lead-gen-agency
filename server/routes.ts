@@ -240,6 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(204).send();
     } catch (error) {
+      console.error("[Delete Lead] Error:", error);
       res.status(500).json({ error: "Failed to delete lead" });
     }
   });
