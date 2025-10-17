@@ -45,6 +45,8 @@ export default function Integrations() {
   const [messengerPageName, setMessengerPageName] = useState("");
   const [messengerPageId, setMessengerPageId] = useState("");
   const [userClosedLogs, setUserClosedLogs] = useState(false);
+  const [isConnectingGmail, setIsConnectingGmail] = useState(false);
+  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
