@@ -45,6 +45,8 @@ export default function Integrations() {
   const [messengerPageName, setMessengerPageName] = useState("");
   const [messengerPageId, setMessengerPageId] = useState("");
   const [userClosedLogs, setUserClosedLogs] = useState(false);
+  const [isConnectingGmail, setIsConnectingGmail] = useState(false);
+  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
 
@@ -220,6 +222,7 @@ export default function Integrations() {
 
   const connectGmail = async () => {
     try {
+      setIsConnectingGmail(true);
       const res = await fetch("/api/integrations/gmail/auth");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -227,6 +230,7 @@ export default function Integrations() {
         window.location.href = data.url;
       }
     } catch (error) {
+      setIsConnectingGmail(false);
       toast({ title: "Failed to initiate Gmail connection", variant: "destructive" });
     }
   };
@@ -380,6 +384,7 @@ export default function Integrations() {
   // ===== OUTLOOK HANDLERS =====
   const connectOutlook = async () => {
     try {
+      setIsConnectingOutlook(true);
       const res = await fetch("/api/integrations/outlook/auth");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -387,6 +392,7 @@ export default function Integrations() {
         window.location.href = data.url;
       }
     } catch (error) {
+      setIsConnectingOutlook(false);
       toast({ title: "Failed to initiate Outlook connection", variant: "destructive" });
     }
   };
@@ -812,9 +818,21 @@ export default function Integrations() {
                           integration.id === "facebook" ? configureMessenger :
                           undefined
                         }
+                        disabled={
+                          (integration.id === "gmail" && isConnectingGmail) ||
+                          (integration.id === "outlook" && isConnectingOutlook)
+                        }
                         data-testid={`button-${integration.id}-connect`}
                       >
-                        {integration.id === "facebook" ? "Configure" : "Connect"}
+                        {(integration.id === "gmail" && isConnectingGmail) || 
+                         (integration.id === "outlook" && isConnectingOutlook) ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          integration.id === "facebook" ? "Configure" : "Connect"
+                        )}
                       </Button>
                     ) : (
                       <Button size="sm" disabled data-testid={`button-${integration.id}-coming-soon`}>

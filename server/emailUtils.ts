@@ -1,62 +1,44 @@
 /**
- * Cleans email body by removing quoted content and fixing line breaks
+ * Cleans email body by removing quoted/threaded content only
+ * Preserves original formatting and line breaks
  */
 export function cleanEmailBody(emailBody: string): string {
   if (!emailBody) return "";
 
-  // First, try to remove quoted sections using a more robust approach
-  // Look for "On...wrote:" pattern (can span multiple lines)
-  // This pattern matches "On [date/time]..." followed by "wrote:" which may be on the next line
-  emailBody = emailBody.replace(/\n\s*On\s+[\s\S]+?wrote:\s*\n[\s\S]*/gi, '');
+  // Remove "On...wrote:" quoted sections and everything after
+  // This handles Gmail/Outlook reply threading
+  emailBody = emailBody.replace(/\n\s*On\s+.+?wrote:\s*\n[\s\S]*/gi, '');
   
   // Remove lines that start with ">" (quoted text)
-  emailBody = emailBody.replace(/^>.*$/gm, '');
-  
-  // Remove email signature separators and everything after
-  emailBody = emailBody.replace(/\n\s*-{2,}\s*\n[\s\S]*/g, '');
-  
-  // Remove "From:" forwarded email markers and everything after
   const lines = emailBody.split('\n');
   const cleanedLines: string[] = [];
-  let hitForwardMarker = false;
+  let inQuotedSection = false;
   
-  for (let i = 0; i < lines.length; i++) {
-    const trimmedLine = lines[i].trim();
+  for (const line of lines) {
+    const trimmed = line.trim();
     
-    // Check for forward marker (but not if it's the first line)
-    if (i > 0 && trimmedLine.startsWith('From:')) {
-      hitForwardMarker = true;
+    // Check if we hit a quoted section
+    if (trimmed.startsWith('>')) {
+      inQuotedSection = true;
+      continue;
     }
     
-    if (hitForwardMarker) {
-      break; // Stop adding lines
+    // Stop processing if we hit "On...wrote:" pattern (case insensitive)
+    if (/^On\s+.+?wrote:/i.test(trimmed)) {
+      break;
     }
     
-    // Keep non-empty lines or preserve paragraph breaks
-    if (trimmedLine.length > 0) {
-      cleanedLines.push(lines[i]);
-    } else if (cleanedLines.length > 0) {
-      cleanedLines.push('');
+    // Stop if we hit forwarded email markers
+    if (trimmed.startsWith('From:') && cleanedLines.length > 0) {
+      break;
+    }
+    
+    // If not in quoted section, keep the line
+    if (!inQuotedSection) {
+      cleanedLines.push(line);
     }
   }
 
-  // Join lines and fix artificial line breaks
-  // Gmail adds line breaks at ~76 chars for formatting, we need to join them back
-  let result = cleanedLines.join('\n');
-
-  // Fix artificial line breaks: If a line doesn't end with punctuation and the next line
-  // doesn't start with whitespace/special chars, join them with a space
-  result = result.replace(/([^\n.!?;:,])\n([^\s>-])/g, '$1 $2');
-
-  // Clean up multiple consecutive spaces
-  result = result.replace(/ {2,}/g, ' ');
-
-  // Trim each line and remove multiple blank lines
-  result = result
-    .split('\n')
-    .map(line => line.trim())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n'); // Max 2 newlines (1 blank line)
-
-  return result.trim();
+  // Join and return, preserving original formatting
+  return cleanedLines.join('\n').trim();
 }
