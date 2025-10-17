@@ -82,11 +82,36 @@ export function cleanEmailBody(emailBody: string): string {
   }
 
   // Remove lines starting with ">" (quoted text) - preserve other formatting
-  const filteredLines = result.split('\n').filter(line => !line.trimStart().startsWith('>'));
-  result = filteredLines.join('\n');
+  result = result.split('\n').filter(line => !line.trimStart().startsWith('>')).join('\n');
 
-  // Only trim trailing whitespace, preserve all other formatting
-  result = result.trimEnd();
+  // Normalize Gmail line wrapping: Join lines that were wrapped by Gmail
+  // Gmail typically wraps at ~72-76 characters
+  const normalizedLines: string[] = [];
+  const contentLines = result.split('\n');
+  
+  for (let i = 0; i < contentLines.length; i++) {
+    const currentLine = contentLines[i];
+    const nextLine = i < contentLines.length - 1 ? contentLines[i + 1] : null;
+    
+    // Check if this line was wrapped (not a natural paragraph break)
+    // A wrapped line:
+    // - Doesn't end with common sentence-ending punctuation
+    // - Is followed by a line that doesn't start with whitespace (continuation)
+    // - The line length suggests it might have been wrapped
+    const endsWithPunctuation = /[.!?:]$/.test(currentLine.trim());
+    const nextLineIsContinuation = nextLine && !nextLine.match(/^\s/) && nextLine.length > 0;
+    const likelyWrapped = !endsWithPunctuation && nextLineIsContinuation && currentLine.trim().length > 40;
+    
+    if (likelyWrapped) {
+      // Join with the next line (add a space if current doesn't end with space)
+      const joiner = currentLine.endsWith(' ') ? '' : ' ';
+      normalizedLines.push(currentLine + joiner);
+    } else {
+      normalizedLines.push(currentLine + '\n');
+    }
+  }
+  
+  result = normalizedLines.join('').trimEnd();
 
   console.log('[EmailClean] Final cleaned length:', result.length);
   console.log('[EmailClean] Preview:', result.substring(0, 100).replace(/\n/g, '\\n'));

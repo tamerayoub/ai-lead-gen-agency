@@ -1546,9 +1546,9 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           console.log('[Gmail Initial] Cleaned body preview:', cleanedInitialBody.substring(0, 100));
           
           // Detect if the initial message is from the property manager (outgoing) or lead (received)
-          const isFromPropertyManager = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
-          const initialMessageType = isFromPropertyManager ? "outgoing" : "received";
-          console.log(`[Gmail Initial Sender] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${isFromPropertyManager} | Type: ${initialMessageType}`);
+          const initialIsFromPM = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
+          const initialMessageType = initialIsFromPM ? "outgoing" : "received";
+          console.log(`[Gmail Initial Sender] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${initialIsFromPM} | Type: ${initialMessageType}`);
           
           // Create conversation record with externalId (linked to the lead)
           await storage.createConversation({
