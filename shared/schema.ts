@@ -95,6 +95,8 @@ export const conversations = pgTable("conversations", {
   message: text("message").notNull(),
   aiGenerated: boolean("ai_generated").default(false),
   externalId: text("external_id"),
+  emailSubject: text("email_subject"),
+  sourceIntegration: text("source_integration"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

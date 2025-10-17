@@ -351,6 +351,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/conversations", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertConversationSchema.parse(req.body);
+      
+      // Get lead details to send email
+      const lead = await storage.getLead(validatedData.leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      // If channel is email and type is outgoing, send actual email
+      if (validatedData.channel === "email" && validatedData.type === "outgoing" && lead.email) {
+        try {
+          // Get Gmail integration
+          const gmailIntegration = await storage.getIntegrationConfig(req.orgId, 'gmail');
+          if (gmailIntegration?.config?.tokens) {
+            // Get conversations to find email subject for threading
+            const existingConversations = await storage.getConversationsByLeadId(validatedData.leadId);
+            const lastEmailConvo = existingConversations
+              .filter((c: any) => c.channel === 'email' && c.emailSubject)
+              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+            
+            const emailSubject = lastEmailConvo?.emailSubject 
+              ? `Re: ${lastEmailConvo.emailSubject.replace(/^Re:\s*/i, '')}` 
+              : `Follow up from ${req.user.name || 'Property Manager'}`;
+            
+            // Send email using Gmail API with threading
+            await sendGmailReply(gmailIntegration.config.tokens, {
+              to: lead.email,
+              subject: emailSubject,
+              body: validatedData.message,
+              threadId: lead.gmailThreadId || undefined,
+            });
+            
+            // Store with email metadata
+            validatedData.emailSubject = emailSubject;
+            validatedData.sourceIntegration = 'gmail';
+          }
+        } catch (emailError) {
+          console.error('[Send Email] Failed to send email:', emailError);
+          // Continue to save conversation even if email fails
+        }
+      }
+      
       const conversation = await storage.createConversation(validatedData);
       
       // Update lead's lastContactAt
@@ -358,6 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(conversation);
     } catch (error) {
+      console.error('[Create Conversation] Error:', error);
       res.status(400).json({ error: "Invalid conversation data" });
     }
   });
@@ -1274,6 +1316,8 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
+              emailSubject: subject,
+              sourceIntegration: "gmail",
               createdAt: emailTimestamp,
             });
             
@@ -1554,6 +1598,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
+            emailSubject: subject,
+            sourceIntegration: "gmail",
             createdAt: emailTimestamp,
           });
 
