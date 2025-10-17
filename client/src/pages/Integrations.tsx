@@ -866,7 +866,7 @@ export default function Integrations() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-normal break-words">
               A sync is currently in progress. What would you like to do with the leads imported during this current sync session?
               {progress?.createdLeadIds && progress.createdLeadIds.length > 0 && (
                 <span className="block mt-2 font-medium">
@@ -875,22 +875,20 @@ export default function Integrations() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <div className="flex gap-2">
-              <AlertDialogAction
-                onClick={() => handleDisconnectGmail(false)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Keep Leads & Disconnect
-              </AlertDialogAction>
-              <AlertDialogAction
-                onClick={() => handleDisconnectGmail(true)}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                Delete Current Sync Leads & Disconnect ({progress?.createdLeadIds?.length || 0})
-              </AlertDialogAction>
-            </div>
+            <AlertDialogAction
+              onClick={() => handleDisconnectGmail(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Disconnect
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDisconnectGmail(true)}
+              className="bg-destructive hover:bg-destructive/90 whitespace-normal"
+            >
+              Delete Current Sync Leads & Disconnect ({progress?.createdLeadIds?.length || 0})
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -900,7 +898,7 @@ export default function Integrations() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Stop Gmail Sync?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-normal break-words">
               What would you like to do with the leads imported during this current sync session?
               {progress?.createdLeadIds && progress.createdLeadIds.length > 0 && (
                 <span className="block mt-2 font-medium">
@@ -909,22 +907,20 @@ export default function Integrations() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <div className="flex gap-2">
-              <AlertDialogAction
-                onClick={() => handleStopSync(false)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Keep Leads & Stop
-              </AlertDialogAction>
-              <AlertDialogAction
-                onClick={() => handleStopSync(true)}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                Delete Current Sync Leads & Stop ({progress?.createdLeadIds?.length || 0})
-              </AlertDialogAction>
-            </div>
+            <AlertDialogAction
+              onClick={() => handleStopSync(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Stop
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleStopSync(true)}
+              className="bg-destructive hover:bg-destructive/90 whitespace-normal"
+            >
+              Delete Current Sync Leads & Stop ({progress?.createdLeadIds?.length || 0})
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -934,26 +930,24 @@ export default function Integrations() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Outlook?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-normal break-words">
               A sync is currently in progress. What would you like to do with the leads that have been imported?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <div className="flex gap-2">
-              <AlertDialogAction
-                onClick={() => handleDisconnectOutlook(false)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Keep Leads & Disconnect
-              </AlertDialogAction>
-              <AlertDialogAction
-                onClick={() => handleDisconnectOutlook(true)}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                Delete Leads & Disconnect
-              </AlertDialogAction>
-            </div>
+            <AlertDialogAction
+              onClick={() => handleDisconnectOutlook(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Disconnect
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDisconnectOutlook(true)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Leads & Disconnect
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -963,26 +957,24 @@ export default function Integrations() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Stop Outlook Sync?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="whitespace-normal break-words">
               What would you like to do with the leads that have been imported so far?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <div className="flex gap-2">
-              <AlertDialogAction
-                onClick={() => handleStopOutlookSync(false)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Keep Leads & Stop
-              </AlertDialogAction>
-              <AlertDialogAction
-                onClick={() => handleStopOutlookSync(true)}
-                className="bg-destructive hover:bg-destructive/90"
-              >
-                Delete Leads & Stop
-              </AlertDialogAction>
-            </div>
+            <AlertDialogAction
+              onClick={() => handleStopOutlookSync(false)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Keep Leads & Stop
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleStopOutlookSync(true)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Leads & Stop
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
