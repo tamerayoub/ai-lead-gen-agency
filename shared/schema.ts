@@ -176,7 +176,8 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
 
 export const insertConversationSchema = createInsertSchema(conversations).omit({
   id: true,
-  createdAt: true,
+}).extend({
+  createdAt: z.date().optional(), // Allow custom timestamp for email syncs
 });
 
 export const insertNoteSchema = createInsertSchema(notes).omit({

@@ -1179,8 +1179,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         const fullMessage = await getMessage(tokens, msg.id);
         const headers = fullMessage.payload?.headers || [];
         const from = headers.find((h: any) => h.name === "From")?.value || "";
+        const to = headers.find((h: any) => h.name === "To")?.value || "";
         const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
         const threadId = fullMessage.threadId;
+        
+        // Get the actual email timestamp (Gmail's internalDate is milliseconds since epoch)
+        const emailTimestamp = fullMessage.internalDate 
+          ? new Date(parseInt(fullMessage.internalDate))
+          : new Date();
         
         // Get email body - recursively search for text/plain or text/html in nested parts
         const findBodyPart = (parts: any[], mimeType: string): any => {
@@ -1254,6 +1260,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
+              createdAt: emailTimestamp,
             });
             
             syncProgressTracker.addLog('success', `✅ Added ${conversationType} reply to conversation for ${threadLead.name}`);
@@ -1328,7 +1335,7 @@ REQUIRED FIELDS:
 - email (string) - extract from sender email address
 
 OPTIONAL CONTACT INFO:
-- phone (string) - phone number if mentioned
+- phone (string) - phone number ONLY if explicitly mentioned in the email body. DO NOT generate or infer phone numbers. If no phone is mentioned, set to null.
 - currentAddress (string) - where they currently live
 - location (string) - city/area they want to rent in
 
@@ -1371,8 +1378,13 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           } catch (parseError) {
             // If JSON parsing fails, use fallback data (common for reply emails)
             syncProgressTracker.addLog('warning', `⚠️  AI parsing failed, using fallback for "${subject.substring(0, 50)}..."`);
-            const extractedEmail = from.match(/<(.+)>/)?.[1] || from;
-            const nameParts = from.split('<')[0].trim().replace(/"/g, '').split(' ');
+            
+            // Determine if this is an outgoing email (from property manager) for fallback
+            const isFromPropertyManagerFallback = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
+            const emailSource = isFromPropertyManagerFallback ? to : from;
+            
+            const extractedEmail = emailSource.match(/<(.+)>/)?.[1] || emailSource;
+            const nameParts = emailSource.split('<')[0].trim().replace(/"/g, '').split(' ');
             const fallbackCleanedBody = cleanEmailBody(emailBody);
             parsedData = {
               firstName: nameParts[0] || 'Unknown',
@@ -1397,8 +1409,19 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             };
           }
           
-          // Extract email and phone for deduplication
-          const leadEmail = (parsedData.email || from.match(/<(.+)>/)?.[1] || from).toLowerCase().trim();
+          // Determine if this is an outgoing email (from property manager)
+          const isFromPropertyManager = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
+          
+          // Extract lead email: use "To" for outgoing emails, "From" for incoming
+          let leadEmail;
+          if (isFromPropertyManager) {
+            // Outgoing email - the lead is the recipient
+            leadEmail = (to.match(/<(.+)>/)?.[1] || to).toLowerCase().trim();
+          } else {
+            // Incoming email - the lead is the sender
+            leadEmail = (parsedData.email || from.match(/<(.+)>/)?.[1] || from).toLowerCase().trim();
+          }
+          
           const leadPhone = parsedData.phone?.trim() || "";
 
           // First check if this thread already has an associated lead
@@ -1510,6 +1533,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
+            createdAt: emailTimestamp,
           });
 
           // Generate AI reply ONLY for testing lead (infinimoji@gmail.com)
