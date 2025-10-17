@@ -12,6 +12,8 @@ export function cleanEmailBody(emailBody: string): string {
   // Example: "On Mon, Oct 16, 2024 at 3:00 PM User <user@example.com> wrote:"
   const gmailQuoteMatch = result.match(/\n\s*On\s+.+?wrote:/im);
   if (gmailQuoteMatch && gmailQuoteMatch.index !== undefined) {
+    console.log('[EmailClean] Found Gmail quote marker at position', gmailQuoteMatch.index);
+    console.log('[EmailClean] Original length:', emailBody.length, 'Cleaned length:', gmailQuoteMatch.index);
     result = result.substring(0, gmailQuoteMatch.index);
   }
   

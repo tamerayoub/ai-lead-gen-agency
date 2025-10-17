@@ -1256,10 +1256,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             const isFromPropertyManager = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
             const conversationType = isFromPropertyManager ? "outgoing" : "received";
             
-            syncProgressTracker.addLog('info', `💬 Thread reply: Adding ${conversationType} message to lead "${threadLead.name}"`);
+            console.log(`[Gmail Sender Check] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${isFromPropertyManager} | Type: ${conversationType}`);
+            syncProgressTracker.addLog('info', `💬 Thread reply: Adding ${conversationType} message to lead "${threadLead.name}" (From: ${from.substring(0, 30)}...)`);
             
             // Clean the email body to remove quoted content and fix line breaks
+            console.log('[Gmail] Raw email body length:', emailBody.length);
             const cleanedBody = cleanEmailBody(emailBody);
+            console.log('[Gmail] Cleaned body length:', cleanedBody.length);
+            console.log('[Gmail] Cleaned body preview:', cleanedBody.substring(0, 100));
             
             // Create conversation record for the reply with cleaned email body
             await storage.createConversation({
