@@ -867,7 +867,12 @@ export default function Integrations() {
           <AlertDialogHeader>
             <AlertDialogTitle>Disconnect Gmail?</AlertDialogTitle>
             <AlertDialogDescription>
-              A sync is currently in progress. What would you like to do with the leads that have been imported?
+              A sync is currently in progress. What would you like to do with the leads imported during this current sync session?
+              {progress?.createdLeadIds && progress.createdLeadIds.length > 0 && (
+                <span className="block mt-2 font-medium">
+                  ({progress.createdLeadIds.length} leads from current sync)
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
@@ -882,8 +887,9 @@ export default function Integrations() {
               <AlertDialogAction
                 onClick={() => handleDisconnectGmail(true)}
                 className="bg-destructive hover:bg-destructive/90"
+                disabled={!progress?.createdLeadIds || progress.createdLeadIds.length === 0}
               >
-                Delete Leads & Disconnect
+                Delete Current Sync Leads & Disconnect
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>
@@ -896,7 +902,12 @@ export default function Integrations() {
           <AlertDialogHeader>
             <AlertDialogTitle>Stop Gmail Sync?</AlertDialogTitle>
             <AlertDialogDescription>
-              What would you like to do with the leads that have been imported so far?
+              What would you like to do with the leads imported during this current sync session?
+              {progress?.createdLeadIds && progress.createdLeadIds.length > 0 && (
+                <span className="block mt-2 font-medium">
+                  ({progress.createdLeadIds.length} leads from current sync)
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
@@ -911,8 +922,9 @@ export default function Integrations() {
               <AlertDialogAction
                 onClick={() => handleStopSync(true)}
                 className="bg-destructive hover:bg-destructive/90"
+                disabled={!progress?.createdLeadIds || progress.createdLeadIds.length === 0}
               >
-                Delete Leads & Stop
+                Delete Current Sync Leads & Stop
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>

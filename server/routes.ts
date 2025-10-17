@@ -226,15 +226,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { leadIds } = req.body;
       let count: number;
       
-      // If specific lead IDs provided, delete only those; otherwise delete all Gmail leads
+      // ONLY delete specific lead IDs if provided, never delete all Gmail leads
+      // This prevents accidental deletion of all leads when disconnecting
       if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
         count = await storage.deleteLeadsByIds(leadIds);
+        console.log(`[Delete Gmail Leads] Deleted ${count} specific leads from current sync session`);
       } else {
-        count = await storage.deleteGmailSourcedLeads(req.orgId);
+        count = 0;
+        console.log("[Delete Gmail Leads] No lead IDs provided, skipping deletion");
       }
       
       res.json({ 
-        message: "Gmail-sourced leads deleted", 
+        message: leadIds?.length > 0 ? "Gmail-sourced leads deleted" : "No leads to delete", 
         count 
       });
     } catch (error) {
