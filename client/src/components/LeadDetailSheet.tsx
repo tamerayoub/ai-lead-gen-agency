@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check } from "lucide-react";
+import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreVertical, Trash2 } from "lucide-react";
 import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface LeadDetails {
   id: string;
@@ -63,6 +79,7 @@ const statusColors: Record<LeadStatus, string> = {
 
 export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -91,6 +108,27 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
       toast({
         title: "Error",
         description: error.message || "Failed to update lead",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/leads/${lead?.id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Success",
+        description: "Lead deleted successfully",
+      });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete lead",
         variant: "destructive",
       });
     },
@@ -218,14 +256,37 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
             </div>
             <div className="flex gap-2">
               {!isEditing ? (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit-lead"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setIsEditing(true)}
+                    data-testid="button-edit-lead"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        data-testid="button-lead-actions"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                        data-testid="menu-item-delete-lead"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Lead
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               ) : (
                 <>
                   <Button
@@ -404,6 +465,29 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
           </div>
         </div>
       </SheetContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent data-testid="dialog-delete-lead">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Lead</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {lead.name}? This action cannot be undone.
+              All conversations, notes, and data associated with this lead will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteLeadMutation.mutate()}
+              disabled={deleteLeadMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteLeadMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet>
   );
 }
