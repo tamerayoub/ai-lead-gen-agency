@@ -285,9 +285,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: string, orgId: string): Promise<boolean> {
-    // Delete related conversations and notes first
+    // Delete related data first (conversations, notes, pending replies)
     await db.delete(conversations).where(eq(conversations.leadId, id));
     await db.delete(notes).where(eq(notes.leadId, id));
+    await db.delete(pendingReplies).where(eq(pendingReplies.leadId, id));
     
     const result = await db.delete(leads).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).returning();
     return result.length > 0;
@@ -308,10 +309,11 @@ export class DatabaseStorage implements IStorage {
       return 0;
     }
     
-    // Delete related conversations and notes
+    // Delete related conversations, notes, and pending replies
     for (const leadId of leadIds) {
       await db.delete(conversations).where(eq(conversations.leadId, leadId));
       await db.delete(notes).where(eq(notes.leadId, leadId));
+      await db.delete(pendingReplies).where(eq(pendingReplies.leadId, leadId));
     }
     
     // Delete the leads
