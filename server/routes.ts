@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
-import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
+import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
@@ -981,6 +981,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       syncProgressTracker.addLog('info', '✓ Gmail credentials verified');
 
+      // Get the property manager's Gmail email address to identify outgoing messages
+      const propertyManagerEmail = await getGmailUserEmail(tokens);
+      syncProgressTracker.addLog('info', `📧 Property manager email: ${propertyManagerEmail}`);
+
       // Check for cancellation
       if (syncProgressTracker.isCancelled()) {
         return res.json({ message: "Sync cancelled" });
@@ -1101,25 +1105,30 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           
           if (threadLead) {
             // This is a reply to an existing thread - add it as a new conversation
-            syncProgressTracker.addLog('info', `💬 Thread reply: Adding message to existing lead "${threadLead.name}"`);
+            // Check if the message is from the property manager (outgoing) or the lead (incoming)
+            const isFromPropertyManager = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
+            const conversationType = isFromPropertyManager ? "outgoing" : "received";
             
-            // Create conversation record for the reply
+            syncProgressTracker.addLog('info', `💬 Thread reply: Adding ${conversationType} message to lead "${threadLead.name}"`);
+            
+            // Create conversation record for the reply with full email body
             await storage.createConversation({
               leadId: threadLead.id,
-              type: "received",
-              message: emailBody.substring(0, 500),
+              type: conversationType,
+              message: emailBody, // Use full email body, not substring
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
             });
             
-            syncProgressTracker.addLog('success', `✅ Added reply to conversation for ${threadLead.name}`);
+            syncProgressTracker.addLog('success', `✅ Added ${conversationType} reply to conversation for ${threadLead.name}`);
             processingLogs.push({
               status: "thread_reply",
               from,
               subject,
               preview: emailPreview,
               leadName: threadLead.name,
+              direction: conversationType,
               timestamp: new Date().toISOString(),
             });
             

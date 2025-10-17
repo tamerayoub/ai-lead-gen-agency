@@ -196,3 +196,9 @@ export async function sendEmail(
 
   return response.data;
 }
+
+export async function getGmailUserEmail(tokens: any): Promise<string> {
+  const gmail = await getGmailClient(tokens);
+  const profile = await gmail.users.getProfile({ userId: "me" });
+  return profile.data.emailAddress || "";
+}
