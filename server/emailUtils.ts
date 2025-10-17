@@ -1,55 +1,51 @@
 /**
- * Cleans email body by removing quoted content and normalizing line breaks
+ * Cleans email body by removing quoted content and preserving original formatting
  */
 export function cleanEmailBody(emailBody: string): string {
   if (!emailBody) return "";
 
-  // Remove "On...wrote:" quoted sections - match with or without newline before "On"
-  // This handles both "\nOn..." and "  On..." patterns
-  // Using [\s\S] instead of . to match across newlines
-  emailBody = emailBody.replace(/[\n\s]*On\s+[\s\S]+?wrote:\s*[\s\S]*/gi, '');
+  let result = emailBody;
   
-  // Remove lines that start with ">" (quoted text)
-  emailBody = emailBody.replace(/^>.*$/gm, '');
-  
-  // Remove email signature separators and everything after
-  emailBody = emailBody.replace(/\n\s*-{2,}\s*\n[\s\S]*/g, '');
-  
-  // Remove "From:" forwarded email markers and everything after
-  const lines = emailBody.split('\n');
-  const cleanedLines: string[] = [];
-  let hitForwardMarker = false;
-  
-  for (let i = 0; i < lines.length; i++) {
-    const trimmedLine = lines[i].trim();
-    
-    // Check for forward marker (but not if it's the first line)
-    if (i > 0 && trimmedLine.startsWith('From:')) {
-      hitForwardMarker = true;
-    }
-    
-    if (hitForwardMarker) {
-      break; // Stop adding lines
-    }
-    
-    cleanedLines.push(lines[i]);
+  // CRITICAL: Find where the quoted/previous content starts and cut everything after
+  // Pattern 1: Gmail-style "On <date> <name> wrote:" pattern
+  // Look for this pattern and remove everything from that point onward
+  // Example: "On Mon, Oct 16, 2024 at 3:00 PM User <user@example.com> wrote:"
+  const gmailQuoteMatch = result.match(/\n\s*On\s+.+?wrote:/im);
+  if (gmailQuoteMatch && gmailQuoteMatch.index !== undefined) {
+    result = result.substring(0, gmailQuoteMatch.index);
   }
-
-  // Join lines back together
-  let result = cleanedLines.join('\n');
-
-  // Normalize line breaks: Convert single line breaks to spaces, preserve paragraph breaks
-  // First, protect actual paragraph breaks (double line breaks or more)
-  result = result.replace(/\n\n+/g, '<<<PARAGRAPH_BREAK>>>');
   
-  // Now convert all remaining single line breaks to spaces
-  result = result.replace(/\n/g, ' ');
+  // Pattern 2: Outlook-style divider with "From:" header
+  // Common formats:
+  // ________________________________
+  // From: Name <email>
+  // OR
+  // -----Original Message-----
+  const outlookDividerMatch = result.match(/\n\s*_{10,}\s*\n\s*From:/im);
+  if (outlookDividerMatch && outlookDividerMatch.index !== undefined) {
+    result = result.substring(0, outlookDividerMatch.index);
+  }
   
-  // Restore paragraph breaks
-  result = result.replace(/<<<PARAGRAPH_BREAK>>>/g, '\n\n');
+  const originalMessageMatch = result.match(/\n\s*-+\s*Original Message\s*-+/im);
+  if (originalMessageMatch && originalMessageMatch.index !== undefined) {
+    result = result.substring(0, originalMessageMatch.index);
+  }
   
-  // Clean up multiple spaces
-  result = result.replace(/  +/g, ' ');
+  // Pattern 3: Lines starting with ">" (quoted text) - remove these lines
+  result = result.replace(/^>.*$/gm, '');
+  
+  // Pattern 4: Email signature separator (-- or ----)
+  result = result.replace(/\n\s*-{2,}\s*$/m, '');
+  
+  // Clean up excessive whitespace while preserving intentional line breaks
+  // Remove more than 2 consecutive newlines
+  result = result.replace(/\n{3,}/g, '\n\n');
+  
+  // Remove trailing/leading whitespace from each line
+  result = result.split('\n').map(line => line.trimEnd()).join('\n');
+  
+  // Clean up multiple spaces within lines
+  result = result.replace(/ {2,}/g, ' ');
 
   return result.trim();
 }
