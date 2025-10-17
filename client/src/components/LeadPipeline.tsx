@@ -32,7 +32,7 @@ interface PipelineStageProps {
   color: string;
 }
 
-function DraggableLeadCard({ lead }: { lead: PipelineLead }) {
+function DraggableLeadCard({ lead, onLeadClick }: { lead: PipelineLead; onLeadClick?: (leadId: string) => void }) {
   const {
     attributes,
     listeners,
@@ -56,6 +56,12 @@ function DraggableLeadCard({ lead }: { lead: PipelineLead }) {
       {...listeners}
       className="p-3 hover-elevate cursor-grab active:cursor-grabbing"
       data-testid={`pipeline-lead-${lead.id}`}
+      onClick={(e) => {
+        // Only trigger click if not dragging
+        if (!isDragging && onLeadClick) {
+          onLeadClick(lead.id);
+        }
+      }}
     >
       <div className="space-y-1">
         <h4 className="text-sm font-medium">{lead.name}</h4>
@@ -66,7 +72,7 @@ function DraggableLeadCard({ lead }: { lead: PipelineLead }) {
   );
 }
 
-function DroppableStage({ stage, title, leads, count, color }: PipelineStageProps) {
+function DroppableStage({ stage, title, leads, count, color, onLeadClick }: PipelineStageProps & { onLeadClick?: (leadId: string) => void }) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
   });
@@ -92,7 +98,7 @@ function DroppableStage({ stage, title, leads, count, color }: PipelineStageProp
               Drop leads here
             </div>
           ) : (
-            leads.map((lead) => <DraggableLeadCard key={lead.id} lead={lead} />)
+            leads.map((lead) => <DraggableLeadCard key={lead.id} lead={lead} onLeadClick={onLeadClick} />)
           )}
         </CardContent>
       </Card>
@@ -109,9 +115,10 @@ interface LeadPipelineProps {
     color: string;
   }[];
   onLeadStatusChange?: (leadId: string, newStatus: LeadStatus) => void;
+  onLeadClick?: (leadId: string) => void;
 }
 
-export function LeadPipeline({ stages, onLeadStatusChange }: LeadPipelineProps) {
+export function LeadPipeline({ stages, onLeadStatusChange, onLeadClick }: LeadPipelineProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -153,7 +160,7 @@ export function LeadPipeline({ stages, onLeadStatusChange }: LeadPipelineProps) 
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
         {stages.map((stageData) => (
-          <DroppableStage key={stageData.stage} {...stageData} />
+          <DroppableStage key={stageData.stage} {...stageData} onLeadClick={onLeadClick} />
         ))}
       </div>
       <DragOverlay>

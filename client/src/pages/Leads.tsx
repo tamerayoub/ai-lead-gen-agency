@@ -135,7 +135,11 @@ export default function Leads() {
           <TabsTrigger value="list" data-testid="tab-list">List View</TabsTrigger>
         </TabsList>
         <TabsContent value="pipeline" className="mt-6">
-          <LeadPipeline stages={pipelineStages} onLeadStatusChange={handleLeadStatusChange} />
+          <LeadPipeline 
+            stages={pipelineStages} 
+            onLeadStatusChange={handleLeadStatusChange}
+            onLeadClick={setSelectedLeadId}
+          />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

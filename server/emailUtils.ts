@@ -6,7 +6,8 @@ export function cleanEmailBody(emailBody: string): string {
 
   // Remove "On...wrote:" quoted sections - match with or without newline before "On"
   // This handles both "\nOn..." and "  On..." patterns
-  emailBody = emailBody.replace(/[\n\s]*On\s+.+?wrote:\s*[\s\S]*/gi, '');
+  // Using [\s\S] instead of . to match across newlines
+  emailBody = emailBody.replace(/[\n\s]*On\s+[\s\S]+?wrote:\s*[\s\S]*/gi, '');
   
   // Remove lines that start with ">" (quoted text)
   emailBody = emailBody.replace(/^>.*$/gm, '');
