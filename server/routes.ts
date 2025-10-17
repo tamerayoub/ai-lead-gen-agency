@@ -1908,7 +1908,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           externalId: msg.messageId,
         });
         
-        console.log('[Messenger] Stored conversation for lead:', lead.id);
+        // Update lead's lastContactAt to track 24-hour messaging window
+        await storage.updateLead(lead.id, { 
+          lastContactAt: new Date(msg.timestamp) 
+        } as any, config.orgId);
+        
+        console.log('[Messenger] Stored conversation and updated lastContactAt for lead:', lead.id);
         
         // TODO: Generate AI response if auto-respond enabled
         // For now, just acknowledge receipt

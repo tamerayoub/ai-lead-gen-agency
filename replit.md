@@ -48,6 +48,13 @@ This cleaning is applied to all email conversations stored in the system (Gmail,
 
 **Multi-Tenant Organization Management:** The user's active organization is persistently stored in the `users.currentOrgId` database field. Organization switching updates this field, and the system defaults to the user's first membership if no preference is set.
 
+**Facebook Messenger Integration:** The system implements Facebook Messenger integration with the following security and compliance features:
+1. **OAuth Flow:** Automatic Page Access Token retrieval via Facebook OAuth with long-lived token exchange (60-day expiration)
+2. **Webhook Security:** HMAC signature verification using `X-Hub-Signature-256` header with constant-time comparison to prevent timing attacks
+3. **24-Hour Messaging Window:** Enforces Facebook's 24-hour messaging policy by tracking `lastContactAt` timestamps and using message tags (`CONFIRMED_EVENT_UPDATE`, `POST_PURCHASE_UPDATE`, `ACCOUNT_UPDATE`) for messages outside the window
+4. **Raw Body Capture:** express.json middleware configured with verify callback to preserve raw request body for HMAC verification
+5. **Error Handling:** Graceful handling of signature verification errors (length mismatches, invalid hex encoding) returns 403 instead of 500 to prevent DoS attacks
+
 ## External Dependencies
 
 ### Core Infrastructure
@@ -70,7 +77,7 @@ This cleaning is applied to all email conversations stored in the system (Gmail,
     - **Twilio:** For SMS and voice calls, integrated via Replit Connectors API.
     - **Gmail (OAuth 2.0):** Email integration for background sync, lead detection, and conversation threading.
     - **Microsoft Outlook (OAuth 2.0):** Email integration for background sync, lead detection, and conversation threading.
-    - **Facebook Messenger (Webhook):** Real-time lead capture from Facebook business pages.
+    - **Facebook Messenger (Webhook):** Real-time lead capture from Facebook business pages with HMAC signature verification, automatic Page Access Token retrieval via OAuth, and 24-hour messaging window enforcement using message tags.
 - **Calendar Integration:**
     - **Google Calendar (OAuth 2.0):** For availability management, scheduling, and user-configurable AI scheduling preferences.
 - **Property Management Systems (PMS):** Supported providers include Buildium, AppFolio, Yardi, and Rent Manager, integrated via API keys.
