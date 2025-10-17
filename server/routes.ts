@@ -1225,24 +1225,31 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           try {
             parsedData = JSON.parse(rawContent);
           } catch (parseError) {
-            // If JSON parsing fails, log detailed error and create fallback data
-            syncProgressTracker.addLog('error', `❌ Failed to parse AI response for "${subject.substring(0, 50)}..."`);
-            syncProgressTracker.addLog('error', `   Raw AI response: ${rawContent.substring(0, 200)}`);
-            parseErrors.push({ 
-              messageId: msg.id, 
-              subject, 
-              error: "Invalid JSON from AI",
-              rawResponse: rawContent.substring(0, 500)
-            });
-            processingLogs.push({
-              status: "error",
-              from,
-              subject,
-              preview: emailPreview,
-              error: "Failed to parse AI response",
-              timestamp: new Date().toISOString(),
-            });
-            continue;
+            // If JSON parsing fails, use fallback data (common for reply emails)
+            syncProgressTracker.addLog('warning', `⚠️  AI parsing failed, using fallback for "${subject.substring(0, 50)}..."`);
+            const extractedEmail = from.match(/<(.+)>/)?.[1] || from;
+            const nameParts = from.split('<')[0].trim().replace(/"/g, '').split(' ');
+            parsedData = {
+              firstName: nameParts[0] || 'Unknown',
+              lastName: nameParts.slice(1).join(' ') || '',
+              email: extractedEmail,
+              message: emailBody.substring(0, 500),
+              phone: null,
+              propertyName: null,
+              moveInDate: null,
+              budget: null,
+              bedrooms: null,
+              petPolicy: null,
+              currentAddress: null,
+              location: null,
+              occupation: null,
+              employer: null,
+              income: null,
+              creditScore: null,
+              education: null,
+              householdSize: null,
+              background: null
+            };
           }
           
           // Extract email and phone for deduplication
