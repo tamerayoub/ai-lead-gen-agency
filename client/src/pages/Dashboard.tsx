@@ -67,20 +67,37 @@ export default function Dashboard() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Recent Leads</h2>
             <div className="grid gap-4 md:grid-cols-2">
-              {recentLeads.map((lead) => (
-                <LeadCard
-                  key={lead.id}
-                  name={lead.name}
-                  email={lead.email}
-                  phone={lead.phone}
-                  property={lead.propertyName}
-                  status={lead.status}
-                  source={lead.source}
-                  aiHandled={lead.aiHandled}
-                  lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
-                  onClick={() => setSelectedLeadId(lead.id)}
-                />
-              ))}
+              {recentLeads.map((lead) => {
+                // Map backend source values to LeadCard source types
+                const sourceMap: Record<string, "email" | "phone" | "sms" | "listing"> = {
+                  gmail: "email",
+                  outlook: "email",
+                  email: "email",
+                  phone: "phone",
+                  sms: "sms",
+                  twilio: "sms",
+                  messenger: "sms",
+                  facebook: "listing",
+                  zillow: "listing",
+                  listing: "listing",
+                };
+                const mappedSource = sourceMap[lead.source.toLowerCase()] || "email";
+                
+                return (
+                  <LeadCard
+                    key={lead.id}
+                    name={lead.name}
+                    email={lead.email}
+                    phone={lead.phone}
+                    property={lead.propertyName}
+                    status={lead.status}
+                    source={mappedSource}
+                    aiHandled={lead.aiHandled}
+                    lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
+                    onClick={() => setSelectedLeadId(lead.id)}
+                  />
+                );
+              })}
             </div>
           </div>
 
