@@ -5,8 +5,10 @@ import { insertLeadSchema, insertPropertySchema, insertConversationSchema, inser
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
+import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLongLivedPageAccessToken, subscribePage } from "./facebook";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
+import { cleanEmailBody } from "./emailUtils";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
@@ -562,7 +564,38 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   app.get("/api/integrations/:service", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const config = await storage.getIntegrationConfig(req.params.service, req.orgId);
-      res.json(config || null);
+      
+      if (!config) {
+        return res.json(null);
+      }
+
+      // Filter out sensitive tokens/credentials before sending to frontend
+      const safeConfig = {
+        id: config.id,
+        service: config.service,
+        isActive: config.isActive,
+        updatedAt: config.updatedAt,
+        // Only include non-sensitive metadata from config
+        metadata: {} as any
+      };
+
+      // Add service-specific safe metadata
+      const fullConfig = config.config as any;
+      if (config.service === 'gmail' || config.service === 'outlook') {
+        safeConfig.metadata.email = fullConfig.email || 'connected';
+        safeConfig.metadata.connected = true;
+      } else if (config.service === 'messenger') {
+        safeConfig.metadata.pageName = fullConfig.pageName;
+        safeConfig.metadata.pageId = fullConfig.pageId;
+        safeConfig.metadata.pageCategory = fullConfig.pageCategory;
+        safeConfig.metadata.connected = true;
+        safeConfig.metadata.connectedViaOAuth = fullConfig.connectedViaOAuth || false;
+      } else if (config.service === 'twilio') {
+        safeConfig.metadata.phoneNumber = fullConfig.phoneNumber;
+        safeConfig.metadata.connected = true;
+      }
+
+      res.json(safeConfig);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch integration config" });
     }
@@ -955,6 +988,104 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
+  // ===== FACEBOOK OAUTH ROUTES =====
+  app.get("/api/integrations/facebook/auth", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      console.log("[Facebook OAuth] Generating auth URL for user:", userId);
+      const authUrl = getFacebookAuthUrl(userId);
+      console.log("[Facebook OAuth] Generated auth URL:", authUrl);
+      res.json({ url: authUrl });
+    } catch (error: any) {
+      console.error("[Facebook OAuth] Failed to generate auth URL:", error);
+      res.status(500).json({ error: error.message || "Failed to generate auth URL" });
+    }
+  });
+
+  app.get("/api/integrations/facebook/callback", isAuthenticated, async (req, res) => {
+    try {
+      const { code, state: userId } = req.query;
+      
+      if (!code) {
+        return res.redirect("/settings?facebook=error&reason=no_code");
+      }
+
+      // Validate state parameter for CSRF protection
+      if (!userId || userId !== req.user.id) {
+        console.error("[Facebook OAuth] State validation failed - potential CSRF attack");
+        return res.redirect("/settings?facebook=error&reason=invalid_state");
+      }
+
+      console.log("[Facebook OAuth] Callback received, state validated, exchanging code for token");
+
+      // Exchange code for user access token
+      const tokens = await getFacebookTokensFromCode(code as string);
+      
+      // Get user's organization
+      const membership = await storage.getUserOrganization(req.user.id);
+      if (!membership) {
+        return res.redirect("/settings?facebook=error&reason=no_org");
+      }
+
+      console.log("[Facebook OAuth] Fetching user's Facebook pages...");
+      
+      // Get user's Facebook pages
+      const pages = await getFacebookPages(tokens.access_token);
+      
+      if (pages.length === 0) {
+        console.log("[Facebook OAuth] No pages found for user");
+        return res.redirect("/settings?facebook=error&reason=no_pages");
+      }
+
+      console.log(`[Facebook OAuth] Found ${pages.length} pages`);
+
+      // For now, use the first page (in future, let user select)
+      const selectedPage = pages[0];
+      
+      // Page access tokens from the /me/accounts endpoint are already long-lived
+      // but we can exchange them again to ensure they're long-lived
+      let pageAccessToken = selectedPage.access_token;
+      
+      try {
+        const longLivedToken = await getLongLivedPageAccessToken(pageAccessToken);
+        pageAccessToken = longLivedToken.access_token;
+        console.log("[Facebook OAuth] Exchanged for long-lived page access token");
+      } catch (error) {
+        console.log("[Facebook OAuth] Page token already long-lived or exchange failed, using existing token");
+      }
+
+      // Subscribe the page to webhook events
+      try {
+        await subscribePage(selectedPage.id, pageAccessToken);
+        console.log("[Facebook OAuth] Page subscribed to webhooks");
+      } catch (error) {
+        console.error("[Facebook OAuth] Failed to subscribe page to webhooks:", error);
+        // Continue anyway - admin can manually subscribe in Facebook Developer Console
+      }
+
+      // Store the page access token in integration config
+      await storage.upsertIntegrationConfig({
+        service: "messenger",
+        config: {
+          pageAccessToken: pageAccessToken,
+          pageId: selectedPage.id,
+          pageName: selectedPage.name,
+          pageCategory: selectedPage.category,
+          verifyToken: process.env.MESSENGER_VERIFY_TOKEN || 'leaseloopai_messenger_verify_2024',
+          connectedViaOAuth: true
+        },
+        isActive: true,
+        orgId: membership.orgId,
+      });
+
+      console.log("[Facebook OAuth] Successfully configured Messenger integration");
+      res.redirect("/settings?facebook=connected");
+    } catch (error: any) {
+      console.error("[Facebook OAuth] Error:", error);
+      res.redirect(`/settings?facebook=error&reason=${encodeURIComponent(error.message || 'unknown')}`);
+    }
+  });
+
   // ===== GMAIL LEAD SYNC =====
   app.post("/api/leads/sync-from-gmail", isAuthenticated, attachOrgContext, async (req: any, res) => {
     const { syncProgressTracker } = await import("./syncProgress");
@@ -1112,11 +1243,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             
             syncProgressTracker.addLog('info', `💬 Thread reply: Adding ${conversationType} message to lead "${threadLead.name}"`);
             
-            // Create conversation record for the reply with full email body
+            // Clean the email body to remove quoted content and fix line breaks
+            const cleanedBody = cleanEmailBody(emailBody);
+            
+            // Create conversation record for the reply with cleaned email body
             await storage.createConversation({
               leadId: threadLead.id,
               type: conversationType,
-              message: emailBody, // Use full email body, not substring
+              message: cleanedBody,
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
@@ -1239,11 +1373,12 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             syncProgressTracker.addLog('warning', `⚠️  AI parsing failed, using fallback for "${subject.substring(0, 50)}..."`);
             const extractedEmail = from.match(/<(.+)>/)?.[1] || from;
             const nameParts = from.split('<')[0].trim().replace(/"/g, '').split(' ');
+            const fallbackCleanedBody = cleanEmailBody(emailBody);
             parsedData = {
               firstName: nameParts[0] || 'Unknown',
               lastName: nameParts.slice(1).join(' ') || '',
               email: extractedEmail,
-              message: emailBody.substring(0, 500),
+              message: fallbackCleanedBody.substring(0, 500),
               phone: null,
               propertyName: null,
               moveInDate: null,
@@ -1364,11 +1499,14 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             threadLeadMap.set(threadId, leadToUse.id);
           }
 
+          // Clean the email body to remove quoted content and fix line breaks
+          const cleanedInitialBody = cleanEmailBody(emailBody);
+          
           // Create conversation record with externalId (linked to the lead)
           await storage.createConversation({
             leadId: leadToUse.id,
             type: "received",
-            message: parsedData.message || emailBody.substring(0, 500),
+            message: parsedData.message || cleanedInitialBody,
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
@@ -1949,11 +2087,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             if (leadToUse) {
               syncProgressTracker.addLog('info', `📎 Email belongs to existing conversation for ${leadToUse.name}`);
               
+              // Clean the email body before storing
+              const cleanedConvoBody = cleanEmailBody(emailBody);
+              
               // Just create conversation record
               await storage.createConversation({
                 leadId: leadToUse.id,
                 type: "received",
-                message: emailBody.substring(0, 500),
+                message: cleanedConvoBody.substring(0, 500),
                 channel: "email",
                 aiGenerated: false,
                 externalId: msg.id,
@@ -2051,11 +2192,14 @@ Return JSON with:
             conversationLeadMap.set(conversationId, leadToUse.id);
           }
 
+          // Clean the email body to remove quoted content and fix line breaks
+          const cleanedOutlookBody = cleanEmailBody(emailBody);
+          
           // Create conversation record
           await storage.createConversation({
             leadId: leadToUse.id,
             type: "received",
-            message: parsedData.message || emailBody.substring(0, 500),
+            message: parsedData.message || cleanedOutlookBody,
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
