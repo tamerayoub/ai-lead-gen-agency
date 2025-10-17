@@ -5,49 +5,91 @@ export function cleanEmailBody(emailBody: string): string {
   if (!emailBody) return "";
 
   let result = emailBody;
-  
-  // CRITICAL: Find where the quoted/previous content starts and cut everything after
-  // Pattern 1: Gmail-style "On <date> <name> wrote:" pattern
-  // Look for this pattern and remove everything from that point onward
-  // Example: "On Mon, Oct 16, 2024 at 3:00 PM User <user@example.com> wrote:"
-  const gmailQuoteMatch = result.match(/\n\s*On\s+.+?wrote:/im);
+  let cutPosition = -1;
+
+  // Pattern 1: Gmail-style "On <date> <name> wrote:" pattern (handles multi-line)
+  // This can appear as:
+  //   "On Mon, Oct 16, 2024 at 3:00 PM User <user@example.com> wrote:"
+  // OR across two lines:
+  //   "On Mon, Oct 16, 2024 at 3:00 PM User <user@example.com>
+  //    wrote:"
+  // We need to handle both cases
+  const gmailQuotePattern = /(^|\n)\s*On\s+.+?(?:\r?\n\s*)?wrote:/im;
+  const gmailQuoteMatch = result.match(gmailQuotePattern);
   if (gmailQuoteMatch && gmailQuoteMatch.index !== undefined) {
-    console.log('[EmailClean] Found Gmail quote marker at position', gmailQuoteMatch.index);
-    console.log('[EmailClean] Original length:', emailBody.length, 'Cleaned length:', gmailQuoteMatch.index);
-    result = result.substring(0, gmailQuoteMatch.index);
+    const matchStart = gmailQuoteMatch[1] === '\n' ? gmailQuoteMatch.index + 1 : gmailQuoteMatch.index;
+    console.log('[EmailClean] Found Gmail quote marker at position', matchStart);
+    if (cutPosition === -1 || matchStart < cutPosition) {
+      cutPosition = matchStart;
+    }
   }
   
-  // Pattern 2: Outlook-style divider with "From:" header
-  // Common formats:
-  // ________________________________
-  // From: Name <email>
-  // OR
-  // -----Original Message-----
+  // Fallback: Look for lines that start with "On " followed eventually by "wrote:" on the next line
+  const lines = result.split('\n');
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (lines[i].trim().match(/^On\s+.+/i) && lines[i + 1].trim().match(/^wrote:/i)) {
+      const linePosition = result.split('\n').slice(0, i).join('\n').length;
+      console.log('[EmailClean] Found multi-line Gmail quote at line', i);
+      if (cutPosition === -1 || linePosition < cutPosition) {
+        cutPosition = linePosition;
+      }
+      break;
+    }
+  }
+
+  // Pattern 2: "Begin forwarded message" or "Forwarded message"
+  const forwardedPattern = /(^|\n)\s*(Begin forwarded message|Forwarded message)/im;
+  const forwardedMatch = result.match(forwardedPattern);
+  if (forwardedMatch && forwardedMatch.index !== undefined) {
+    const matchStart = forwardedMatch[1] === '\n' ? forwardedMatch.index + 1 : forwardedMatch.index;
+    console.log('[EmailClean] Found forwarded message marker at position', matchStart);
+    if (cutPosition === -1 || matchStart < cutPosition) {
+      cutPosition = matchStart;
+    }
+  }
+
+  // Pattern 3: Classic email header block (From:/Sent:/To:/Subject:)
+  // Look for blank line followed by "From:" which typically starts forwarded content
+  const headerBlockPattern = /\n\s*\n\s*From:\s*.+/im;
+  const headerBlockMatch = result.match(headerBlockPattern);
+  if (headerBlockMatch && headerBlockMatch.index !== undefined) {
+    console.log('[EmailClean] Found header block at position', headerBlockMatch.index);
+    if (cutPosition === -1 || headerBlockMatch.index < cutPosition) {
+      cutPosition = headerBlockMatch.index;
+    }
+  }
+
+  // Pattern 4: Outlook-style divider with "From:" header
   const outlookDividerMatch = result.match(/\n\s*_{10,}\s*\n\s*From:/im);
   if (outlookDividerMatch && outlookDividerMatch.index !== undefined) {
-    result = result.substring(0, outlookDividerMatch.index);
+    if (cutPosition === -1 || outlookDividerMatch.index < cutPosition) {
+      cutPosition = outlookDividerMatch.index;
+    }
   }
-  
+
+  // Pattern 5: -----Original Message-----
   const originalMessageMatch = result.match(/\n\s*-+\s*Original Message\s*-+/im);
   if (originalMessageMatch && originalMessageMatch.index !== undefined) {
-    result = result.substring(0, originalMessageMatch.index);
+    if (cutPosition === -1 || originalMessageMatch.index < cutPosition) {
+      cutPosition = originalMessageMatch.index;
+    }
   }
-  
-  // Pattern 3: Lines starting with ">" (quoted text) - remove these lines
-  result = result.replace(/^>.*$/gm, '');
-  
-  // Pattern 4: Email signature separator (-- or ----)
-  result = result.replace(/\n\s*-{2,}\s*$/m, '');
-  
-  // Clean up excessive whitespace while preserving intentional line breaks
-  // Remove more than 2 consecutive newlines
-  result = result.replace(/\n{3,}/g, '\n\n');
-  
-  // Remove trailing/leading whitespace from each line
-  result = result.split('\n').map(line => line.trimEnd()).join('\n');
-  
-  // Clean up multiple spaces within lines
-  result = result.replace(/ {2,}/g, ' ');
 
-  return result.trim();
+  // Cut at the earliest detected quote/forward marker
+  if (cutPosition !== -1) {
+    console.log('[EmailClean] Cutting at position', cutPosition, '(original length:', emailBody.length, ')');
+    result = result.substring(0, cutPosition);
+  }
+
+  // Remove lines starting with ">" (quoted text) - preserve other formatting
+  const filteredLines = result.split('\n').filter(line => !line.trimStart().startsWith('>'));
+  result = filteredLines.join('\n');
+
+  // Only trim trailing whitespace, preserve all other formatting
+  result = result.trimEnd();
+
+  console.log('[EmailClean] Final cleaned length:', result.length);
+  console.log('[EmailClean] Preview:', result.substring(0, 100).replace(/\n/g, '\\n'));
+
+  return result;
 }
