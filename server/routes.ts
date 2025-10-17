@@ -1079,9 +1079,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
         const emailPreview = emailBody.substring(0, 150).replace(/\n/g, ' ').trim();
 
-        // Check if already processed by externalId
-        const existing = await storage.getConversationByExternalId(msg.id);
-        if (existing) {
+        // Check if this exact message was already processed by externalId (message ID)
+        const existingConversation = await storage.getConversationByExternalId(msg.id);
+        if (existingConversation) {
           duplicates.push({ messageId: msg.id, reason: "Already processed" });
           syncProgressTracker.addLog('warning', `⏭️  Skipped duplicate: "${subject.substring(0, 50)}..."`);
           processingLogs.push({
@@ -1092,6 +1092,40 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             timestamp: new Date().toISOString(),
           });
           continue;
+        }
+
+        // Check if this is a reply in an existing thread (new message in existing conversation)
+        let threadLead = null;
+        if (threadId) {
+          threadLead = await storage.getLeadByGmailThreadId(threadId, req.orgId);
+          
+          if (threadLead) {
+            // This is a reply to an existing thread - add it as a new conversation
+            syncProgressTracker.addLog('info', `💬 Thread reply: Adding message to existing lead "${threadLead.name}"`);
+            
+            // Create conversation record for the reply
+            await storage.createConversation({
+              leadId: threadLead.id,
+              type: "received",
+              message: emailBody.substring(0, 500),
+              channel: "email",
+              aiGenerated: false,
+              externalId: msg.id,
+            });
+            
+            syncProgressTracker.addLog('success', `✅ Added reply to conversation for ${threadLead.name}`);
+            processingLogs.push({
+              status: "thread_reply",
+              from,
+              subject,
+              preview: emailPreview,
+              leadName: threadLead.name,
+              timestamp: new Date().toISOString(),
+            });
+            
+            // Skip to next message (no need to create new lead)
+            continue;
+          }
         }
 
         try {
@@ -1187,7 +1221,29 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           let rawContent = completion.choices[0].message.content || "{}";
           rawContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
           
-          const parsedData = JSON.parse(rawContent);
+          let parsedData;
+          try {
+            parsedData = JSON.parse(rawContent);
+          } catch (parseError) {
+            // If JSON parsing fails, log detailed error and create fallback data
+            syncProgressTracker.addLog('error', `❌ Failed to parse AI response for "${subject.substring(0, 50)}..."`);
+            syncProgressTracker.addLog('error', `   Raw AI response: ${rawContent.substring(0, 200)}`);
+            parseErrors.push({ 
+              messageId: msg.id, 
+              subject, 
+              error: "Invalid JSON from AI",
+              rawResponse: rawContent.substring(0, 500)
+            });
+            processingLogs.push({
+              status: "error",
+              from,
+              subject,
+              preview: emailPreview,
+              error: "Failed to parse AI response",
+              timestamp: new Date().toISOString(),
+            });
+            continue;
+          }
           
           // Extract email and phone for deduplication
           const leadEmail = (parsedData.email || from.match(/<(.+)>/)?.[1] || from).toLowerCase().trim();
@@ -1220,6 +1276,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             if (parsedData.phone && !existingLead.phone) updates.phone = parsedData.phone;
             if (parsedData.income && !existingLead.income) updates.income = parsedData.income;
             if (parsedData.moveInDate && !existingLead.moveInDate) updates.moveInDate = parsedData.moveInDate;
+            if (threadId && !existingLead.gmailThreadId) updates.gmailThreadId = threadId;
             
             // Merge profile data
             if (existingLead.profileData) {
@@ -1255,7 +1312,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
               );
             }
 
-            // Create new lead with comprehensive profile data
+            // Create new lead with comprehensive profile data and gmailThreadId
             leadToUse = await storage.createLead({
               name: `${parsedData.firstName} ${parsedData.lastName}`.trim(),
               email: leadEmail,
@@ -1264,6 +1321,7 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
               propertyName: matchedProperty?.name || parsedData.propertyName || "Not specified",
               status: "new",
               source: "gmail",
+              gmailThreadId: threadId || null,
               income: parsedData.income || null,
               moveInDate: parsedData.moveInDate || null,
               profileData: {

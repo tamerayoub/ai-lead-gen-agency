@@ -31,6 +31,13 @@ The backend is an Express.js and TypeScript REST API. It uses PostgreSQL with Ne
 
 The frontend employs a component-based architecture, separating UI primitives, feature-specific components, and page-level elements. The backend API is RESTful, organized by resource, with Zod for request validation and standardized error handling. Data storage uses a schema-first approach with an abstract `IStorage` interface. Lead deduplication is implemented at the conversation thread level for emails and by normalized email/phone for multi-channel communications.
 
+**Email Threading & Conversation Management:** Gmail and Outlook email threads are tracked using `gmailThreadId` and `outlookConversationId` fields in the leads table. When a reply is received in an existing email thread, the system:
+1. Checks if the exact message ID was already processed (true duplicate) → skip
+2. Checks if the thread ID matches an existing lead → add message to that lead's conversation history
+3. Otherwise → create new lead and store thread ID for future replies
+
+This ensures email conversations are properly threaded and replies are not incorrectly treated as duplicate leads.
+
 **Multi-Tenant Organization Management:** The user's active organization is persistently stored in the `users.currentOrgId` database field. Organization switching updates this field, and the system defaults to the user's first membership if no preference is set.
 
 ## External Dependencies

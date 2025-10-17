@@ -48,6 +48,7 @@ export interface IStorage {
   getLeadByEmail(email: string, orgId: string): Promise<Lead | undefined>;
   getLeadByPhone(phone: string, orgId: string): Promise<Lead | undefined>;
   getLeadByExternalId(externalId: string, orgId: string): Promise<Lead | undefined>;
+  getLeadByGmailThreadId(threadId: string, orgId: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead & { orgId: string }): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>, orgId: string): Promise<Lead | undefined>;
   deleteLead(id: string, orgId: string): Promise<boolean>;
@@ -265,6 +266,11 @@ export class DatabaseStorage implements IStorage {
 
   async getLeadByExternalId(externalId: string, orgId: string): Promise<Lead | undefined> {
     const result = await db.select().from(leads).where(and(eq(leads.externalId, externalId), eq(leads.orgId, orgId))).limit(1);
+    return result[0];
+  }
+
+  async getLeadByGmailThreadId(threadId: string, orgId: string): Promise<Lead | undefined> {
+    const result = await db.select().from(leads).where(and(eq(leads.gmailThreadId, threadId), eq(leads.orgId, orgId))).limit(1);
     return result[0];
   }
 
