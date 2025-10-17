@@ -5,7 +5,7 @@ import { insertLeadSchema, insertPropertySchema, insertConversationSchema, inser
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
-import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLongLivedPageAccessToken, subscribePage, verifyWebhookSignature } from "./facebook";
+import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLongLivedPageAccessToken, subscribePage } from "./facebook";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import { cleanEmailBody } from "./emailUtils";
@@ -1828,20 +1828,6 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   app.post("/api/integrations/messenger/webhook", async (req: any, res) => {
     console.log('[Messenger Webhook] Received event:', JSON.stringify(req.body, null, 2));
     
-    // Verify HMAC signature for security
-    const signature = req.headers['x-hub-signature-256'] as string;
-    
-    // Use captured raw body for signature verification (set by express.json verify callback)
-    // Fallback to stringified body if rawBody not available (shouldn't happen with proper setup)
-    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body), 'utf-8');
-    
-    if (!verifyWebhookSignature(signature, rawBody)) {
-      console.error('[Messenger Webhook] Invalid signature - rejecting request');
-      return res.sendStatus(403); // Use 403 Forbidden for invalid signatures
-    }
-    
-    console.log('[Messenger Webhook] Signature verified ✓');
-    
     try {
       const messages = parseMessengerWebhook(req.body);
       
@@ -1908,12 +1894,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           externalId: msg.messageId,
         });
         
-        // Update lead's lastContactAt to track 24-hour messaging window
-        await storage.updateLead(lead.id, { 
-          lastContactAt: new Date(msg.timestamp) 
-        } as any, config.orgId);
-        
-        console.log('[Messenger] Stored conversation and updated lastContactAt for lead:', lead.id);
+        console.log('[Messenger] Stored conversation for lead:', lead.id);
         
         // TODO: Generate AI response if auto-respond enabled
         // For now, just acknowledge receipt

@@ -39,10 +39,10 @@ The frontend employs a component-based architecture, separating UI primitives, f
 This ensures email conversations are properly threaded and replies are not incorrectly treated as duplicate leads.
 
 **Email Body Cleaning:** The system includes a `cleanEmailBody()` utility function that processes incoming email messages before storage. This function:
-1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns)
-2. Removes forwarded email markers and everything after them
-3. Preserves original formatting and line breaks from the email
-4. Ensures stored conversations contain only the relevant, original message content without quoted replies
+1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns, forwarded email markers)
+2. Fixes artificial line breaks introduced by email clients (Gmail adds breaks at ~76 characters)
+3. Preserves intentional paragraph breaks while removing excessive whitespace
+4. Ensures stored conversations contain only the relevant, original message content
 
 This cleaning is applied to all email conversations stored in the system (Gmail, Outlook, initial messages, and replies).
 

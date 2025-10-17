@@ -1,5 +1,4 @@
 import axios from "axios";
-import crypto from "crypto";
 
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID;
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET;
@@ -126,57 +125,5 @@ export async function subscribePage(pageId: string, pageAccessToken: string): Pr
   } catch (error: any) {
     console.error('[Facebook] Failed to subscribe page:', error.response?.data || error.message);
     throw new Error('Failed to subscribe page to webhooks');
-  }
-}
-
-/**
- * Verifies the HMAC signature of a Facebook webhook request
- * @param signature - The X-Hub-Signature-256 header value (e.g., "sha256=...")
- * @param rawBody - The raw request body as a string or Buffer
- * @returns true if signature is valid, false otherwise
- */
-export function verifyWebhookSignature(signature: string | undefined, rawBody: string | Buffer): boolean {
-  if (!signature) {
-    console.error('[Facebook Webhook] No signature provided');
-    return false;
-  }
-
-  if (!FACEBOOK_APP_SECRET) {
-    console.error('[Facebook Webhook] FACEBOOK_APP_SECRET not configured');
-    return false;
-  }
-
-  try {
-    // Remove "sha256=" prefix if present
-    const signatureHash = signature.startsWith('sha256=') ? signature.substring(7) : signature;
-
-    // Calculate expected signature using raw body
-    const bodyBuffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody, 'utf-8');
-    const expectedHash = crypto
-      .createHmac('sha256', FACEBOOK_APP_SECRET)
-      .update(bodyBuffer)
-      .digest('hex');
-
-    // Check if lengths match before calling timingSafeEqual to prevent throws
-    if (signatureHash.length !== expectedHash.length) {
-      console.error('[Facebook Webhook] Signature length mismatch');
-      return false;
-    }
-
-    // Constant-time comparison to prevent timing attacks
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(signatureHash, 'hex'),
-      Buffer.from(expectedHash, 'hex')
-    );
-
-    if (!isValid) {
-      console.error('[Facebook Webhook] Signature verification failed');
-    }
-
-    return isValid;
-  } catch (error) {
-    // Handle any errors gracefully (e.g., invalid hex encoding)
-    console.error('[Facebook Webhook] Signature verification error:', error);
-    return false;
   }
 }

@@ -13,17 +13,7 @@ if (!process.env.SESSION_SECRET) {
 }
 
 const app = express();
-
-// Configure JSON middleware with verify callback to capture raw body for webhook routes
-app.use(express.json({
-  verify: (req: any, _res, buf) => {
-    // Capture raw body for Facebook Messenger webhook signature verification
-    if (req.originalUrl === "/api/integrations/messenger/webhook") {
-      req.rawBody = Buffer.from(buf);
-    }
-  }
-}));
-
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Session store setup
