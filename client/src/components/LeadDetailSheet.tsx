@@ -191,6 +191,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
       toast({
         title: "Message sent",
         description: "Your message has been sent successfully",
@@ -211,6 +212,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/pending-replies"] });
       toast({
         title: "AI reply generated",

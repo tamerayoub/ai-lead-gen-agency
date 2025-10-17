@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { SiGmail, SiMicrosoftoutlook } from "react-icons/si";
 
 interface ConversationMessage {
   id: string;
@@ -33,9 +32,9 @@ const channelIcons = {
   system: Bot,
 };
 
-const integrationIcons = {
-  gmail: SiGmail,
-  outlook: SiMicrosoftoutlook,
+const integrationLabels = {
+  gmail: "Gmail",
+  outlook: "Outlook",
 };
 
 export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply }: ConversationTimelineProps) {
@@ -142,19 +141,22 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                   {/* Email Metadata */}
                   {msg.channel === 'email' && (msg.emailSubject || msg.sourceIntegration) && (
                     <div className={cn(
-                      "flex items-center gap-2 text-xs text-muted-foreground mt-1",
+                      "flex items-center gap-1.5 text-xs text-muted-foreground mt-1",
                       fromUs && "justify-end"
                     )}>
-                      {msg.sourceIntegration && (() => {
-                        const IntegrationIcon = integrationIcons[msg.sourceIntegration as keyof typeof integrationIcons];
-                        return IntegrationIcon ? (
-                          <IntegrationIcon className="h-3 w-3" data-testid={`icon-${msg.sourceIntegration}`} />
-                        ) : null;
-                      })()}
-                      {msg.emailSubject && (
-                        <span className="truncate" data-testid="text-email-subject">
-                          {msg.emailSubject}
+                      <Mail className="h-3 w-3" />
+                      {msg.sourceIntegration && (
+                        <span className="font-medium" data-testid={`text-${msg.sourceIntegration}`}>
+                          {integrationLabels[msg.sourceIntegration as keyof typeof integrationLabels]}
                         </span>
+                      )}
+                      {msg.emailSubject && (
+                        <>
+                          {msg.sourceIntegration && <span>•</span>}
+                          <span className="truncate" data-testid="text-email-subject">
+                            {msg.emailSubject}
+                          </span>
+                        </>
                       )}
                     </div>
                   )}
