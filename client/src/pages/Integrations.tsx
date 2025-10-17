@@ -96,7 +96,7 @@ export default function Integrations() {
   });
 
   const isGmailConnected = Boolean(
-    gmailConfig && gmailConfig.config?.access_token && gmailConfig.isActive !== false
+    gmailConfig && gmailConfig.metadata?.connected && gmailConfig.isActive !== false
   );
 
   const { data: outlookConfig, isLoading: outlookLoading } = useQuery<any>({ 
