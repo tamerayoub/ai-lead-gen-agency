@@ -1,5 +1,5 @@
 /**
- * Cleans email body by removing quoted content while preserving exact formatting
+ * Cleans email body by removing quoted content and normalizing line breaks
  */
 export function cleanEmailBody(emailBody: string): string {
   if (!emailBody) return "";
@@ -31,15 +31,24 @@ export function cleanEmailBody(emailBody: string): string {
       break; // Stop adding lines
     }
     
-    // Preserve all lines exactly as they are (including empty lines)
     cleanedLines.push(lines[i]);
   }
 
-  // Join lines preserving exact formatting
+  // Join lines back together
   let result = cleanedLines.join('\n');
 
-  // Remove multiple blank lines (more than 2 consecutive newlines)
-  result = result.replace(/\n{3,}/g, '\n\n');
+  // Normalize line breaks: Convert single line breaks to spaces, preserve paragraph breaks
+  // First, protect actual paragraph breaks (double line breaks or more)
+  result = result.replace(/\n\n+/g, '<<<PARAGRAPH_BREAK>>>');
+  
+  // Now convert all remaining single line breaks to spaces
+  result = result.replace(/\n/g, ' ');
+  
+  // Restore paragraph breaks
+  result = result.replace(/<<<PARAGRAPH_BREAK>>>/g, '\n\n');
+  
+  // Clean up multiple spaces
+  result = result.replace(/  +/g, ' ');
 
   return result.trim();
 }
