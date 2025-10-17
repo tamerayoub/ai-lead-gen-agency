@@ -54,6 +54,8 @@ interface LeadDetails {
     message: string;
     timestamp: string;
     aiGenerated?: boolean;
+    emailSubject?: string;
+    sourceIntegration?: string;
   }>;
   notes: Array<{
     id: string;

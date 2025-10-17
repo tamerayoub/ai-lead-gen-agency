@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { SiGmail, SiMicrosoftoutlook } from "react-icons/si";
 
 interface ConversationMessage {
   id: string;
@@ -14,6 +15,8 @@ interface ConversationMessage {
   message: string;
   timestamp: string;
   aiGenerated?: boolean;
+  emailSubject?: string;
+  sourceIntegration?: string;
 }
 
 interface ConversationTimelineProps {
@@ -28,6 +31,11 @@ const channelIcons = {
   sms: MessageSquare,
   phone: Phone,
   system: Bot,
+};
+
+const integrationIcons = {
+  gmail: SiGmail,
+  outlook: SiMicrosoftoutlook,
 };
 
 export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply }: ConversationTimelineProps) {
@@ -130,6 +138,26 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                   )}>
                     <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
                   </Card>
+
+                  {/* Email Metadata */}
+                  {msg.channel === 'email' && (msg.emailSubject || msg.sourceIntegration) && (
+                    <div className={cn(
+                      "flex items-center gap-2 text-xs text-muted-foreground mt-1",
+                      fromUs && "justify-end"
+                    )}>
+                      {msg.sourceIntegration && (() => {
+                        const IntegrationIcon = integrationIcons[msg.sourceIntegration as keyof typeof integrationIcons];
+                        return IntegrationIcon ? (
+                          <IntegrationIcon className="h-3 w-3" data-testid={`icon-${msg.sourceIntegration}`} />
+                        ) : null;
+                      })()}
+                      {msg.emailSubject && (
+                        <span className="truncate" data-testid="text-email-subject">
+                          {msg.emailSubject}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
