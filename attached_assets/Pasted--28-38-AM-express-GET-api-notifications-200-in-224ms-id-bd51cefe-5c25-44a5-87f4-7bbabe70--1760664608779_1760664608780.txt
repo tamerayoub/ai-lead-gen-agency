@@ -1,0 +1,174 @@
+:28:38 AM [express] GET /api/notifications 200 in 224ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org: 21f621ba-3802-460c-869b-a267a1477f33
+==> Config found: YES
+==> Fetching Outlook user profile...
+1:28:38 AM [express] GET /api/integrations/messenger 304 in 181ms
+==> Access token expired, refreshing...
+==> Token refresh failed: ReferenceError: refreshOutlookToken is not defined
+    at <anonymous> (/home/runner/workspace/server/routes.ts:522:37)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1:28:38 AM [express] GET /api/integrations/outlook 200 in 328ms :: {"connected":false,"error":"token…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:28:43 AM [express] GET /api/notifications/unread-count 304 in 189ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:28:44 AM [express] GET /api/notifications 304 in 229ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:28:54 AM [express] GET /api/notifications/unread-count 304 in 186ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:28:54 AM [express] GET /api/notifications 304 in 227ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org: 21f621ba-3802-460c-869b-a267a1477f33
+==> Config found: YES
+==> Fetching Outlook user profile...
+==> Access token expired, refreshing...
+==> Token refresh failed: ReferenceError: refreshOutlookToken is not defined
+    at <anonymous> (/home/runner/workspace/server/routes.ts:522:37)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1:29:01 AM [express] GET /api/integrations/outlook 200 in 298ms :: {"connected":false,"error":"token…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:02 AM [express] GET /api/leads/sync-progress 304 in 46ms :: {"isRunning":false,"totalEmails":0,…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+   Fetched page 1: 500 unique emails (500 total seen)...
+   Fetched page 2: 979 unique emails (979 total seen)...
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:04 AM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:05 AM [express] GET /api/leads 200 in 188ms :: []
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:29:07 AM [express] GET /api/ai-settings/responses 304 in 189ms :: []
+1:29:07 AM [express] GET /api/ai-settings/qualification 304 in 183ms :: []
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:08 AM [express] GET /api/leads/sync-progress 200 in 42ms :: {"isRunning":true,"totalEmails":979…
+🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org: 21f621ba-3802-460c-869b-a267a1477f33
+==> Config found: YES
+==> Fetching Outlook user profile...
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+==> Access token expired, refreshing...
+==> Token refresh failed: ReferenceError: refreshOutlookToken is not defined
+    at <anonymous> (/home/runner/workspace/server/routes.ts:522:37)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:08 AM [express] GET /api/integrations/outlook 200 in 296ms :: {"connected":false,"error":"token…
+1:29:08 AM [express] GET /api/notifications/unread-count 304 in 175ms :: {"count":"1"}
+1:29:08 AM [express] GET /api/notifications 304 in 220ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:09 AM [express] GET /api/leads/sync-progress 304 in 41ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:10 AM [express] GET /api/leads/sync-progress 304 in 42ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:11 AM [express] GET /api/leads/sync-progress 304 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:13 AM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:14 AM [express] GET /api/leads/sync-progress 304 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:15 AM [express] GET /api/leads/sync-progress 304 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:16 AM [express] GET /api/leads/sync-progress 200 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:17 AM [express] GET /api/leads/sync-progress 304 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:19 AM [express] GET /api/notifications/unread-count 304 in 168ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:19 AM [express] GET /api/notifications 304 in 224ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+1:29:19 AM [express] GET /api/leads/sync-progress 304 in 168ms :: {"isRunning":true,"totalEmails":97…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:20 AM [express] GET /api/leads/sync-progress 304 in 41ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:21 AM [express] GET /api/leads/sync-progress 200 in 41ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:23 AM [express] GET /api/leads/sync-progress 304 in 40ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:29:24 AM [express] GET /api/notifications/unread-count 304 in 173ms :: {"count":"1"}
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:25 AM [express] GET /api/leads/sync-progress 304 in 42ms :: {"isRunning":true,"totalEmails":979…
+1:29:25 AM [express] GET /api/notifications 304 in 329ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:27 AM [express] GET /api/leads/sync-progress 200 in 79ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:29 AM [express] GET /api/leads/sync-progress 304 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:31 AM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:33 AM [express] GET /api/leads/sync-progress 200 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:29:35 AM [express] GET /api/notifications/unread-count 304 in 199ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:35 AM [express] GET /api/leads/sync-progress 304 in 73ms :: {"isRunning":true,"totalEmails":979…
+1:29:35 AM [express] GET /api/notifications 304 in 249ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:37 AM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:39 AM [express] GET /api/leads/sync-progress 304 in 53ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:41 AM [express] GET /api/leads/sync-progress 200 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:43 AM [express] GET /api/leads/sync-progress 304 in 44ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:45 AM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":979…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:45 AM [express] GET /api/notifications/unread-count 304 in 173ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:46 AM [express] GET /api/notifications 304 in 217ms :: [{"id":"bd51cefe-5c25-44a5-87f4-7bbabe70…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:29:47 AM [express] GET /api/leads/sync-progress 304 in 43ms :: {"isRunning":true,"totalEmails":979…
+^C

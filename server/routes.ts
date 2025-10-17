@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply } from "./gmail";
-import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile } from "./outlook";
+import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
@@ -1487,15 +1487,17 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             timestamp: new Date().toISOString(),
           });
 
-        } catch (parseError) {
-          parseErrors.push({ messageId: msg.id, error: String(parseError) });
-          syncProgressTracker.addLog('error', `❌ Failed to parse: "${subject.substring(0, 40)}..."`);
+        } catch (processingError: any) {
+          const errorMsg = processingError.message || String(processingError);
+          parseErrors.push({ messageId: msg.id, error: errorMsg });
+          syncProgressTracker.addLog('error', `❌ Failed to process: "${subject.substring(0, 40)}..." - ${errorMsg.substring(0, 100)}`);
+          console.error(`[Gmail Sync] Error processing email "${subject}":`, processingError);
           processingLogs.push({
             status: "error",
             from,
             subject,
             preview: emailPreview,
-            error: String(parseError),
+            error: errorMsg,
             timestamp: new Date().toISOString(),
           });
           // Continue processing remaining messages
