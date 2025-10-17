@@ -1262,17 +1262,15 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             console.log(`[Gmail Sender Check] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${isFromPropertyManager} | Type: ${conversationType}`);
             syncProgressTracker.addLog('info', `💬 Thread reply: Adding ${conversationType} message to lead "${threadLead.name}" (From: ${from.substring(0, 30)}...)`);
             
-            // Clean the email body to remove quoted content and fix line breaks
+            // Store the raw email body as-is (including metadata)
             console.log('[Gmail] Raw email body length:', emailBody.length);
-            const cleanedBody = cleanEmailBody(emailBody);
-            console.log('[Gmail] Cleaned body length:', cleanedBody.length);
-            console.log('[Gmail] Cleaned body preview:', cleanedBody.substring(0, 100));
+            console.log('[Gmail] Body preview:', emailBody.substring(0, 100));
             
-            // Create conversation record for the reply with cleaned email body
+            // Create conversation record with raw email body
             await storage.createConversation({
               leadId: threadLead.id,
               type: conversationType,
-              message: cleanedBody,
+              message: emailBody,
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
@@ -1539,22 +1537,20 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             threadLeadMap.set(threadId, leadToUse.id);
           }
 
-          // Clean the email body to remove quoted content and fix line breaks
-          const cleanedInitialBody = cleanEmailBody(emailBody);
+          // Store the raw email body as-is (including metadata)
           console.log('[Gmail Initial] Raw body length:', emailBody.length);
-          console.log('[Gmail Initial] Cleaned body length:', cleanedInitialBody.length);
-          console.log('[Gmail Initial] Cleaned body preview:', cleanedInitialBody.substring(0, 100));
+          console.log('[Gmail Initial] Body preview:', emailBody.substring(0, 100));
           
           // Detect if the initial message is from the property manager (outgoing) or lead (received)
           const initialIsFromPM = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
           const initialMessageType = initialIsFromPM ? "outgoing" : "received";
           console.log(`[Gmail Initial Sender] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${initialIsFromPM} | Type: ${initialMessageType}`);
           
-          // Create conversation record with externalId (linked to the lead)
+          // Create conversation record with raw email body
           await storage.createConversation({
             leadId: leadToUse.id,
             type: initialMessageType,
-            message: cleanedInitialBody,
+            message: emailBody,
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
