@@ -887,9 +887,8 @@ export default function Integrations() {
               <AlertDialogAction
                 onClick={() => handleDisconnectGmail(true)}
                 className="bg-destructive hover:bg-destructive/90"
-                disabled={!progress?.createdLeadIds || progress.createdLeadIds.length === 0}
               >
-                Delete Current Sync Leads & Disconnect
+                Delete Current Sync Leads & Disconnect ({progress?.createdLeadIds?.length || 0})
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>
@@ -922,9 +921,8 @@ export default function Integrations() {
               <AlertDialogAction
                 onClick={() => handleStopSync(true)}
                 className="bg-destructive hover:bg-destructive/90"
-                disabled={!progress?.createdLeadIds || progress.createdLeadIds.length === 0}
               >
-                Delete Current Sync Leads & Stop
+                Delete Current Sync Leads & Stop ({progress?.createdLeadIds?.length || 0})
               </AlertDialogAction>
             </div>
           </AlertDialogFooter>

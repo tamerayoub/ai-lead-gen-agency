@@ -1541,12 +1541,20 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
 
           // Clean the email body to remove quoted content and fix line breaks
           const cleanedInitialBody = cleanEmailBody(emailBody);
+          console.log('[Gmail Initial] Raw body length:', emailBody.length);
+          console.log('[Gmail Initial] Cleaned body length:', cleanedInitialBody.length);
+          console.log('[Gmail Initial] Cleaned body preview:', cleanedInitialBody.substring(0, 100));
+          
+          // Detect if the initial message is from the property manager (outgoing) or lead (received)
+          const isFromPropertyManager = from.toLowerCase().includes(propertyManagerEmail.toLowerCase());
+          const initialMessageType = isFromPropertyManager ? "outgoing" : "received";
+          console.log(`[Gmail Initial Sender] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${isFromPropertyManager} | Type: ${initialMessageType}`);
           
           // Create conversation record with externalId (linked to the lead)
           await storage.createConversation({
             leadId: leadToUse.id,
-            type: "received",
-            message: parsedData.message || cleanedInitialBody,
+            type: initialMessageType,
+            message: cleanedInitialBody,
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
