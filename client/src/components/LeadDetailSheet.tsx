@@ -93,15 +93,20 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   const { toast } = useToast();
 
   // Fetch available integrations for messaging
-  const { data: gmailIntegration } = useQuery({
+  const { data: gmailIntegration, isLoading: gmailLoading } = useQuery({
     queryKey: ["/api/integrations/gmail"],
+    enabled: open, // Only fetch when sheet is open
   });
 
-  const { data: outlookIntegration } = useQuery({
+  const { data: outlookIntegration, isLoading: outlookLoading } = useQuery({
     queryKey: ["/api/integrations/outlook"],
+    enabled: open, // Only fetch when sheet is open
   });
 
-  const availableIntegrations = [
+  // Wait for both queries to finish loading before building the list
+  const integrationsLoading = gmailLoading || outlookLoading;
+  
+  const availableIntegrations = integrationsLoading ? [] : [
     ...(gmailIntegration?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
     ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
   ];
@@ -457,6 +462,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                 onSendMessage={handleSendMessage}
                 onAIReply={handleAIReply}
                 availableIntegrations={availableIntegrations}
+                integrationsLoading={integrationsLoading}
               />
             </TabsContent>
             <TabsContent value="notes" className="space-y-3 mt-4">

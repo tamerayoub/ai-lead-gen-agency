@@ -26,6 +26,7 @@ interface ConversationTimelineProps {
   onSendMessage?: (message: string, integration: string, emailSubject: string) => void;
   onAIReply?: () => void;
   availableIntegrations?: Array<{ id: string; name: string }>;
+  integrationsLoading?: boolean;
 }
 
 const channelIcons = {
@@ -40,7 +41,7 @@ const integrationLabels = {
   outlook: "Outlook",
 };
 
-export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, availableIntegrations = [] }: ConversationTimelineProps) {
+export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, availableIntegrations = [], integrationsLoading = false }: ConversationTimelineProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
@@ -257,8 +258,15 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
 
       {/* Reply Input */}
       <div className="border-t pt-4 space-y-3">
+        {/* Loading State */}
+        {integrationsLoading && (
+          <div className="rounded-md bg-muted p-4 text-sm">
+            <p className="text-muted-foreground">Loading integrations...</p>
+          </div>
+        )}
+
         {/* No Integrations Message */}
-        {availableIntegrations.length === 0 && (
+        {!integrationsLoading && availableIntegrations.length === 0 && (
           <div className="rounded-md bg-muted p-4 text-sm">
             <p className="font-medium mb-1">No integrations set up</p>
             <p className="text-muted-foreground">
@@ -268,7 +276,7 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
         )}
 
         {/* Step 1: Integration Selector */}
-        {availableIntegrations.length > 0 && (
+        {!integrationsLoading && availableIntegrations.length > 0 && (
           <>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
