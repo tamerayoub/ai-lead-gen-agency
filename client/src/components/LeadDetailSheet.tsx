@@ -343,8 +343,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto" data-testid="sheet-lead-detail">
-        <SheetHeader className="pb-6">
+      <SheetContent className="w-full sm:max-w-2xl flex flex-col p-0" data-testid="sheet-lead-detail">
+        <SheetHeader className="pb-6 px-6 pt-6 shrink-0">
           <div className="flex items-start gap-4">
             <Avatar className="h-16 w-16">
               <AvatarFallback className="text-lg">{initials}</AvatarFallback>
@@ -414,7 +414,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
           </div>
         </SheetHeader>
 
-        <div className="space-y-6">
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto px-6 space-y-6">
           {isEditing ? (
             <div className="space-y-4">
               <div className="space-y-2">
@@ -557,8 +558,11 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               ))}
             </TabsContent>
           </Tabs>
+        </div>
 
-          <div className="flex gap-2 pt-4">
+        {/* Fixed footer with action buttons */}
+        <div className="shrink-0 border-t px-6 py-4">
+          <div className="flex gap-2">
             <Button className="flex-1" data-testid="button-send-application">
               <Send className="h-4 w-4 mr-2" />
               Send Application

@@ -206,7 +206,7 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
   return (
     <div className="space-y-6">
       {/* Messages */}
-      <div className="space-y-4 max-h-[500px] overflow-y-auto">
+      <div className="space-y-4">
         {messages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No conversation yet
