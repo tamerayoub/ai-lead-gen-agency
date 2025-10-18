@@ -1,0 +1,591 @@
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:02:39 AM [express] GET /api/auth/user 304 in 44ms :: {"id":"20af099f-e5cd-49fd-8ccf-b71d9adbab79",…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:02:39 AM [express] GET /api/integrations/gmail 304 in 180ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:02:39 AM [express] GET /api/organizations 304 in 90ms :: [{"orgId":"21f621ba-3802-460c-869b-a267a1…
+1:02:39 AM [express] GET /api/organizations/current 304 in 134ms :: {"orgId":"21f621ba-3802-460c-869…
+1:02:39 AM [express] GET /api/notifications/unread-count 304 in 171ms :: {"count":"1"}
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:02:39 AM [express] GET /api/notifications 304 in 229ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+1:02:39 AM [express] GET /api/leads 304 in 205ms :: [{"id":"7a22f7b4-4be6-4961-8631-f34c4d8d0841","o…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org: 21f621ba-3802-460c-869b-a267a1477f33
+==> Config found: YES
+==> Fetching Outlook user profile...
+1:02:41 AM [express] GET /api/leads/7a22f7b4-4be6-4961-8631-f34c4d8d0841 200 in 281ms :: {"id":"7a22…
+==> Access token expired, refreshing...
+==> Token refreshed successfully
+==> Token refresh failed: AxiosError: Request failed with status code 403
+    at settle (file:///home/runner/workspace/node_modules/axios/lib/core/settle.js:19:12)
+    at Unzip.handleStreamEnd (file:///home/runner/workspace/node_modules/axios/lib/adapters/http.js:617:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+    at Axios.request (file:///home/runner/workspace/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getUserProfile (/home/runner/workspace/server/outlook.ts:199:20)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:702:29) {
+  code: 'ERR_BAD_REQUEST',
+  config: {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 0,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function [FormData]], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAX1ZzkvWP+Jm6p7excciaewGMxlffVJmtiocK/+vfVyFPe1HS0AvJvU0tYDIUcYWqFO4HiHrWf22ErVL8S+GoZ5S4cBDylNFBOCmamYXC8fp9rHbHx+eTjmrqR5rbkRFX1TpvF7ITLCKPD656KESdqBR7hfqgvYyhV0OuytePuBzUzCrxoDKkJv/1xFFjjFfPDiiAuUe4PMkSEw1EqXmrKlYl/cbl5ZXAVMuijN0B4Exrbmv1aaKnU0CfuoGd8xvWS8Tn92zr/opoKKSVmD5pMszOFV66Z1Y2oTznubbkPxxoqyXEOO5r58+jR4w9O0aPV60w8xcjMsxPvQ2nRaQm10QZgAAEPY7nvIUVpnl0g1OBAu4FlswA94eF9N2618kOTYrsM3qGyMP17YiJOh2A3zx1QTIbfhlBzmtZr/bSrM0Xy82O6uKj/dMxsG+prX0upBRMWTVOmihGODLn/XlPgwj5P9D//ASYfXEozTgq5FlszN0+Nx/jUDG6s3SKXsJuFlsKMbsxyP3SdjFJqFx9LBZqUt9xiK3MALKPKCUHdWT/PYs5tLvLyBgWeSw801rXM/J8arQtwX4qiz4rqXc7fCwcc/UUqag+FvngYWGPKFKtr0HwhkK5lwFsbgxA8XkIF22OSwGPbWzbdzkVG3PQ+4RvmzwifTB2ypDSclaaKeb7Y4EqoISiTzLb+xSWnsbQwGMuacXrtvs5z+1dY+WCpcEtlQQxZLaWgsOdIJKJXD9ZzOBrduIO77FSzE8WSqwfJI91v5ZvlJFRJ/leyf/caENzI61qSvmn3/IzyRwi3FJoxZZMp9ZPIwJW5rsJbs7lKB69Mf9qOF8hQHXl3Y6CAByRG2cCWk+ruNoOq0Xc3Dy96Ds2lxdaRhzQoM232Pz/+7hal0PVzkKP6TvfAHIyjM9zX1XXoJ9HsTcVy3OAmzq6lV6RZSEtkUXYZ1l1/SjBzIpeJ1UX4KT5Li+JwkRe8Ef2sE95NKutWUqycm0nqA9QaXTEvWc7QzC14QuNHHnW+lmowXYd/xaiVyTqvfhTQzzQaKEYoxP85BC2BDRx/ve8lrK8Hp+oI2q36X8ixTOHEcofJsSpX8zsYKGf6F6tnUQSnWLtiC7aloG7Ifri6rVbujqK0uj3V5lm2PrDJt4XSgQiGSVZFZfuyq3Zwii2BOhH0VXTIoRYeCHsOOajUIC79iKbDKl44hZfzNXBI4PkjLgSI5DJoqiyWwYxrjMco1GoCP+MHq0Bo5osARcxHgdUNs51W2qs5cyxBIDdbGAkyAVmpfW0RGnR0N0gRPylE/ok3S/8QQ4212WcZ+tguBQ3KDMcDJe4ScoEmnjA6oIuWIuklgGqg7UCO/g+sAzy8d5np8ecM/segs2C/Zs/zUUedGKS5R/S6fdFfwnRMYdoQWNAVadwnI2DJnCQGMLKcEkXJO+VesLwRjCQS7wC5+NMmS9F2yH93ID',
+      'User-Agent': 'axios/1.12.2',
+      'Accept-Encoding': 'gzip, compress, deflate, br'
+    },
+    method: 'get',
+    url: 'https://graph.microsoft.com/v1.0/me',
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: <ref *1> ClientRequest {
+    _events: [Object: null prototype] {
+      abort: [Function (anonymous)],
+      aborted: [Function (anonymous)],
+      connect: [Function (anonymous)],
+      error: [Function (anonymous)],
+      socket: [Function (anonymous)],
+      timeout: [Function (anonymous)],
+      finish: [Function: requestOnFinish]
+    },
+    _eventsCount: 7,
+    _maxListeners: undefined,
+    outputData: [],
+    outputSize: 0,
+    writable: true,
+    destroyed: true,
+    _last: true,
+    chunkedEncoding: false,
+    shouldKeepAlive: true,
+    maxRequestsOnConnectionReached: false,
+    _defaultKeepAlive: true,
+    useChunkedEncodingByDefault: false,
+    sendDate: false,
+    _removedConnection: false,
+    _removedContLen: false,
+    _removedTE: false,
+    strictContentLength: false,
+    _contentLength: 0,
+    _hasBody: true,
+    _trailer: '',
+    finished: true,
+    _headerSent: true,
+    _closed: true,
+    socket: TLSSocket {
+      _tlsOptions: [Object],
+      _secureEstablished: true,
+      _securePending: false,
+      _newSessionPending: false,
+      _controlReleased: true,
+      secureConnecting: false,
+      _SNICallback: null,
+      servername: 'graph.microsoft.com',
+      alpnProtocol: false,
+      authorized: true,
+      authorizationError: null,
+      encrypted: true,
+      _events: [Object: null prototype],
+      _eventsCount: 9,
+      connecting: false,
+      _hadError: false,
+      _parent: null,
+      _host: 'graph.microsoft.com',
+      _closeAfterHandlingError: false,
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: false,
+      _maxListeners: undefined,
+      _sockname: null,
+      _pendingData: null,
+      _pendingEncoding: '',
+      server: undefined,
+      _server: null,
+      ssl: [TLSWrap],
+      _requestCert: true,
+      _rejectUnauthorized: true,
+      timeout: 5000,
+      parser: null,
+      _httpMessage: null,
+      autoSelectFamilyAttemptedAddresses: [Array],
+      [Symbol(alpncallback)]: null,
+      [Symbol(res)]: [TLSWrap],
+      [Symbol(verified)]: true,
+      [Symbol(pendingSession)]: null,
+      [Symbol(async_id_symbol)]: -1,
+      [Symbol(kHandle)]: [TLSWrap],
+      [Symbol(lastWriteQueueSize)]: 0,
+      [Symbol(timeout)]: Timeout {
+        _idleTimeout: 5000,
+        _idlePrev: [TimersList],
+        _idleNext: [Timeout],
+        _idleStart: 94945,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        [Symbol(refed)]: false,
+        [Symbol(kHasPrimitive)]: false,
+        [Symbol(asyncId)]: 17863,
+        [Symbol(triggerId)]: 17861
+      },
+      [Symbol(kBuffer)]: null,
+      [Symbol(kBufferCb)]: null,
+      [Symbol(kBufferGen)]: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kSetNoDelay)]: false,
+      [Symbol(kSetKeepAlive)]: true,
+      [Symbol(kSetKeepAliveInitialDelay)]: 1,
+      [Symbol(kBytesRead)]: 0,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(connect-options)]: [Object]
+    },
+    _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'Content-Type: application/json\r\n' +
+      'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAX1ZzkvWP+Jm6p7excciaewGMxlffVJmtiocK/+vfVyFPe1HS0AvJvU0tYDIUcYWqFO4HiHrWf22ErVL8S+GoZ5S4cBDylNFBOCmamYXC8fp9rHbHx+eTjmrqR5rbkRFX1TpvF7ITLCKPD656KESdqBR7hfqgvYyhV0OuytePuBzUzCrxoDKkJv/1xFFjjFfPDiiAuUe4PMkSEw1EqXmrKlYl/cbl5ZXAVMuijN0B4Exrbmv1aaKnU0CfuoGd8xvWS8Tn92zr/opoKKSVmD5pMszOFV66Z1Y2oTznubbkPxxoqyXEOO5r58+jR4w9O0aPV60w8xcjMsxPvQ2nRaQm10QZgAAEPY7nvIUVpnl0g1OBAu4FlswA94eF9N2618kOTYrsM3qGyMP17YiJOh2A3zx1QTIbfhlBzmtZr/bSrM0Xy82O6uKj/dMxsG+prX0upBRMWTVOmihGODLn/XlPgwj5P9D//ASYfXEozTgq5FlszN0+Nx/jUDG6s3SKXsJuFlsKMbsxyP3SdjFJqFx9LBZqUt9xiK3MALKPKCUHdWT/PYs5tLvLyBgWeSw801rXM/J8arQtwX4qiz4rqXc7fCwcc/UUqag+FvngYWGPKFKtr0HwhkK5lwFsbgxA8XkIF22OSwGPbWzbdzkVG3PQ+4RvmzwifTB2ypDSclaaKeb7Y4EqoISiTzLb+xSWnsbQwGMuacXrtvs5z+1dY+WCpcEtlQQxZLaWgsOdIJKJXD9ZzOBrduIO77FSzE8WSqwfJI91v5ZvlJFRJ/leyf/caENzI61qSvmn3/IzyRwi3FJoxZZMp9ZPIwJW5rsJbs7lKB69Mf9qOF8hQHXl3Y6CAByRG2cCWk+ruNoOq0Xc3Dy96Ds2lxdaRhzQoM232Pz/+7hal0PVzkKP6TvfAHIyjM9zX1XXoJ9HsTcVy3OAmzq6lV6RZSEtkUXYZ1l1/SjBzIpeJ1UX4KT5Li+JwkRe8Ef2sE95NKutWUqycm0nqA9QaXTEvWc7QzC14QuNHHnW+lmowXYd/xaiVyTqvfhTQzzQaKEYoxP85BC2BDRx/ve8lrK8Hp+oI2q36X8ixTOHEcofJsSpX8zsYKGf6F6tnUQSnWLtiC7aloG7Ifri6rVbujqK0uj3V5lm2PrDJt4XSgQiGSVZFZfuyq3Zwii2BOhH0VXTIoRYeCHsOOajUIC79iKbDKl44hZfzNXBI4PkjLgSI5DJoqiyWwYxrjMco1GoCP+MHq0Bo5osARcxHgdUNs51W2qs5cyxBIDdbGAkyAVmpfW0RGnR0N0gRPylE/ok3S/8QQ4212WcZ+tguBQ3KDMcDJe4ScoEmnjA6oIuWIuklgGqg7UCO/g+sAzy8d5np8ecM/segs2C/Zs/zUUedGKS5R/S6fdFfwnRMYdoQWNAVadwnI2DJnCQGMLKcEkXJO+VesLwRjCQS7wC5+NMmS9F2yH93ID\r\n' +
+      'User-Agent: axios/1.12.2\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: graph.microsoft.com\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      defaultPort: 443,
+      protocol: 'https:',
+      options: [Object: null prototype],
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 2,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/v1.0/me',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+      client: [TLSSocket],
+      _consuming: true,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'https://graph.microsoft.com/v1.0/me',
+      redirects: [],
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kHeaders)]: [Object],
+      [Symbol(kHeadersCount)]: 18,
+      [Symbol(kTrailers)]: null,
+      [Symbol(kTrailersCount)]: 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: true,
+    host: 'graph.microsoft.com',
+    protocol: 'https:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 0,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'https://graph.microsoft.com/v1.0/me',
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false,
+    [Symbol(kBytesWritten)]: 0,
+    [Symbol(kNeedDrain)]: false,
+    [Symbol(corked)]: 0,
+    [Symbol(kOutHeaders)]: [Object: null prototype] {
+      accept: [Array],
+      'content-type': [Array],
+      authorization: [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    [Symbol(errored)]: null,
+    [Symbol(kHighWaterMark)]: 16384,
+    [Symbol(kRejectNonStandardBodyWrites)]: false,
+    [Symbol(kUniqueHeaders)]: null
+  },
+  response: {
+    status: 403,
+    statusText: 'Forbidden',
+    headers: Object [AxiosHeaders] {
+      'transfer-encoding': 'chunked',
+      'content-type': 'application/json',
+      vary: 'Accept-Encoding',
+      'strict-transport-security': 'max-age=31536000',
+      'request-id': '04146d61-86f7-4552-8991-9a5a38c0baea',
+      'client-request-id': '04146d61-86f7-4552-8991-9a5a38c0baea',
+      'x-ms-ags-diagnostic': '{"ServerInfo":{"DataCenter":"Central US","Slice":"E","Ring":"4","ScaleUnit":"000","RoleInstance":"DS1PEPF0002F8A8"}}',
+      date: 'Sat, 18 Oct 2025 01:02:41 GMT'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 0,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      method: 'get',
+      url: 'https://graph.microsoft.com/v1.0/me',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      socket: [TLSSocket],
+      _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'Content-Type: application/json\r\n' +
+        'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAX1ZzkvWP+Jm6p7excciaewGMxlffVJmtiocK/+vfVyFPe1HS0AvJvU0tYDIUcYWqFO4HiHrWf22ErVL8S+GoZ5S4cBDylNFBOCmamYXC8fp9rHbHx+eTjmrqR5rbkRFX1TpvF7ITLCKPD656KESdqBR7hfqgvYyhV0OuytePuBzUzCrxoDKkJv/1xFFjjFfPDiiAuUe4PMkSEw1EqXmrKlYl/cbl5ZXAVMuijN0B4Exrbmv1aaKnU0CfuoGd8xvWS8Tn92zr/opoKKSVmD5pMszOFV66Z1Y2oTznubbkPxxoqyXEOO5r58+jR4w9O0aPV60w8xcjMsxPvQ2nRaQm10QZgAAEPY7nvIUVpnl0g1OBAu4FlswA94eF9N2618kOTYrsM3qGyMP17YiJOh2A3zx1QTIbfhlBzmtZr/bSrM0Xy82O6uKj/dMxsG+prX0upBRMWTVOmihGODLn/XlPgwj5P9D//ASYfXEozTgq5FlszN0+Nx/jUDG6s3SKXsJuFlsKMbsxyP3SdjFJqFx9LBZqUt9xiK3MALKPKCUHdWT/PYs5tLvLyBgWeSw801rXM/J8arQtwX4qiz4rqXc7fCwcc/UUqag+FvngYWGPKFKtr0HwhkK5lwFsbgxA8XkIF22OSwGPbWzbdzkVG3PQ+4RvmzwifTB2ypDSclaaKeb7Y4EqoISiTzLb+xSWnsbQwGMuacXrtvs5z+1dY+WCpcEtlQQxZLaWgsOdIJKJXD9ZzOBrduIO77FSzE8WSqwfJI91v5ZvlJFRJ/leyf/caENzI61qSvmn3/IzyRwi3FJoxZZMp9ZPIwJW5rsJbs7lKB69Mf9qOF8hQHXl3Y6CAByRG2cCWk+ruNoOq0Xc3Dy96Ds2lxdaRhzQoM232Pz/+7hal0PVzkKP6TvfAHIyjM9zX1XXoJ9HsTcVy3OAmzq6lV6RZSEtkUXYZ1l1/SjBzIpeJ1UX4KT5Li+JwkRe8Ef2sE95NKutWUqycm0nqA9QaXTEvWc7QzC14QuNHHnW+lmowXYd/xaiVyTqvfhTQzzQaKEYoxP85BC2BDRx/ve8lrK8Hp+oI2q36X8ixTOHEcofJsSpX8zsYKGf6F6tnUQSnWLtiC7aloG7Ifri6rVbujqK0uj3V5lm2PrDJt4XSgQiGSVZFZfuyq3Zwii2BOhH0VXTIoRYeCHsOOajUIC79iKbDKl44hZfzNXBI4PkjLgSI5DJoqiyWwYxrjMco1GoCP+MHq0Bo5osARcxHgdUNs51W2qs5cyxBIDdbGAkyAVmpfW0RGnR0N0gRPylE/ok3S/8QQ4212WcZ+tguBQ3KDMcDJe4ScoEmnjA6oIuWIuklgGqg7UCO/g+sAzy8d5np8ecM/segs2C/Zs/zUUedGKS5R/S6fdFfwnRMYdoQWNAVadwnI2DJnCQGMLKcEkXJO+VesLwRjCQS7wC5+NMmS9F2yH93ID\r\n' +
+        'User-Agent: axios/1.12.2\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: graph.microsoft.com\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v1.0/me',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: true,
+      host: 'graph.microsoft.com',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: { error: [Object] }
+  },
+  status: 403
+}
+1:02:42 AM [express] GET /api/integrations/outlook 200 in 941ms :: {"connected":false,"error":"token…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:02:50 AM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"1"}
+1:02:50 AM [express] GET /api/notifications 304 in 227ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Send Email] Attempting to send email via gmail to dashboardpilotai@gmail.com
+[Send Email] Lead has email: dashboardpilotai@gmail.com
+[Send Email] Message type: outgoing
+[Send Email] Integration not found: gmail
+1:02:57 AM [express] POST /api/conversations 201 in 334ms :: {"id":"1206fa9c-4de9-4eb2-8b6d-ae9f951b…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:02:57 AM [express] GET /api/leads/7a22f7b4-4be6-4961-8631-f34c4d8d0841 200 in 271ms :: {"id":"7a22…
+1:02:57 AM [express] GET /api/leads 200 in 180ms :: [{"id":"7a22f7b4-4be6-4961-8631-f34c4d8d0841","o…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:02:57 AM [express] GET /api/leads/7a22f7b4-4be6-4961-8631-f34c4d8d0841 304 in 267ms :: {"id":"7a22…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:00 AM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"1"}
+1:03:00 AM [express] GET /api/notifications 304 in 226ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Retry Email] Error: TypeError: Cannot read properties of undefined (reading 'select')
+    at <anonymous> (/home/runner/workspace/server/routes.ts:437:10)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at attachOrgContext (/home/runner/workspace/server/routes.ts:56:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+1:03:01 AM [express] POST /api/conversations/1206fa9c-4de9-4eb2-8b6d-ae9f951b25fd/retry 500 in 136ms…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:21 AM [express] GET /api/notifications/unread-count 304 in 181ms :: {"count":"1"}
+1:03:21 AM [express] GET /api/notifications 304 in 224ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:22 AM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"1"}
+1:03:22 AM [express] GET /api/notifications 304 in 225ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:32 AM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"1"}
+1:03:32 AM [express] GET /api/notifications 304 in 218ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+1:03:42 AM [express] GET /api/notifications/unread-count 304 in 178ms :: {"count":"1"}
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:43 AM [express] GET /api/notifications 304 in 216ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:53 AM [express] GET /api/notifications/unread-count 304 in 175ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:03:53 AM [express] GET /api/notifications 304 in 215ms :: [{"id":"55ca776c-8b90-46d4-8112-9baa16a0…
+^C

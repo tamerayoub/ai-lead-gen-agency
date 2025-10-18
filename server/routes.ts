@@ -369,12 +369,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Send Email] Attempting to send email via ${integrationToUse} to ${lead.email}`);
           console.log(`[Send Email] Lead has email: ${lead.email}`);
           console.log(`[Send Email] Message type: ${validatedData.type}`);
+          console.log(`[Send Email] Looking up integration with service="${integrationToUse}" and orgId="${req.orgId}"`);
           
           // Get the specified integration
           const integration = await storage.getIntegrationConfig(integrationToUse, req.orgId);
           
+          console.log(`[Send Email] Integration lookup result:`, integration ? 'FOUND' : 'NOT FOUND');
+          if (integration) {
+            console.log(`[Send Email] Integration ID: ${integration.id}, has tokens:`, !!integration.config?.tokens);
+          }
+          
           if (!integration) {
-            console.error('[Send Email] Integration not found:', integrationToUse);
+            console.error('[Send Email] Integration not found for service:', integrationToUse, 'orgId:', req.orgId);
             emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
             (validatedData as any).deliveryStatus = 'failed';
             (validatedData as any).deliveryError = emailSendStatus.error;
@@ -432,18 +438,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const conversationId = req.params.conversationId;
       
-      // Get the conversation
-      const conversation = await storage.db
-        .select()
+      // Get all conversations for the org to find this specific one
+      // (we don't have a getConversationById method in storage interface)
+      const allConversations = await db.select()
         .from(conversations)
-        .where(sql`${conversations.id} = ${conversationId}`)
+        .where(eq(conversations.id, conversationId))
         .limit(1);
       
-      if (!conversation || conversation.length === 0) {
+      if (!allConversations || allConversations.length === 0) {
         return res.status(404).json({ error: "Conversation not found" });
       }
       
-      const conv = conversation[0];
+      const conv = allConversations[0];
       
       // Only retry failed email messages
       if (conv.channel !== 'email' || conv.deliveryStatus !== 'failed') {
@@ -484,25 +490,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailSendStatus = { sent: true };
           
           // Update conversation status
-          await storage.db
+          await db
             .update(conversations)
             .set({ 
               deliveryStatus: 'sent',
               deliveryError: null
             })
-            .where(sql`${conversations.id} = ${conversationId}`);
+            .where(eq(conversations.id, conversationId));
         }
       } catch (emailError: any) {
         console.error('[Retry Email] Failed to send email:', emailError);
         emailSendStatus = { sent: false, error: emailError.message || 'Failed to send email' };
         
         // Update error message
-        await storage.db
+        await db
           .update(conversations)
           .set({ 
             deliveryError: emailSendStatus.error
           })
-          .where(sql`${conversations.id} = ${conversationId}`);
+          .where(eq(conversations.id, conversationId));
       }
       
       res.json({ 
