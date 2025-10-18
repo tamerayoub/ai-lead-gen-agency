@@ -111,6 +111,16 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
   ];
 
+  // Debug logging
+  console.log('🔍 Integration Debug:', {
+    gmailLoading,
+    outlookLoading,
+    gmailIntegration,
+    outlookIntegration,
+    availableIntegrations,
+    integrationsLoading
+  });
+
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
       const res = await apiRequest("PATCH", `/api/leads/${lead?.id}`, data);
