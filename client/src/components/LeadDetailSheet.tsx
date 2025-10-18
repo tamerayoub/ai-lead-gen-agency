@@ -99,6 +99,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   const [selectedExistingSubject, setSelectedExistingSubject] = useState<string>("");
   
   const conversationEndRef = useRef<HTMLDivElement>(null);
+  const conversationScrollRef = useRef<HTMLDivElement>(null);
   
   const { toast } = useToast();
 
@@ -156,11 +157,13 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   // Scroll to bottom of conversation when sheet opens or messages change
   useEffect(() => {
-    if (open && conversationEndRef.current) {
+    if (open && conversationScrollRef.current) {
       // Use longer timeout to ensure linkified content is fully rendered
       setTimeout(() => {
-        conversationEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-      }, 200);
+        if (conversationScrollRef.current) {
+          conversationScrollRef.current.scrollTop = conversationScrollRef.current.scrollHeight;
+        }
+      }, 250);
     }
   }, [open, lead?.conversations]);
 
@@ -596,7 +599,11 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               <TabsTrigger value="conversation" className="flex-1" data-testid="tab-conversation">Conversation</TabsTrigger>
               <TabsTrigger value="notes" className="flex-1" data-testid="tab-notes">Notes</TabsTrigger>
             </TabsList>
-            <TabsContent value="conversation" className="flex-1 overflow-y-auto px-6 mt-4 min-h-0">
+            <TabsContent 
+              value="conversation" 
+              className="flex-1 overflow-y-auto px-6 mt-4 min-h-0"
+              ref={conversationScrollRef}
+            >
               <ConversationTimeline 
                 messages={lead.conversations} 
                 leadName={lead.name}
