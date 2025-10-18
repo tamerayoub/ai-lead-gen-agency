@@ -97,6 +97,8 @@ export const conversations = pgTable("conversations", {
   externalId: text("external_id"),
   emailSubject: text("email_subject"),
   sourceIntegration: text("source_integration"),
+  deliveryStatus: text("delivery_status"), // 'sent', 'failed', 'pending', null for non-email
+  deliveryError: text("delivery_error"), // Error message if failed
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

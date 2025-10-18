@@ -361,12 +361,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let emailSendStatus: { sent: boolean; error?: string } = { sent: false };
       
       // If channel is email and type is outgoing, send actual email
-      if (validatedData.channel === "email" && validatedData.type === "outgoing" && lead.email) {
+      if (validatedData.channel === "email" && (validatedData.type === "outgoing" || validatedData.type === "sent") && lead.email) {
         try {
           // Use the integration specified in the request (default to gmail)
           const integrationToUse = validatedData.sourceIntegration || 'gmail';
           
           console.log(`[Send Email] Attempting to send email via ${integrationToUse} to ${lead.email}`);
+          console.log(`[Send Email] Lead has email: ${lead.email}`);
+          console.log(`[Send Email] Message type: ${validatedData.type}`);
           
           // Get the specified integration
           const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
@@ -374,9 +376,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!integration) {
             console.error('[Send Email] Integration not found:', integrationToUse);
             emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
+            (validatedData as any).deliveryStatus = 'failed';
+            (validatedData as any).deliveryError = emailSendStatus.error;
           } else if (!integration.config?.tokens) {
             console.error('[Send Email] No tokens found for integration:', integrationToUse);
             emailSendStatus = { sent: false, error: `${integrationToUse} is not connected` };
+            (validatedData as any).deliveryStatus = 'failed';
+            (validatedData as any).deliveryError = emailSendStatus.error;
           } else {
             // Use the email subject from the request, or generate a default
             const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
@@ -392,6 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log('[Send Email] Email sent successfully');
             emailSendStatus = { sent: true };
+            (validatedData as any).deliveryStatus = 'sent';
             
             // Ensure email metadata is stored
             validatedData.emailSubject = emailSubject;
@@ -400,6 +407,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (emailError: any) {
           console.error('[Send Email] Failed to send email:', emailError);
           emailSendStatus = { sent: false, error: emailError.message || 'Failed to send email' };
+          (validatedData as any).deliveryStatus = 'failed';
+          (validatedData as any).deliveryError = emailSendStatus.error;
         }
       }
       
@@ -415,6 +424,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('[Create Conversation] Error:', error);
       res.status(400).json({ error: "Invalid conversation data" });
+    }
+  });
+
+  // Retry sending a failed email
+  app.post("/api/conversations/:conversationId/retry", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const conversationId = req.params.conversationId;
+      
+      // Get the conversation
+      const conversation = await storage.db
+        .select()
+        .from(conversations)
+        .where(sql`${conversations.id} = ${conversationId}`)
+        .limit(1);
+      
+      if (!conversation || conversation.length === 0) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      
+      const conv = conversation[0];
+      
+      // Only retry failed email messages
+      if (conv.channel !== 'email' || conv.deliveryStatus !== 'failed') {
+        return res.status(400).json({ error: "Only failed email messages can be retried" });
+      }
+      
+      // Get lead details
+      const lead = await storage.getLead(conv.leadId, req.orgId);
+      if (!lead || !lead.email) {
+        return res.status(404).json({ error: "Lead not found or has no email" });
+      }
+      
+      let emailSendStatus: { sent: boolean; error?: string } = { sent: false };
+      
+      try {
+        const integrationToUse = conv.sourceIntegration || 'gmail';
+        
+        console.log(`[Retry Email] Attempting to resend email via ${integrationToUse} to ${lead.email}`);
+        
+        const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
+        
+        if (!integration) {
+          emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
+        } else if (!integration.config?.tokens) {
+          emailSendStatus = { sent: false, error: `${integrationToUse} is not connected` };
+        } else {
+          const emailSubject = conv.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
+          
+          console.log('[Retry Email] Sending email...');
+          await sendGmailReply(integration.config.tokens, {
+            to: lead.email,
+            subject: emailSubject,
+            body: conv.message,
+            threadId: lead.gmailThreadId || undefined,
+          });
+          
+          console.log('[Retry Email] Email sent successfully');
+          emailSendStatus = { sent: true };
+          
+          // Update conversation status
+          await storage.db
+            .update(conversations)
+            .set({ 
+              deliveryStatus: 'sent',
+              deliveryError: null
+            })
+            .where(sql`${conversations.id} = ${conversationId}`);
+        }
+      } catch (emailError: any) {
+        console.error('[Retry Email] Failed to send email:', emailError);
+        emailSendStatus = { sent: false, error: emailError.message || 'Failed to send email' };
+        
+        // Update error message
+        await storage.db
+          .update(conversations)
+          .set({ 
+            deliveryError: emailSendStatus.error
+          })
+          .where(sql`${conversations.id} = ${conversationId}`);
+      }
+      
+      res.json({ 
+        success: emailSendStatus.sent,
+        error: emailSendStatus.error 
+      });
+    } catch (error) {
+      console.error('[Retry Email] Error:', error);
+      res.status(500).json({ error: "Failed to retry email" });
     }
   });
 

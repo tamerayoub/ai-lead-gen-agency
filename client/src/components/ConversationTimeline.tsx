@@ -18,6 +18,8 @@ interface ConversationMessage {
   aiGenerated?: boolean;
   emailSubject?: string;
   sourceIntegration?: string;
+  deliveryStatus?: "sent" | "failed" | "pending" | null;
+  deliveryError?: string | null;
 }
 
 interface ConversationTimelineProps {
@@ -25,6 +27,7 @@ interface ConversationTimelineProps {
   leadName: string;
   onSendMessage?: (message: string, integration: string, emailSubject: string) => void;
   onAIReply?: () => void;
+  onRetryMessage?: (messageId: string) => void;
   availableIntegrations?: Array<{ id: string; name: string }>;
   integrationsLoading?: boolean;
 }
@@ -41,7 +44,7 @@ const integrationLabels = {
   outlook: "Outlook",
 };
 
-export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, availableIntegrations = [], integrationsLoading = false }: ConversationTimelineProps) {
+export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, onRetryMessage, availableIntegrations = [], integrationsLoading = false }: ConversationTimelineProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
@@ -246,6 +249,35 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                             {msg.emailSubject}
                           </span>
                         </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Delivery Error */}
+                  {fromUs && msg.deliveryStatus === 'failed' && msg.deliveryError && (
+                    <div className={cn(
+                      "rounded-md border border-destructive bg-destructive/10 p-2 space-y-2",
+                      fromUs && "w-full"
+                    )}>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-destructive">Email failed to send</p>
+                          <p className="text-xs text-muted-foreground mt-0.5" data-testid="text-delivery-error">
+                            {msg.deliveryError}
+                          </p>
+                        </div>
+                      </div>
+                      {onRetryMessage && (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs w-full"
+                          onClick={() => onRetryMessage(msg.id)}
+                          data-testid="button-retry-email"
+                        >
+                          <Send className="h-3 w-3 mr-1" />
+                          Retry Sending
+                        </Button>
                       )}
                     </div>
                   )}

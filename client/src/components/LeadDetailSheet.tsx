@@ -270,8 +270,42 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     await sendMessageMutation.mutateAsync({ message, integration, emailSubject });
   };
 
+  const retryMessageMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      return apiRequest("POST", `/api/conversations/${conversationId}/retry`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
+      
+      if (data.success) {
+        toast({
+          title: "Email sent",
+          description: "The email has been sent successfully",
+        });
+      } else {
+        toast({
+          title: "Retry failed",
+          description: data.error || "Failed to resend email",
+          variant: "destructive",
+        });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to retry sending email",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAIReply = () => {
     aiReplyMutation.mutate();
+  };
+
+  const handleRetryMessage = (conversationId: string) => {
+    retryMessageMutation.mutate(conversationId);
   };
 
   if (!lead) return null;
@@ -478,6 +512,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                 leadName={lead.name}
                 onSendMessage={handleSendMessage}
                 onAIReply={handleAIReply}
+                onRetryMessage={handleRetryMessage}
                 availableIntegrations={availableIntegrations}
                 integrationsLoading={integrationsLoading}
               />
