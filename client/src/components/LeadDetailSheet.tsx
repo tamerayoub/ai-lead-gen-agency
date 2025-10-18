@@ -157,10 +157,10 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   // Scroll to bottom of conversation when sheet opens or messages change
   useEffect(() => {
     if (open && conversationEndRef.current) {
-      // Use setTimeout to ensure DOM is fully rendered
+      // Use longer timeout to ensure linkified content is fully rendered
       setTimeout(() => {
-        conversationEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+        conversationEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      }, 200);
     }
   }, [open, lead?.conversations]);
 
