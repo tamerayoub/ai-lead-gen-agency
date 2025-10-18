@@ -199,7 +199,7 @@ export default function Leads() {
           qualificationScore: (selectedLeadData as any).qualificationScore,
           conversations: (selectedLeadData as any).conversations?.map((c: any) => ({
             ...c,
-            timestamp: formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }),
+            timestamp: c.createdAt,
           })) || [],
           notes: (selectedLeadData as any).notes?.map((n: any) => ({
             ...n,

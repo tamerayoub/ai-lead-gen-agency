@@ -169,18 +169,32 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
 
   const formatTimestamp = (timestamp: string) => {
     try {
-      const date = parseISO(timestamp);
+      // Try to parse the timestamp - handle both ISO format and date strings
+      let date: Date;
+      if (timestamp.includes('T') || timestamp.includes('Z')) {
+        // ISO format
+        date = parseISO(timestamp);
+      } else {
+        // Try parsing as regular date string
+        date = new Date(timestamp);
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return timestamp;
+      }
+
       const now = new Date();
       const daysDiff = differenceInDays(now, date);
 
       if (isToday(date)) {
-        // Less than 24 hours: show time only
+        // Today: show time only (e.g., "2:30 PM")
         return format(date, "h:mm a");
       } else if (daysDiff <= 7) {
-        // Within 7 days: show day of week and time
+        // Within 7 days: show day of week and time (e.g., "Monday 2:30 PM")
         return format(date, "EEEE h:mm a");
       } else {
-        // More than 7 days: show full date and time
+        // More than 7 days: show full date and time (e.g., "Jan 15, 2:30 PM")
         return format(date, "MMM d, h:mm a");
       }
     } catch (error) {
@@ -225,24 +239,31 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                 <div className={cn(
                   "flex-1 space-y-1",
                   fromLead && "max-w-[70%]",
-                  fromUs && "flex flex-col items-end max-w-[70%]"
+                  fromUs && "flex flex-col items-end max-w-[70%] mr-3"
                 )}>
-                  {/* Sender Name */}
-                  <div className={cn(
-                    "flex items-center gap-2 text-xs",
-                    fromUs && "flex-row-reverse"
-                  )}>
-                    <span className="font-medium">
-                      {fromLead ? leadName : "You"}
-                    </span>
-                    <ChannelIcon className="h-3 w-3 text-muted-foreground" />
-                    {msg.aiGenerated && (
+                  {/* Sender Name - only show for lead messages */}
+                  {fromLead && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-medium">{leadName}</span>
+                      <ChannelIcon className="h-3 w-3 text-muted-foreground" />
+                      {msg.aiGenerated && (
+                        <Badge variant="secondary" className="gap-1 text-xs">
+                          <Bot className="h-3 w-3" />
+                          AI
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* AI Badge for user messages */}
+                  {fromUs && msg.aiGenerated && (
+                    <div className="flex items-center gap-2 text-xs justify-end">
                       <Badge variant="secondary" className="gap-1 text-xs">
                         <Bot className="h-3 w-3" />
                         AI
                       </Badge>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Message Bubble */}
                   <Card className={cn(
