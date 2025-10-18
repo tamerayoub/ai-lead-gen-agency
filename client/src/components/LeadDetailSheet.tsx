@@ -157,7 +157,10 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   // Scroll to bottom of conversation when sheet opens or messages change
   useEffect(() => {
     if (open && conversationEndRef.current) {
-      conversationEndRef.current.scrollIntoView({ behavior: "auto" });
+      // Use setTimeout to ensure DOM is fully rendered
+      setTimeout(() => {
+        conversationEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     }
   }, [open, lead?.conversations]);
 
@@ -587,13 +590,13 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
         </div>
 
         {/* Scrollable tabs area */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <Tabs defaultValue="conversation" className="flex-1 flex flex-col">
+        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <Tabs defaultValue="conversation" className="flex-1 flex flex-col min-h-0">
             <TabsList className="w-full shrink-0 mx-6">
               <TabsTrigger value="conversation" className="flex-1" data-testid="tab-conversation">Conversation</TabsTrigger>
               <TabsTrigger value="notes" className="flex-1" data-testid="tab-notes">Notes</TabsTrigger>
             </TabsList>
-            <TabsContent value="conversation" className="flex-1 overflow-y-auto px-6 mt-4">
+            <TabsContent value="conversation" className="flex-1 overflow-y-auto px-6 mt-4 min-h-0">
               <ConversationTimeline 
                 messages={lead.conversations} 
                 leadName={lead.name}
@@ -602,7 +605,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               />
               <div ref={conversationEndRef} />
             </TabsContent>
-            <TabsContent value="notes" className="flex-1 overflow-y-auto px-6 space-y-3 mt-4">
+            <TabsContent value="notes" className="flex-1 overflow-y-auto px-6 space-y-3 mt-4 min-h-0">
               {lead.notes.map((note) => (
                 <div key={note.id} className="p-3 rounded-md bg-muted space-y-1">
                   <div className="flex items-center justify-between">
