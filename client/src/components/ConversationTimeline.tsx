@@ -257,47 +257,54 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
 
       {/* Reply Input */}
       <div className="border-t pt-4 space-y-3">
-        {/* Step 1: Integration Selector */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">
-            Step 1: Select Integration <span className="text-destructive">*</span>
-          </Label>
-          <Select
-            value={selectedIntegration}
-            onValueChange={(value) => {
-              setSelectedIntegration(value);
-              // Clear validation error when user selects
-              setValidationErrors(prev => ({ ...prev, integration: false }));
-            }}
-            disabled={isSending || availableIntegrations.length === 0}
-          >
-            <SelectTrigger 
-              data-testid="select-integration"
-              className={cn(validationErrors.integration && "border-destructive focus:ring-destructive")}
-            >
-              <SelectValue placeholder="Select integration..." />
-            </SelectTrigger>
-            <SelectContent>
-              {availableIntegrations.map((integration) => (
-                <SelectItem key={integration.id} value={integration.id}>
-                  {integration.name}
-                </SelectItem>
-              ))}
-              {availableIntegrations.length === 0 && (
-                <SelectItem value="none" disabled>
-                  No integrations available
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          {validationErrors.integration && (
-            <p className="text-xs text-destructive">Please select an integration</p>
-          )}
-        </div>
+        {/* No Integrations Message */}
+        {availableIntegrations.length === 0 && (
+          <div className="rounded-md bg-muted p-4 text-sm">
+            <p className="font-medium mb-1">No integrations set up</p>
+            <p className="text-muted-foreground">
+              Please set up an integration (Gmail or Outlook) in the Integrations page to send messages.
+            </p>
+          </div>
+        )}
 
-        {/* Step 2: Thread/Subject Options (only show if integration is selected) */}
-        {selectedIntegration && (
+        {/* Step 1: Integration Selector */}
+        {availableIntegrations.length > 0 && (
           <>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                Step 1: Select Integration <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={selectedIntegration}
+                onValueChange={(value) => {
+                  setSelectedIntegration(value);
+                  // Clear validation error when user selects
+                  setValidationErrors(prev => ({ ...prev, integration: false }));
+                }}
+                disabled={isSending}
+              >
+                <SelectTrigger 
+                  data-testid="select-integration"
+                  className={cn(validationErrors.integration && "border-destructive focus:ring-destructive")}
+                >
+                  <SelectValue placeholder="Select integration..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableIntegrations.map((integration) => (
+                    <SelectItem key={integration.id} value={integration.id}>
+                      {integration.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {validationErrors.integration && (
+                <p className="text-xs text-destructive">Please select an integration</p>
+              )}
+            </div>
+
+            {/* Step 2: Thread/Subject Options (only show if integration is selected) */}
+            {selectedIntegration && (
+              <>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
                 Step 2: Email Thread <span className="text-destructive">*</span>
@@ -381,42 +388,44 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                 )}
               </div>
             )}
-          </>
-        )}
+              </>
+            )}
 
-        {/* Step 3: Message Input (only show if integration is selected) */}
-        {selectedIntegration && (
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">
-              Step 3: Your Message <span className="text-destructive">*</span>
-            </Label>
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-2">
-                <Input
-                  placeholder="Type your message..."
-                  value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value);
-                    setValidationErrors(prev => ({ ...prev, message: false }));
-                  }}
-                  onKeyPress={handleKeyPress}
-                  disabled={isSending}
-                  data-testid="input-reply-message"
-                  className={cn(validationErrors.message && "border-destructive focus:ring-destructive")}
-                />
-                {validationErrors.message && (
-                  <p className="text-xs text-destructive">Please enter a message</p>
-                )}
+            {/* Step 3: Message Input (only show if integration is selected) */}
+            {selectedIntegration && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  Step 3: Your Message <span className="text-destructive">*</span>
+                </Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      placeholder="Type your message..."
+                      value={newMessage}
+                      onChange={(e) => {
+                        setNewMessage(e.target.value);
+                        setValidationErrors(prev => ({ ...prev, message: false }));
+                      }}
+                      onKeyPress={handleKeyPress}
+                      disabled={isSending}
+                      data-testid="input-reply-message"
+                      className={cn(validationErrors.message && "border-destructive focus:ring-destructive")}
+                    />
+                    {validationErrors.message && (
+                      <p className="text-xs text-destructive">Please enter a message</p>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleSend}
+                    disabled={isSending}
+                    data-testid="button-send-message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <Button
-                onClick={handleSend}
-                disabled={isSending}
-                data-testid="button-send-message"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            )}
+          </>
         )}
         
         {onAIReply && (

@@ -97,9 +97,14 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     queryKey: ["/api/integrations/gmail"],
   });
 
-  const availableIntegrations = gmailIntegration?.connected
-    ? [{ id: "gmail", name: "Gmail" }]
-    : [];
+  const { data: outlookIntegration } = useQuery({
+    queryKey: ["/api/integrations/outlook"],
+  });
+
+  const availableIntegrations = [
+    ...(gmailIntegration?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
+    ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
+  ];
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
