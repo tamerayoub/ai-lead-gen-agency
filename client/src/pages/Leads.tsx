@@ -91,7 +91,7 @@ export default function Leads() {
     title: statusTitles[status],
     count: leadsByStatus[status]?.length || 0,
     color: statusColors[status],
-    leads: (leadsByStatus[status] || []).slice(0, 3).map(lead => ({
+    leads: (leadsByStatus[status] || []).map(lead => ({
       id: lead.id,
       name: lead.name,
       property: lead.propertyName,
