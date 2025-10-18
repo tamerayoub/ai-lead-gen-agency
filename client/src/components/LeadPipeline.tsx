@@ -135,12 +135,19 @@ export function LeadPipeline({ stages, onLeadStatusChange, onLeadClick }: LeadPi
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
+    if (over) {
       const leadId = active.id as string;
-      const newStatus = over.id as LeadStatus;
+      const droppedOnId = over.id as string;
       
-      // Call the status change handler
-      onLeadStatusChange?.(leadId, newStatus);
+      // Find which stage this was dropped on
+      // The over.id should be a stage name (new, contacted, etc.) from the droppable zone
+      const targetStage = stages.find(s => s.stage === droppedOnId);
+      
+      if (targetStage) {
+        const newStatus = targetStage.stage as LeadStatus;
+        // Call the status change handler
+        onLeadStatusChange?.(leadId, newStatus);
+      }
     }
 
     setActiveId(null);
