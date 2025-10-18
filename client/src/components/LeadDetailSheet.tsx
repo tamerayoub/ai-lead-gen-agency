@@ -210,13 +210,30 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
         emailSubject,
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
-      toast({
-        title: "Message sent",
-        description: "Your message has been sent successfully via email",
-      });
+      
+      // Check if email was actually sent
+      if (data.emailStatus?.sent) {
+        toast({
+          title: "Message sent",
+          description: "Your message has been sent successfully via email",
+        });
+      } else if (data.emailStatus?.error) {
+        // Email failed to send - show warning
+        toast({
+          title: "Message saved but not sent",
+          description: `Email failed to send: ${data.emailStatus.error}`,
+          variant: "destructive",
+        });
+      } else {
+        // Saved as conversation but no email attempted
+        toast({
+          title: "Message saved",
+          description: "Message saved to conversation history",
+        });
+      }
     },
     onError: () => {
       toast({

@@ -358,19 +358,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
       
+      let emailSendStatus: { sent: boolean; error?: string } = { sent: false };
+      
       // If channel is email and type is outgoing, send actual email
       if (validatedData.channel === "email" && validatedData.type === "outgoing" && lead.email) {
         try {
           // Use the integration specified in the request (default to gmail)
           const integrationToUse = validatedData.sourceIntegration || 'gmail';
           
+          console.log(`[Send Email] Attempting to send email via ${integrationToUse} to ${lead.email}`);
+          
           // Get the specified integration
           const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
-          if (integration?.config?.tokens) {
+          
+          if (!integration) {
+            console.error('[Send Email] Integration not found:', integrationToUse);
+            emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
+          } else if (!integration.config?.tokens) {
+            console.error('[Send Email] No tokens found for integration:', integrationToUse);
+            emailSendStatus = { sent: false, error: `${integrationToUse} is not connected` };
+          } else {
             // Use the email subject from the request, or generate a default
             const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
             
             // Send email using Gmail API with threading
+            console.log('[Send Email] Sending email...');
             await sendGmailReply(integration.config.tokens, {
               to: lead.email,
               subject: emailSubject,
@@ -378,13 +390,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               threadId: lead.gmailThreadId || undefined,
             });
             
+            console.log('[Send Email] Email sent successfully');
+            emailSendStatus = { sent: true };
+            
             // Ensure email metadata is stored
             validatedData.emailSubject = emailSubject;
             validatedData.sourceIntegration = integrationToUse;
           }
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error('[Send Email] Failed to send email:', emailError);
-          // Continue to save conversation even if email fails
+          emailSendStatus = { sent: false, error: emailError.message || 'Failed to send email' };
         }
       }
       
@@ -393,7 +408,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update lead's lastContactAt
       await storage.updateLead(validatedData.leadId, { lastContactAt: new Date() } as any, req.orgId);
       
-      res.status(201).json(conversation);
+      res.status(201).json({ 
+        ...conversation, 
+        emailStatus: emailSendStatus 
+      });
     } catch (error) {
       console.error('[Create Conversation] Error:', error);
       res.status(400).json({ error: "Invalid conversation data" });
