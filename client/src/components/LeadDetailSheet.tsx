@@ -8,7 +8,7 @@ import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -91,6 +91,15 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     moveInDate: "",
   });
   const { toast } = useToast();
+
+  // Fetch available integrations for messaging
+  const { data: gmailIntegration } = useQuery({
+    queryKey: ["/api/integrations/gmail"],
+  });
+
+  const availableIntegrations = gmailIntegration?.isConnected
+    ? [{ id: "gmail", name: "Gmail" }]
+    : [];
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
@@ -180,13 +189,15 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   };
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, integration, emailSubject }: { message: string; integration: string; emailSubject: string }) => {
       return apiRequest("POST", "/api/conversations", {
         leadId: lead?.id,
         type: "outgoing",
-        channel: "email", // Default to email, could be made dynamic
+        channel: "email",
         message,
         aiGenerated: false,
+        sourceIntegration: integration,
+        emailSubject,
       });
     },
     onSuccess: () => {
@@ -194,7 +205,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
       queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
       toast({
         title: "Message sent",
-        description: "Your message has been sent successfully",
+        description: "Your message has been sent successfully via email",
       });
     },
     onError: () => {
@@ -228,8 +239,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     },
   });
 
-  const handleSendMessage = async (message: string) => {
-    await sendMessageMutation.mutateAsync(message);
+  const handleSendMessage = async (message: string, integration: string, emailSubject: string) => {
+    await sendMessageMutation.mutateAsync({ message, integration, emailSubject });
   };
 
   const handleAIReply = () => {
@@ -440,6 +451,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                 leadName={lead.name}
                 onSendMessage={handleSendMessage}
                 onAIReply={handleAIReply}
+                availableIntegrations={availableIntegrations}
               />
             </TabsContent>
             <TabsContent value="notes" className="space-y-3 mt-4">

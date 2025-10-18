@@ -3,9 +3,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 interface ConversationMessage {
   id: string;
@@ -21,8 +23,9 @@ interface ConversationMessage {
 interface ConversationTimelineProps {
   messages: ConversationMessage[];
   leadName: string;
-  onSendMessage?: (message: string) => void;
+  onSendMessage?: (message: string, integration: string, emailSubject: string) => void;
   onAIReply?: () => void;
+  availableIntegrations?: Array<{ id: string; name: string }>;
 }
 
 const channelIcons = {
@@ -37,21 +40,60 @@ const integrationLabels = {
   outlook: "Outlook",
 };
 
-export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply }: ConversationTimelineProps) {
+export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, availableIntegrations = [] }: ConversationTimelineProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<string>("");
+  const [threadOption, setThreadOption] = useState<string>("existing");
+  const [newSubject, setNewSubject] = useState("");
+  const [selectedExistingSubject, setSelectedExistingSubject] = useState<string>("");
+
+  // Extract unique email subjects from messages
+  const existingSubjects = useMemo(() => {
+    const subjects = messages
+      .filter(msg => msg.channel === 'email' && msg.emailSubject)
+      .map(msg => msg.emailSubject!)
+      .filter((subject, index, self) => self.indexOf(subject) === index);
+    return subjects;
+  }, [messages]);
+
+  // Set default values when component mounts or data changes
+  useMemo(() => {
+    if (availableIntegrations.length > 0 && !selectedIntegration) {
+      setSelectedIntegration(availableIntegrations[0].id);
+    }
+    if (existingSubjects.length > 0 && !selectedExistingSubject) {
+      setSelectedExistingSubject(existingSubjects[0]);
+    }
+  }, [availableIntegrations, existingSubjects, selectedIntegration, selectedExistingSubject]);
 
   // Determine if message is from lead (received/incoming/user) or from us (outgoing/sent/ai)
   const isFromLead = (type: string) => type === "received" || type === "incoming" || type === "user";
   const isFromUs = (type: string) => type === "outgoing" || type === "sent" || type === "ai";
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !onSendMessage) return;
+    if (!newMessage.trim() || !onSendMessage || !selectedIntegration) return;
+    
+    // Determine the email subject to use
+    let emailSubject = "";
+    if (threadOption === "new") {
+      if (!newSubject.trim()) {
+        return; // Don't send if new subject is empty
+      }
+      emailSubject = newSubject;
+    } else {
+      emailSubject = selectedExistingSubject || existingSubjects[0] || "Re: Property Inquiry";
+    }
     
     setIsSending(true);
     try {
-      await onSendMessage(newMessage);
+      await onSendMessage(newMessage, selectedIntegration, emailSubject);
       setNewMessage("");
+      // Reset new subject if it was used
+      if (threadOption === "new") {
+        setNewSubject("");
+        setThreadOption("existing");
+      }
     } finally {
       setIsSending(false);
     }
@@ -169,6 +211,103 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
 
       {/* Reply Input */}
       <div className="border-t pt-4 space-y-3">
+        {/* Integration and Thread Selection */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Integration Selector */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Send via</Label>
+            <Select
+              value={selectedIntegration}
+              onValueChange={setSelectedIntegration}
+              disabled={isSending || availableIntegrations.length === 0}
+            >
+              <SelectTrigger data-testid="select-integration">
+                <SelectValue placeholder="Select integration" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableIntegrations.map((integration) => (
+                  <SelectItem key={integration.id} value={integration.id}>
+                    {integration.name}
+                  </SelectItem>
+                ))}
+                {availableIntegrations.length === 0 && (
+                  <SelectItem value="none" disabled>
+                    No integrations available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Thread/Subject Selector */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Email thread</Label>
+            <Select
+              value={threadOption}
+              onValueChange={(value) => {
+                setThreadOption(value);
+                if (value === "new") {
+                  setNewSubject("");
+                }
+              }}
+              disabled={isSending}
+            >
+              <SelectTrigger data-testid="select-thread-option">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="existing">
+                  {existingSubjects.length > 0 ? "Existing thread" : "Default thread"}
+                </SelectItem>
+                <SelectItem value="new">
+                  <div className="flex items-center gap-1.5">
+                    <Plus className="h-3 w-3" />
+                    New thread
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Existing Subject Selector (when threadOption is "existing" and subjects exist) */}
+        {threadOption === "existing" && existingSubjects.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Select existing subject</Label>
+            <Select
+              value={selectedExistingSubject}
+              onValueChange={setSelectedExistingSubject}
+              disabled={isSending}
+            >
+              <SelectTrigger data-testid="select-existing-subject">
+                <SelectValue placeholder="Choose a subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {existingSubjects.map((subject, index) => (
+                  <SelectItem key={index} value={subject}>
+                    {subject}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* New Subject Input (when threadOption is "new") */}
+        {threadOption === "new" && (
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">New email subject</Label>
+            <Input
+              placeholder="Enter email subject..."
+              value={newSubject}
+              onChange={(e) => setNewSubject(e.target.value)}
+              disabled={isSending}
+              data-testid="input-new-subject"
+            />
+          </div>
+        )}
+
+        {/* Message Input */}
         <div className="flex gap-2">
           <Input
             placeholder="Type your message..."
@@ -180,7 +319,7 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
           />
           <Button
             onClick={handleSend}
-            disabled={!newMessage.trim() || isSending}
+            disabled={!newMessage.trim() || isSending || !selectedIntegration || (threadOption === "new" && !newSubject.trim())}
             data-testid="button-send-message"
           >
             <Send className="h-4 w-4" />

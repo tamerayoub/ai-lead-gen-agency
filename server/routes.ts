@@ -361,30 +361,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If channel is email and type is outgoing, send actual email
       if (validatedData.channel === "email" && validatedData.type === "outgoing" && lead.email) {
         try {
-          // Get Gmail integration
-          const gmailIntegration = await storage.getIntegrationConfig(req.orgId, 'gmail');
-          if (gmailIntegration?.config?.tokens) {
-            // Get conversations to find email subject for threading
-            const existingConversations = await storage.getConversationsByLeadId(validatedData.leadId);
-            const lastEmailConvo = existingConversations
-              .filter((c: any) => c.channel === 'email' && c.emailSubject)
-              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-            
-            const emailSubject = lastEmailConvo?.emailSubject 
-              ? `Re: ${lastEmailConvo.emailSubject.replace(/^Re:\s*/i, '')}` 
-              : `Follow up from ${req.user.name || 'Property Manager'}`;
+          // Use the integration specified in the request (default to gmail)
+          const integrationToUse = validatedData.sourceIntegration || 'gmail';
+          
+          // Get the specified integration
+          const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
+          if (integration?.config?.tokens) {
+            // Use the email subject from the request, or generate a default
+            const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
             
             // Send email using Gmail API with threading
-            await sendGmailReply(gmailIntegration.config.tokens, {
+            await sendGmailReply(integration.config.tokens, {
               to: lead.email,
               subject: emailSubject,
               body: validatedData.message,
               threadId: lead.gmailThreadId || undefined,
             });
             
-            // Store with email metadata
+            // Ensure email metadata is stored
             validatedData.emailSubject = emailSubject;
-            validatedData.sourceIntegration = 'gmail';
+            validatedData.sourceIntegration = integrationToUse;
           }
         } catch (emailError) {
           console.error('[Send Email] Failed to send email:', emailError);
