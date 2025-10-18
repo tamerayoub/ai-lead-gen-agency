@@ -107,19 +107,9 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   const integrationsLoading = gmailLoading || outlookLoading;
   
   const availableIntegrations = integrationsLoading ? [] : [
-    ...(gmailIntegration?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
+    ...(gmailIntegration?.metadata?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
     ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
   ];
-
-  // Debug logging
-  console.log('🔍 Integration Debug:', {
-    gmailLoading,
-    outlookLoading,
-    gmailIntegration,
-    outlookIntegration,
-    availableIntegrations,
-    integrationsLoading
-  });
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
