@@ -7,7 +7,7 @@ import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreV
 import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +98,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   const [newSubject, setNewSubject] = useState("");
   const [selectedExistingSubject, setSelectedExistingSubject] = useState<string>("");
   
+  const conversationEndRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
 
   // Fetch available integrations for messaging
@@ -151,6 +153,13 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
       setSelectedExistingSubject(existingSubjects[0]);
     }
   }, [existingSubjects, selectedExistingSubject, threadOption]);
+
+  // Scroll to bottom of conversation when sheet opens or messages change
+  useEffect(() => {
+    if (open && conversationEndRef.current) {
+      conversationEndRef.current.scrollIntoView({ behavior: "auto" });
+    }
+  }, [open, lead?.conversations]);
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
@@ -540,28 +549,24 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <div className="flex items-center gap-1.5">
                   <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">{lead.email}</span>
+                  <span className="truncate">{lead.email || "N/A"}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">{lead.phone}</span>
+                  <span className="truncate">{lead.phone || "N/A"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 col-span-2">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate">{lead.property}</span>
+                  <span className="truncate">{lead.property || "N/A"}</span>
                 </div>
-                {lead.income && (
-                  <div className="flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">Income: {lead.income}</span>
-                  </div>
-                )}
-                {lead.moveInDate && (
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate">Move-in: {lead.moveInDate}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">Income: {lead.income || "N/A"}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">Move-in: {lead.moveInDate || "N/A"}</span>
+                </div>
               </div>
               {lead.qualificationScore !== undefined && (
                 <div className="pt-1">
@@ -590,11 +595,12 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
             </TabsList>
             <TabsContent value="conversation" className="flex-1 overflow-y-auto px-6 mt-4">
               <ConversationTimeline 
-                messages={[...lead.conversations].reverse()} 
+                messages={lead.conversations} 
                 leadName={lead.name}
                 onRetryMessage={handleRetryMessage}
                 onDeleteMessage={handleDeleteMessage}
               />
+              <div ref={conversationEndRef} />
             </TabsContent>
             <TabsContent value="notes" className="flex-1 overflow-y-auto px-6 space-y-3 mt-4">
               {lead.notes.map((note) => (
