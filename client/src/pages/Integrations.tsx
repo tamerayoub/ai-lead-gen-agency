@@ -262,16 +262,8 @@ export default function Integrations() {
 
   const clearSyncProgressMutation = useMutation({
     mutationFn: () => {
-      const clearedConfig = {
-        ...gmailConfig?.config,
-        lastHistoryId: null,
-        pageToken: null,
-      };
-      return apiRequest("POST", "/api/integrations", {
-        service: "gmail",
-        config: clearedConfig,
-        isActive: true,
-      });
+      // Use dedicated backend endpoint that preserves OAuth tokens
+      return apiRequest("POST", "/api/integrations/gmail/clear-sync-progress", {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
@@ -312,46 +304,41 @@ export default function Integrations() {
       deleteGmailLeadsMutation.mutate(progress.createdLeadIds);
     }
     
-    const clearedConfig = {
-      ...gmailConfig?.config,
-      lastHistoryId: null,
-      pageToken: null,
-    };
-    
-    saveIntegrationMutation.mutate(
-      {
-        service: "gmail",
-        config: clearedConfig,
-        isActive: false,
-      },
-      {
-        onSuccess: () => {
-          setShowDisconnectDialog(false);
-          toast({ 
-            title: "Gmail disconnected", 
-            description: deleteLeads 
-              ? "Gmail disconnected and all leads removed" 
-              : "Gmail disconnected, leads preserved" 
-          });
-        }
+    // Clear sync progress first (preserves tokens)
+    clearSyncProgressMutation.mutate(undefined, {
+      onSuccess: () => {
+        // Then disable the integration
+        saveIntegrationMutation.mutate(
+          {
+            service: "gmail",
+            config: {},  // Empty config is fine - backend will handle it
+            isActive: false,
+          },
+          {
+            onSuccess: () => {
+              setShowDisconnectDialog(false);
+              toast({ 
+                title: "Gmail disconnected", 
+                description: deleteLeads 
+                  ? "Gmail disconnected and all leads removed" 
+                  : "Gmail disconnected, leads preserved" 
+              });
+            }
+          }
+        );
       }
-    );
+    });
   };
 
   const disconnectGmail = () => {
     if (isPolling || progress?.isRunning) {
       setShowDisconnectDialog(true);
     } else {
-      const clearedConfig = {
-        ...gmailConfig?.config,
-        lastHistoryId: null,
-        pageToken: null,
-      };
-      
+      // Just disable the integration, don't modify config
       saveIntegrationMutation.mutate(
         {
           service: "gmail",
-          config: clearedConfig,
+          config: {},  // Empty config is fine - backend will preserve existing
           isActive: false,
         },
         {

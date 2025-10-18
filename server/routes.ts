@@ -807,12 +807,58 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
+  // Clear Gmail sync progress without touching OAuth tokens
+  app.post("/api/integrations/gmail/clear-sync-progress", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const config = await storage.getIntegrationConfig("gmail", req.orgId);
+      
+      if (!config) {
+        return res.status(404).json({ error: "Gmail integration not found" });
+      }
+
+      // Preserve all existing config but clear only sync progress fields
+      const updatedConfig = {
+        ...config.config,
+        lastHistoryId: null,
+        pageToken: null,
+      };
+
+      await storage.upsertIntegrationConfig({
+        service: "gmail",
+        config: updatedConfig,
+        isActive: config.isActive,
+        orgId: req.orgId,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("[Clear Gmail Sync Progress] Error:", error);
+      res.status(500).json({ error: "Failed to clear sync progress" });
+    }
+  });
+
   app.post("/api/integrations", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertIntegrationConfigSchema.parse(req.body);
-      const config = await storage.upsertIntegrationConfig({ ...validatedData, orgId: req.orgId });
+      
+      // Fetch existing config to preserve OAuth tokens if config is empty
+      const existing = await storage.getIntegrationConfig(validatedData.service, req.orgId);
+      
+      let finalConfig = validatedData.config;
+      
+      // If config is empty object and we have existing config, preserve the existing one
+      if (Object.keys(validatedData.config || {}).length === 0 && existing) {
+        finalConfig = existing.config;
+      }
+      
+      const config = await storage.upsertIntegrationConfig({ 
+        ...validatedData, 
+        config: finalConfig,
+        orgId: req.orgId 
+      });
       res.status(201).json(config);
     } catch (error) {
+      console.error("[Update Integration] Error:", error);
       res.status(400).json({ error: "Invalid integration config data" });
     }
   });
