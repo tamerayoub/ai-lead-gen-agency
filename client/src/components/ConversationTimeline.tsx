@@ -51,16 +51,40 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
     integration: false,
     thread: false,
     subject: false,
+    message: false,
   });
 
-  // Extract unique email subjects from messages
+  // Extract unique email subjects from messages, filtered by selected integration
   const existingSubjects = useMemo(() => {
+    if (!selectedIntegration) return [];
+    
     const subjects = messages
-      .filter(msg => msg.channel === 'email' && msg.emailSubject)
+      .filter(msg => 
+        msg.channel === 'email' && 
+        msg.emailSubject && 
+        msg.sourceIntegration === selectedIntegration
+      )
       .map(msg => msg.emailSubject!)
       .filter((subject, index, self) => self.indexOf(subject) === index);
     return subjects;
-  }, [messages]);
+  }, [messages, selectedIntegration]);
+
+  // Reset thread/subject options and validation errors when integration changes
+  useEffect(() => {
+    if (selectedIntegration) {
+      // Reset thread option and subject when switching integrations
+      setThreadOption("");
+      setSelectedExistingSubject("");
+      setNewSubject("");
+      // Clear validation errors for thread/subject/message when integration changes
+      setValidationErrors(prev => ({
+        ...prev,
+        thread: false,
+        subject: false,
+        message: false,
+      }));
+    }
+  }, [selectedIntegration]);
 
   // Set default thread option when integration is selected
   useEffect(() => {
@@ -88,12 +112,13 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
       integration: !selectedIntegration,
       thread: !threadOption,
       subject: threadOption === "new" && !newSubject.trim(),
+      message: !newMessage.trim(),
     };
 
     setValidationErrors(errors);
 
     // If there are validation errors, don't proceed
-    if (errors.integration || errors.thread || errors.subject || !newMessage.trim()) {
+    if (errors.integration || errors.thread || errors.subject || errors.message) {
       return;
     }
     
@@ -110,7 +135,7 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
       await onSendMessage(newMessage, selectedIntegration, emailSubject);
       setNewMessage("");
       // Reset validation errors on successful send
-      setValidationErrors({ integration: false, thread: false, subject: false });
+      setValidationErrors({ integration: false, thread: false, subject: false, message: false });
       // Reset new subject if it was used
       if (threadOption === "new") {
         setNewSubject("");
@@ -366,14 +391,23 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
               Step 3: Your Message <span className="text-destructive">*</span>
             </Label>
             <div className="flex gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isSending}
-                data-testid="input-reply-message"
-              />
+              <div className="flex-1 space-y-2">
+                <Input
+                  placeholder="Type your message..."
+                  value={newMessage}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    setValidationErrors(prev => ({ ...prev, message: false }));
+                  }}
+                  onKeyPress={handleKeyPress}
+                  disabled={isSending}
+                  data-testid="input-reply-message"
+                  className={cn(validationErrors.message && "border-destructive focus:ring-destructive")}
+                />
+                {validationErrors.message && (
+                  <p className="text-xs text-destructive">Please enter a message</p>
+                )}
+              </div>
               <Button
                 onClick={handleSend}
                 disabled={isSending}
