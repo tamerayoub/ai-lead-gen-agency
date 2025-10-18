@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Bot, Phone, Mail, MessageSquare, Trash2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, differenceInDays, parseISO } from "date-fns";
+import { useMemo } from "react";
 
 interface ConversationMessage {
   id: string;
@@ -87,6 +88,66 @@ export function ConversationTimeline({ messages, leadName, onRetryMessage, onDel
     }
   };
 
+  const linkifyText = (text: string) => {
+    // URL regex - matches http(s):// URLs
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    // Email regex
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
+    // Phone regex - matches various formats like +1 651-999-9521, (651) 999-9521, 651.999.9521, etc.
+    const phoneRegex = /(\+?\d{1,3}[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+
+    const parts: Array<{ type: 'text' | 'url' | 'email' | 'phone'; content: string; key: string }> = [];
+    let lastIndex = 0;
+    let keyCounter = 0;
+
+    // Create a combined regex to find all matches in order
+    const combinedRegex = new RegExp(
+      `(${urlRegex.source})|(${emailRegex.source})|(${phoneRegex.source})`,
+      'gi'
+    );
+
+    const matches = Array.from(text.matchAll(combinedRegex));
+
+    matches.forEach((match) => {
+      const matchIndex = match.index!;
+      const matchText = match[0];
+
+      // Add text before the match
+      if (matchIndex > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.substring(lastIndex, matchIndex),
+          key: `text-${keyCounter++}`
+        });
+      }
+
+      // Determine type and add the match
+      if (match[1]) {
+        // URL match
+        parts.push({ type: 'url', content: matchText, key: `url-${keyCounter++}` });
+      } else if (match[2]) {
+        // Email match
+        parts.push({ type: 'email', content: matchText, key: `email-${keyCounter++}` });
+      } else if (match[3]) {
+        // Phone match
+        parts.push({ type: 'phone', content: matchText, key: `phone-${keyCounter++}` });
+      }
+
+      lastIndex = matchIndex + matchText.length;
+    });
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.substring(lastIndex),
+        key: `text-${keyCounter++}`
+      });
+    }
+
+    return parts.length > 0 ? parts : [{ type: 'text' as const, content: text, key: 'text-0' }];
+  };
+
   return (
     <div className="space-y-6">
       {/* Messages */}
@@ -151,11 +212,61 @@ export function ConversationTimeline({ messages, leadName, onRetryMessage, onDel
 
                   {/* Message Bubble */}
                   <Card className={cn(
-                    "p-3",
+                    "p-3 overflow-hidden",
                     fromLead && "bg-accent/50 border-accent",
                     fromUs && "bg-primary text-primary-foreground border-primary"
                   )}>
-                    <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                    <div className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
+                      {linkifyText(msg.message).map((part) => {
+                        if (part.type === 'url') {
+                          return (
+                            <a
+                              key={part.key}
+                              href={part.content}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={cn(
+                                "underline hover:no-underline break-all",
+                                fromUs ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"
+                              )}
+                              data-testid={`link-${part.key}`}
+                            >
+                              {part.content}
+                            </a>
+                          );
+                        } else if (part.type === 'email') {
+                          return (
+                            <a
+                              key={part.key}
+                              href={`mailto:${part.content}`}
+                              className={cn(
+                                "underline hover:no-underline break-all",
+                                fromUs ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"
+                              )}
+                              data-testid={`link-email-${part.key}`}
+                            >
+                              {part.content}
+                            </a>
+                          );
+                        } else if (part.type === 'phone') {
+                          return (
+                            <a
+                              key={part.key}
+                              href={`tel:${part.content.replace(/\s/g, '')}`}
+                              className={cn(
+                                "underline hover:no-underline break-all",
+                                fromUs ? "text-primary-foreground/90 hover:text-primary-foreground" : "text-primary hover:text-primary/80"
+                              )}
+                              data-testid={`link-phone-${part.key}`}
+                            >
+                              {part.content}
+                            </a>
+                          );
+                        } else {
+                          return <span key={part.key}>{part.content}</span>;
+                        }
+                      })}
+                    </div>
                   </Card>
 
                   {/* Email Metadata */}
