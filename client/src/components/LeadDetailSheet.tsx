@@ -300,12 +300,37 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     },
   });
 
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      return apiRequest("DELETE", `/api/conversations/${conversationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
+      toast({
+        title: "Message deleted",
+        description: "The message has been deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAIReply = () => {
     aiReplyMutation.mutate();
   };
 
   const handleRetryMessage = (conversationId: string) => {
     retryMessageMutation.mutate(conversationId);
+  };
+
+  const handleDeleteMessage = (conversationId: string) => {
+    deleteMessageMutation.mutate(conversationId);
   };
 
   if (!lead) return null;
@@ -513,6 +538,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                 onSendMessage={handleSendMessage}
                 onAIReply={handleAIReply}
                 onRetryMessage={handleRetryMessage}
+                onDeleteMessage={handleDeleteMessage}
                 availableIntegrations={availableIntegrations}
                 integrationsLoading={integrationsLoading}
               />
