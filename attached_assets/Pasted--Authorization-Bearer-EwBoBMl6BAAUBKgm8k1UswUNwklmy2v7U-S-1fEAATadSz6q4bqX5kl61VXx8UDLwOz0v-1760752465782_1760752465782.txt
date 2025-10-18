@@ -1,0 +1,42 @@
+        'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAATadSz6q4bqX5kl61VXx8UDLwOz0v7IPBga5IeMXNdEN406aear8MOYt+GaylixXMShjhuORERiLbbilsSVe4hU9JB++6KWAYhQ8gziOd+M1aKXifXGV8tL83v6EOI84kPtvxXElwtgv1QTdyhlsAxsF+3Jh2gWQi7sNggCqs0Jnu2UwMsgCl2+cm8LKLvGEKBoUNSnHAEzu6QK89cn/U86eeN4A6NcDA9fyPZp3vzbASre31vpNVLcnjZjkarczOqeyDmsW2UK63qVFjTr8aDHi4aSMkkZZ5ri3I4P2YjL+wE/BkbuEYOYXLrd2NHgsQ2ONY/kxxqOh9ccClDFlXjcQZgAAEMIQdQZnLjYw0a/4sdQ+oKkwAyW1YE8m50f0dABHSrgWj1aKKO+UZMm0uqp1JKmCe/GSLQu5GtZE8Xt1WxOc0I2tMAss8K8TgvGpjTxKeX1EjaI4Adg/miCNGUfelAkn9Tff0br2Z8POWQObYS9ZlN3RDSSNxcxAsxuX49p2A1dw5OCNiJe1xOHGWVNfj+xfV7PcpaWznpjqQAwI3WeKdmio3RPH/je61W7BX833CW7Wh62ZCL4hIOo56HWyTXlRZH69aczAELl/G1zV5clQuyrF/5tb7gVD03ceuDZ96qS5iWUljOOm6x5EWnSz8rNaTBW3mQ6Y6MxECLGvHb2Q9ntDNY+CG8wrTWfmSoP8IkztWLq8jEsiP+u4ePDpQ3GgD/2W5KJHbuITKWlUG/+uaQYSbjHomx7JzuK9x3ptWHgunb+MELs55qpLDkv3a8RZqNHbkDZUOrVe8HSk0d1XdmRqs9HMdmftUxcaYTN2cvOeYfUi7bju67jioXe+uIfuvsUWLcLnhy6QYwqjpNdgN/aK8QtQ+ThpxWwcNp5r3fA02HNMJvjePYAuOSTKJdY2C1vqZtmBjDxWknhlAGTX2YuJWqnDgm5AE36aFNP7sUpU8PIc1Xc4xEMZba/zkENLoL5G7TdWqU8wslwmgIYVQXhd74rp514fgcQ+YkmkXVFtZvchYb7iDfMkl/2oufY1hq4y8YmJzIF2hwAOF7LsHH88rLaaoOAR5X1QTx8XqbHixu7sn/9w0aS/N1o4YoX8Dl6kjKbtad4Q7BPyvhqxV2Cyhik78E79U8ECE/idxDN6lRE4xR8+FvsPmPet/3zc65FeopYjXd5qAASIMtOahvc/KKKu2Bo2fTE2wLsvuVRAsNY+m5Xlt1flMSNh3Fsvd38CRxKIUaLTAIc5ViVKjTyrMd7bYqAKgSGJsQ4O8ii7UipKY1hi3d6A8v2QlywiN+aZ6maLtXz0qAMXLSzzeKGFGVNp7nNZZ6jZZqwIa7cRT5REnfFDPiPLJMwLTVwN5cDcy287etHmiG0pzt1yVOeHISwquIa+pbjw7PTVXUvbb9AOs3ugpS86F97N5Dr8oz+E9//pftC29erQ+lgpk+yuZXID\r\n' +
+        'User-Agent: axios/1.12.2\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: graph.microsoft.com\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v1.0/me',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: true,
+      host: 'graph.microsoft.com',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: { error: [Object] }
+  },
+  status: 403
+}
+1:54:00 AM [express] GET /api/integrations/outlook 200 in 666ms :: {"connected":false,"error":"token…
