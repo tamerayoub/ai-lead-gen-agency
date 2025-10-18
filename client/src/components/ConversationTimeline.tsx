@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles, Plus } from "lucide-react";
+import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
 
@@ -28,6 +28,7 @@ interface ConversationTimelineProps {
   onSendMessage?: (message: string, integration: string, emailSubject: string) => void;
   onAIReply?: () => void;
   onRetryMessage?: (messageId: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
   availableIntegrations?: Array<{ id: string; name: string }>;
   integrationsLoading?: boolean;
 }
@@ -44,7 +45,7 @@ const integrationLabels = {
   outlook: "Outlook",
 };
 
-export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, onRetryMessage, availableIntegrations = [], integrationsLoading = false }: ConversationTimelineProps) {
+export function ConversationTimeline({ messages, leadName, onSendMessage, onAIReply, onRetryMessage, onDeleteMessage, availableIntegrations = [], integrationsLoading = false }: ConversationTimelineProps) {
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
@@ -267,18 +268,32 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                           </p>
                         </div>
                       </div>
-                      {onRetryMessage && (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-7 text-xs w-full"
-                          onClick={() => onRetryMessage(msg.id)}
-                          data-testid="button-retry-email"
-                        >
-                          <Send className="h-3 w-3 mr-1" />
-                          Retry Sending
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {onRetryMessage && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-xs flex-1"
+                            onClick={() => onRetryMessage(msg.id)}
+                            data-testid="button-retry-email"
+                          >
+                            <Send className="h-3 w-3 mr-1" />
+                            Retry Sending
+                          </Button>
+                        )}
+                        {onDeleteMessage && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-7 text-xs flex-1"
+                            onClick={() => onDeleteMessage(msg.id)}
+                            data-testid="button-delete-message"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
