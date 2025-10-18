@@ -157,15 +157,17 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
 
   // Scroll to bottom of conversation when sheet opens or messages change
   useEffect(() => {
-    if (open && conversationScrollRef.current) {
-      // Use longer timeout to ensure linkified content is fully rendered
-      setTimeout(() => {
-        if (conversationScrollRef.current) {
-          conversationScrollRef.current.scrollTop = conversationScrollRef.current.scrollHeight;
-        }
-      }, 250);
+    if (open && lead) {
+      // Use multiple RAF cycles to ensure content is fully rendered
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (conversationScrollRef.current) {
+            conversationScrollRef.current.scrollTop = conversationScrollRef.current.scrollHeight;
+          }
+        });
+      });
     }
-  }, [open, lead?.conversations]);
+  }, [open, lead]);
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
