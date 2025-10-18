@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 interface ConversationMessage {
   id: string;
@@ -58,7 +58,7 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
   }, [messages]);
 
   // Set default values when component mounts or data changes
-  useMemo(() => {
+  useEffect(() => {
     if (availableIntegrations.length > 0 && !selectedIntegration) {
       setSelectedIntegration(availableIntegrations[0].id);
     }
