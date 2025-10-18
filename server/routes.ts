@@ -13,7 +13,7 @@ import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
 import { db } from "./db";
-import { zillowListings, properties, organizations } from "@shared/schema";
+import { zillowListings, properties, organizations, conversations } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 console.log("🔥🔥🔥 ROUTES.TS LOADED AT:", new Date().toISOString(), "🔥🔥🔥");
@@ -395,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Send email using Gmail API with threading
             console.log('[Send Email] Sending email...');
-            await sendGmailReply(integration.config, {
+            await sendReply(integration.config, {
               to: lead.email,
               subject: emailSubject,
               body: validatedData.message,
@@ -479,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const emailSubject = conv.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
           
           console.log('[Retry Email] Sending email...');
-          await sendGmailReply(integration.config, {
+          await sendReply(integration.config, {
             to: lead.email,
             subject: emailSubject,
             body: conv.message,
