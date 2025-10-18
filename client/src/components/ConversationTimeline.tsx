@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Phone, Mail, MessageSquare, Trash2 } from "lucide-react";
+import { Bot, Phone, Mail, MessageSquare, Trash2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isToday, differenceInDays, parseISO } from "date-fns";
 
