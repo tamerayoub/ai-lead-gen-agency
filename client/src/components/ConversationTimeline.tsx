@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Bot, User, Phone, Mail, MessageSquare, Send, Sparkles, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useMemo, useEffect } from "react";
+import { format, isToday, isYesterday, differenceInDays, parseISO } from "date-fns";
 
 interface ConversationMessage {
   id: string;
@@ -166,6 +167,28 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
       .slice(0, 2);
   };
 
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      const date = parseISO(timestamp);
+      const now = new Date();
+      const daysDiff = differenceInDays(now, date);
+
+      if (isToday(date)) {
+        // Less than 24 hours: show time only
+        return format(date, "h:mm a");
+      } else if (daysDiff <= 7) {
+        // Within 7 days: show day of week and time
+        return format(date, "EEEE h:mm a");
+      } else {
+        // More than 7 days: show full date and time
+        return format(date, "MMM d, h:mm a");
+      }
+    } catch (error) {
+      // If parsing fails, return original timestamp
+      return timestamp;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Messages */}
@@ -189,22 +212,22 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                 )}
                 data-testid={`message-${msg.id}`}
               >
-                {/* Avatar */}
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarFallback className={cn(
-                    fromLead && "bg-accent text-accent-foreground",
-                    fromUs && "bg-primary text-primary-foreground"
-                  )}>
-                    {fromLead ? getLeadInitials() : "ME"}
-                  </AvatarFallback>
-                </Avatar>
+                {/* Avatar - only show for lead messages */}
+                {fromLead && (
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarFallback className="bg-accent text-accent-foreground">
+                      {getLeadInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
 
                 {/* Message Content */}
                 <div className={cn(
-                  "flex-1 space-y-1 max-w-[70%]",
-                  fromUs && "flex flex-col items-end"
+                  "flex-1 space-y-1",
+                  fromLead && "max-w-[70%]",
+                  fromUs && "flex flex-col items-end max-w-[70%]"
                 )}>
-                  {/* Sender Name & Timestamp */}
+                  {/* Sender Name */}
                   <div className={cn(
                     "flex items-center gap-2 text-xs",
                     fromUs && "flex-row-reverse"
@@ -213,7 +236,6 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                       {fromLead ? leadName : "You"}
                     </span>
                     <ChannelIcon className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">{msg.timestamp}</span>
                     {msg.aiGenerated && (
                       <Badge variant="secondary" className="gap-1 text-xs">
                         <Bot className="h-3 w-3" />
@@ -253,6 +275,14 @@ export function ConversationTimeline({ messages, leadName, onSendMessage, onAIRe
                       )}
                     </div>
                   )}
+
+                  {/* Timestamp - shown below email metadata */}
+                  <div className={cn(
+                    "text-xs text-muted-foreground",
+                    fromUs && "text-right"
+                  )}>
+                    {formatTimestamp(msg.timestamp)}
+                  </div>
 
                   {/* Delivery Error */}
                   {fromUs && msg.deliveryStatus === 'failed' && msg.deliveryError && (
