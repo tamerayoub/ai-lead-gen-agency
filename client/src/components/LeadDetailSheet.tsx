@@ -94,7 +94,9 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   // Send message form state
   const [newMessage, setNewMessage] = useState("");
   const [selectedIntegration, setSelectedIntegration] = useState<string>("");
-  const [emailSubject, setEmailSubject] = useState("");
+  const [threadOption, setThreadOption] = useState<string>("");
+  const [newSubject, setNewSubject] = useState("");
+  const [selectedExistingSubject, setSelectedExistingSubject] = useState<string>("");
   
   const { toast } = useToast();
 
@@ -116,6 +118,39 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     ...(gmailIntegration?.metadata?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
     ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
   ];
+
+  // Extract unique email subjects from messages, filtered by selected integration
+  const existingSubjects = lead?.conversations
+    .filter(msg => 
+      msg.channel === 'email' && 
+      msg.emailSubject && 
+      msg.sourceIntegration === selectedIntegration
+    )
+    .map(msg => msg.emailSubject!)
+    .filter((subject, index, self) => self.indexOf(subject) === index) || [];
+
+  // Reset thread/subject options when integration changes
+  useEffect(() => {
+    if (selectedIntegration) {
+      setThreadOption("");
+      setSelectedExistingSubject("");
+      setNewSubject("");
+    }
+  }, [selectedIntegration]);
+
+  // Set default thread option when integration is selected
+  useEffect(() => {
+    if (selectedIntegration && !threadOption) {
+      setThreadOption(existingSubjects.length > 0 ? "existing" : "new");
+    }
+  }, [selectedIntegration, threadOption, existingSubjects.length]);
+
+  // Set default existing subject when available
+  useEffect(() => {
+    if (existingSubjects.length > 0 && !selectedExistingSubject && threadOption === "existing") {
+      setSelectedExistingSubject(existingSubjects[0]);
+    }
+  }, [existingSubjects, selectedExistingSubject, threadOption]);
 
   const updateLeadMutation = useMutation({
     mutationFn: async (data: Partial<typeof editForm>) => {
@@ -579,71 +614,149 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               </div>
             ) : (
               <>
-                <div className="flex gap-2">
-                  <Select
-                    value={selectedIntegration}
-                    onValueChange={setSelectedIntegration}
-                    disabled={sendMessageMutation.isPending}
-                  >
-                    <SelectTrigger className="w-48" data-testid="select-integration">
-                      <SelectValue placeholder="Select integration..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableIntegrations.map((integration) => (
-                        <SelectItem key={integration.id} value={integration.id}>
-                          {integration.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    placeholder="Email subject..."
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    disabled={sendMessageMutation.isPending}
-                    className="flex-1"
-                    data-testid="input-email-subject"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Type your message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey && newMessage.trim() && selectedIntegration && emailSubject.trim()) {
-                        e.preventDefault();
-                        handleSendMessage(newMessage, selectedIntegration, emailSubject);
-                        setNewMessage("");
-                        setEmailSubject("");
-                      }
-                    }}
-                    disabled={sendMessageMutation.isPending}
-                    className="flex-1"
-                    data-testid="input-reply-message"
-                  />
-                  <Button
-                    onClick={() => {
-                      if (newMessage.trim() && selectedIntegration && emailSubject.trim()) {
-                        handleSendMessage(newMessage, selectedIntegration, emailSubject);
-                        setNewMessage("");
-                        setEmailSubject("");
-                      }
-                    }}
-                    disabled={sendMessageMutation.isPending || !newMessage.trim() || !selectedIntegration || !emailSubject.trim()}
-                    data-testid="button-send-message"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleAIReply}
-                    disabled={aiReplyMutation.isPending}
-                    data-testid="button-ai-reply"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                  </Button>
-                </div>
+                {/* Integration Selector */}
+                <Select
+                  value={selectedIntegration}
+                  onValueChange={setSelectedIntegration}
+                  disabled={sendMessageMutation.isPending}
+                >
+                  <SelectTrigger className="w-full" data-testid="select-integration">
+                    <SelectValue placeholder="Select integration..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableIntegrations.map((integration) => (
+                      <SelectItem key={integration.id} value={integration.id}>
+                        {integration.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Thread Selection - only show if integration is selected */}
+                {selectedIntegration && (
+                  <>
+                    <div className="flex gap-2">
+                      <Select
+                        value={threadOption}
+                        onValueChange={(value) => {
+                          setThreadOption(value);
+                          if (value === "new") {
+                            setNewSubject("");
+                          }
+                        }}
+                        disabled={sendMessageMutation.isPending}
+                      >
+                        <SelectTrigger className="flex-1" data-testid="select-thread-option">
+                          <SelectValue placeholder="Choose thread..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="existing">
+                            {existingSubjects.length > 0 ? "Reply to existing thread" : "Use default thread"}
+                          </SelectItem>
+                          <SelectItem value="new">
+                            <div className="flex items-center gap-1.5">
+                              <Plus className="h-3 w-3" />
+                              Create new thread
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {/* Existing Subject Selector */}
+                      {threadOption === "existing" && existingSubjects.length > 0 && (
+                        <Select
+                          value={selectedExistingSubject}
+                          onValueChange={setSelectedExistingSubject}
+                          disabled={sendMessageMutation.isPending}
+                        >
+                          <SelectTrigger className="flex-1" data-testid="select-existing-subject">
+                            <SelectValue placeholder="Choose subject" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {existingSubjects.map((subject, index) => (
+                              <SelectItem key={index} value={subject}>
+                                {subject}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+
+                      {/* New Subject Input */}
+                      {threadOption === "new" && (
+                        <Input
+                          placeholder="Email subject..."
+                          value={newSubject}
+                          onChange={(e) => setNewSubject(e.target.value)}
+                          disabled={sendMessageMutation.isPending}
+                          className="flex-1"
+                          data-testid="input-new-subject"
+                        />
+                      )}
+                    </div>
+
+                    {/* Message Input */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Type your message..."
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyPress={(e) => {
+                          const emailSubject = threadOption === "new" 
+                            ? newSubject 
+                            : (selectedExistingSubject || existingSubjects[0] || "Re: Property Inquiry");
+                          
+                          if (e.key === "Enter" && !e.shiftKey && newMessage.trim() && selectedIntegration && threadOption) {
+                            const isValid = threadOption === "new" ? newSubject.trim() : true;
+                            if (isValid) {
+                              e.preventDefault();
+                              handleSendMessage(newMessage, selectedIntegration, emailSubject);
+                              setNewMessage("");
+                              if (threadOption === "new") setNewSubject("");
+                            }
+                          }
+                        }}
+                        disabled={sendMessageMutation.isPending}
+                        className="flex-1"
+                        data-testid="input-reply-message"
+                      />
+                      <Button
+                        onClick={() => {
+                          const emailSubject = threadOption === "new" 
+                            ? newSubject 
+                            : (selectedExistingSubject || existingSubjects[0] || "Re: Property Inquiry");
+                          
+                          if (newMessage.trim() && selectedIntegration && threadOption) {
+                            const isValid = threadOption === "new" ? newSubject.trim() : true;
+                            if (isValid) {
+                              handleSendMessage(newMessage, selectedIntegration, emailSubject);
+                              setNewMessage("");
+                              if (threadOption === "new") setNewSubject("");
+                            }
+                          }
+                        }}
+                        disabled={
+                          sendMessageMutation.isPending || 
+                          !newMessage.trim() || 
+                          !selectedIntegration || 
+                          !threadOption ||
+                          (threadOption === "new" && !newSubject.trim())
+                        }
+                        data-testid="button-send-message"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleAIReply}
+                        disabled={aiReplyMutation.isPending}
+                        data-testid="button-ai-reply"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
