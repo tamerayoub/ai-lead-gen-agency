@@ -521,6 +521,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete a conversation message
+  app.delete("/api/conversations/:conversationId", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const conversationId = req.params.conversationId;
+      
+      // Get the conversation to verify it belongs to this org
+      const allConversations = await db.select()
+        .from(conversations)
+        .where(eq(conversations.id, conversationId))
+        .limit(1);
+      
+      if (!allConversations || allConversations.length === 0) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      
+      const conv = allConversations[0];
+      
+      // Verify the lead belongs to this org
+      const lead = await storage.getLead(conv.leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      // Delete the conversation
+      await db.delete(conversations).where(eq(conversations.id, conversationId));
+      
+      console.log(`[Delete Conversation] Deleted conversation ${conversationId} from lead ${conv.leadId}`);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Delete Conversation] Error:', error);
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
   // Generate AI reply for a specific lead
   app.post("/api/leads/:leadId/ai-reply", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
