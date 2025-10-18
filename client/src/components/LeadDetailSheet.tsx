@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreVertical, Trash2 } from "lucide-react";
+import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreVertical, Trash2, Plus, Sparkles } from "lucide-react";
 import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
@@ -90,6 +90,12 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     income: "",
     moveInDate: "",
   });
+  
+  // Send message form state
+  const [newMessage, setNewMessage] = useState("");
+  const [selectedIntegration, setSelectedIntegration] = useState<string>("");
+  const [emailSubject, setEmailSubject] = useState("");
+  
   const { toast } = useToast();
 
   // Fetch available integrations for messaging
@@ -536,12 +542,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               <ConversationTimeline 
                 messages={lead.conversations} 
                 leadName={lead.name}
-                onSendMessage={handleSendMessage}
-                onAIReply={handleAIReply}
                 onRetryMessage={handleRetryMessage}
                 onDeleteMessage={handleDeleteMessage}
-                availableIntegrations={availableIntegrations}
-                integrationsLoading={integrationsLoading}
               />
             </TabsContent>
             <TabsContent value="notes" className="space-y-3 mt-4">
@@ -560,8 +562,93 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
           </Tabs>
         </div>
 
-        {/* Fixed footer with action buttons */}
-        <div className="shrink-0 border-t px-6 py-4">
+        {/* Fixed footer with send message form and action buttons */}
+        <div className="shrink-0 border-t px-6 py-4 space-y-4">
+          {/* Send Message Form */}
+          <div className="space-y-3">
+            {integrationsLoading ? (
+              <div className="rounded-md bg-muted p-4 text-sm">
+                <p className="text-muted-foreground">Loading integrations...</p>
+              </div>
+            ) : availableIntegrations.length === 0 ? (
+              <div className="rounded-md bg-muted p-4 text-sm">
+                <p className="font-medium mb-1">No integrations set up</p>
+                <p className="text-muted-foreground">
+                  Please set up an integration (Gmail or Outlook) in the Integrations page to send messages.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Select
+                    value={selectedIntegration}
+                    onValueChange={setSelectedIntegration}
+                    disabled={sendMessageMutation.isPending}
+                  >
+                    <SelectTrigger className="w-48" data-testid="select-integration">
+                      <SelectValue placeholder="Select integration..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableIntegrations.map((integration) => (
+                        <SelectItem key={integration.id} value={integration.id}>
+                          {integration.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    placeholder="Email subject..."
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    disabled={sendMessageMutation.isPending}
+                    className="flex-1"
+                    data-testid="input-email-subject"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type your message..."
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey && newMessage.trim() && selectedIntegration && emailSubject.trim()) {
+                        e.preventDefault();
+                        handleSendMessage(newMessage, selectedIntegration, emailSubject);
+                        setNewMessage("");
+                        setEmailSubject("");
+                      }
+                    }}
+                    disabled={sendMessageMutation.isPending}
+                    className="flex-1"
+                    data-testid="input-reply-message"
+                  />
+                  <Button
+                    onClick={() => {
+                      if (newMessage.trim() && selectedIntegration && emailSubject.trim()) {
+                        handleSendMessage(newMessage, selectedIntegration, emailSubject);
+                        setNewMessage("");
+                        setEmailSubject("");
+                      }
+                    }}
+                    disabled={sendMessageMutation.isPending || !newMessage.trim() || !selectedIntegration || !emailSubject.trim()}
+                    data-testid="button-send-message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAIReply}
+                    disabled={aiReplyMutation.isPending}
+                    data-testid="button-ai-reply"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons */}
           <div className="flex gap-2">
             <Button className="flex-1" data-testid="button-send-application">
               <Send className="h-4 w-4 mr-2" />
