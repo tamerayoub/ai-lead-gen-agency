@@ -371,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Send Email] Message type: ${validatedData.type}`);
           
           // Get the specified integration
-          const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
+          const integration = await storage.getIntegrationConfig(integrationToUse, req.orgId);
           
           if (!integration) {
             console.error('[Send Email] Integration not found:', integrationToUse);
@@ -463,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`[Retry Email] Attempting to resend email via ${integrationToUse} to ${lead.email}`);
         
-        const integration = await storage.getIntegrationConfig(req.orgId, integrationToUse);
+        const integration = await storage.getIntegrationConfig(integrationToUse, req.orgId);
         
         if (!integration) {
           emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
