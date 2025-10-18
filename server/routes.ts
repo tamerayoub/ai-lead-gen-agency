@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[Send Email] Integration lookup result:`, integration ? 'FOUND' : 'NOT FOUND');
           if (integration) {
-            console.log(`[Send Email] Integration ID: ${integration.id}, has tokens:`, !!integration.config?.tokens);
+            console.log(`[Send Email] Integration ID: ${integration.id}, has access_token:`, !!integration.config?.access_token);
           }
           
           if (!integration) {
@@ -384,8 +384,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
             (validatedData as any).deliveryStatus = 'failed';
             (validatedData as any).deliveryError = emailSendStatus.error;
-          } else if (!integration.config?.tokens) {
-            console.error('[Send Email] No tokens found for integration:', integrationToUse);
+          } else if (!integration.config?.access_token) {
+            console.error('[Send Email] No access_token found for integration:', integrationToUse);
             emailSendStatus = { sent: false, error: `${integrationToUse} is not connected` };
             (validatedData as any).deliveryStatus = 'failed';
             (validatedData as any).deliveryError = emailSendStatus.error;
@@ -395,7 +395,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Send email using Gmail API with threading
             console.log('[Send Email] Sending email...');
-            await sendGmailReply(integration.config.tokens, {
+            await sendGmailReply(integration.config, {
               to: lead.email,
               subject: emailSubject,
               body: validatedData.message,
@@ -473,13 +473,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!integration) {
           emailSendStatus = { sent: false, error: `${integrationToUse} integration not configured` };
-        } else if (!integration.config?.tokens) {
+        } else if (!integration.config?.access_token) {
           emailSendStatus = { sent: false, error: `${integrationToUse} is not connected` };
         } else {
           const emailSubject = conv.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
           
           console.log('[Retry Email] Sending email...');
-          await sendGmailReply(integration.config.tokens, {
+          await sendGmailReply(integration.config, {
             to: lead.email,
             subject: emailSubject,
             body: conv.message,

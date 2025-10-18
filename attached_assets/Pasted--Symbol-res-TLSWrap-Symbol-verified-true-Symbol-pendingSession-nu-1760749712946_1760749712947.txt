@@ -1,0 +1,281 @@
+      [Symbol(res)]: [TLSWrap],
+      [Symbol(verified)]: true,
+      [Symbol(pendingSession)]: null,
+      [Symbol(async_id_symbol)]: -1,
+      [Symbol(kHandle)]: [TLSWrap],
+      [Symbol(lastWriteQueueSize)]: 0,
+      [Symbol(timeout)]: Timeout {
+        _idleTimeout: 5000,
+        _idlePrev: [TimersList],
+        _idleNext: [Timeout],
+        _idleStart: 122337,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        [Symbol(refed)]: false,
+        [Symbol(kHasPrimitive)]: false,
+        [Symbol(asyncId)]: 17455,
+        [Symbol(triggerId)]: 17453
+      },
+      [Symbol(kBuffer)]: null,
+      [Symbol(kBufferCb)]: null,
+      [Symbol(kBufferGen)]: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kSetNoDelay)]: false,
+      [Symbol(kSetKeepAlive)]: true,
+      [Symbol(kSetKeepAliveInitialDelay)]: 1,
+      [Symbol(kBytesRead)]: 0,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(connect-options)]: [Object]
+    },
+    _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'Content-Type: application/json\r\n' +
+      'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAASUbVWQQyyNX/IYcOwjtzqWqc5RQKlqdSoPa66GD/GN48U406u1eAG8D4T1trgIY+CvFQANHi1w2yv5WskEgN2yr19iIzZsY/qZgr8JZAH8c3gZbg87TFSIcMmx8oX5zInmonJ30EgW6nOqFf3n0CGyjcBQCLa0uxgiIGAq+F/dr1QPw5SzZ1x8S7qLxyNRwtAcJ+LoLEZKjA+6p7cw2f8cXxmjLjvUZROrkEw5oNiWAYxPgwuniYaxW0trXP/Hs/KCBcLNDjB21kaN3orMN6E2f5lHtuoxAvr7SP66XIogo2pReLH5/aZKZfZ+63/ySyZR8mphlrpdmMj4lvsC/RgsQZgAAECjhKdkopoZ3bdqBZNDn1k4wA07BcwLzO6p2ob0ksY1ejw1nMZxrdFHtFsRMUzTYusAEOb15AsQdpCFdjl61U1pRQ9hhs5Vy52jMcnIdiG0kBqZfZtM5mSbevrWfBLJ1NZ8sPqYgrGVD8GGYzuKHqslIB9fi7n2gmgnQpEYub4YYY9M/4dv1PxBwxXGkef0cco283e/7/jLZZH88O2XbbM1+nfecmTH/vkjsINqOCfliHMKxtAsDhhNpmuj1N95Uox+x00DIr35L5gMAnOL7VCsQ+xVeoPcZQY4D1hwZKLaDshrUL6l2lsP0+HGxdJP+uTguU7rP7ys6JzzSpyI09QXZ9DGCnitPlfVdod+f866E+ds6L715a5xtjuLZRdvxQy3EZuR5a4gnL8xHFhD/biUsPO3ygbZgwoOnCNdI747xzUAstZBJDfmjBSqIGbj5aXJ6A5z+0stUpOuEj8JXaUNjw7w0JXMdVMHayHGQ+jXvo8O21Nu2bRZaesPSmSh8+5nfBFDLOzNF80G1dDgCciAZE0fWFZr9j/4igAHPtkuzQZnjJktPyCeVFHgHc0Qv/r37z3GixyQDnp32KL04DerInn1Dsb/kUYEMzxDagZaOANKKCxbmYLGcDMsGIErAiBA+K7TRFzFCEd+zyu9d4s0XD7Own6hRbOiA2mkE1qMkn7a1dq1vpNIThWrRekuYKE2EeF5Fma4kDNPJALm+pA1vVZ7bG89zpHIOcxZymvT4dZDO51CCbyIIoMQOc7Asx2lVM6x3XhwOYP0WJLVkHvulvk7T8rEGs66VFa8Bb3Mc2DPL/Mq+so+KN5DxTHJfgywiemE4K8YWnLorasU3TTVmEqhRM963oLUjjGjF/TWYFjaCZhsc2hpFS82WlzIWtMvLR1Jvm5DqgCKBBYjvIQjETLRocbUJI6GzInk204lW3C3wT4gEthoPBG52TROTWvy6vCCufo+K2UPg6OXH+YhqymMgWFeiopJnmDJUPFKlrbP2krpi+oYgcLJm/ZQxzR2l4L1yr82EodJWnZEBC/VWng00pybBjx8EC2wFgIxDkMCq3yvbbl6122tLBW7UOvbDbHLM9S3GFi82vRYrgKBbOXID\r\n' +
+      'User-Agent: axios/1.12.2\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: graph.microsoft.com\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      defaultPort: 443,
+      protocol: 'https:',
+      options: [Object: null prototype],
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 2,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/v1.0/me',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+      client: [TLSSocket],
+      _consuming: true,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'https://graph.microsoft.com/v1.0/me',
+      redirects: [],
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kHeaders)]: [Object],
+      [Symbol(kHeadersCount)]: 18,
+      [Symbol(kTrailers)]: null,
+      [Symbol(kTrailersCount)]: 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: true,
+    host: 'graph.microsoft.com',
+    protocol: 'https:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 0,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'https://graph.microsoft.com/v1.0/me',
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false,
+    [Symbol(kBytesWritten)]: 0,
+    [Symbol(kNeedDrain)]: false,
+    [Symbol(corked)]: 0,
+    [Symbol(kOutHeaders)]: [Object: null prototype] {
+      accept: [Array],
+      'content-type': [Array],
+      authorization: [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    [Symbol(errored)]: null,
+    [Symbol(kHighWaterMark)]: 16384,
+    [Symbol(kRejectNonStandardBodyWrites)]: false,
+    [Symbol(kUniqueHeaders)]: null
+  },
+  response: {
+    status: 403,
+    statusText: 'Forbidden',
+    headers: Object [AxiosHeaders] {
+      'transfer-encoding': 'chunked',
+      'content-type': 'application/json',
+      vary: 'Accept-Encoding',
+      'strict-transport-security': 'max-age=31536000',
+      'request-id': 'a5a92c2e-eb71-4ffa-bd69-b835f299b814',
+      'client-request-id': 'a5a92c2e-eb71-4ffa-bd69-b835f299b814',
+      'x-ms-ags-diagnostic': '{"ServerInfo":{"DataCenter":"Central US","Slice":"E","Ring":"4","ScaleUnit":"000","RoleInstance":"DS1PEPF00037925"}}',
+      date: 'Sat, 18 Oct 2025 01:07:52 GMT'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 0,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      method: 'get',
+      url: 'https://graph.microsoft.com/v1.0/me',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      socket: [TLSSocket],
+      _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'Content-Type: application/json\r\n' +
+        'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAASUbVWQQyyNX/IYcOwjtzqWqc5RQKlqdSoPa66GD/GN48U406u1eAG8D4T1trgIY+CvFQANHi1w2yv5WskEgN2yr19iIzZsY/qZgr8JZAH8c3gZbg87TFSIcMmx8oX5zInmonJ30EgW6nOqFf3n0CGyjcBQCLa0uxgiIGAq+F/dr1QPw5SzZ1x8S7qLxyNRwtAcJ+LoLEZKjA+6p7cw2f8cXxmjLjvUZROrkEw5oNiWAYxPgwuniYaxW0trXP/Hs/KCBcLNDjB21kaN3orMN6E2f5lHtuoxAvr7SP66XIogo2pReLH5/aZKZfZ+63/ySyZR8mphlrpdmMj4lvsC/RgsQZgAAECjhKdkopoZ3bdqBZNDn1k4wA07BcwLzO6p2ob0ksY1ejw1nMZxrdFHtFsRMUzTYusAEOb15AsQdpCFdjl61U1pRQ9hhs5Vy52jMcnIdiG0kBqZfZtM5mSbevrWfBLJ1NZ8sPqYgrGVD8GGYzuKHqslIB9fi7n2gmgnQpEYub4YYY9M/4dv1PxBwxXGkef0cco283e/7/jLZZH88O2XbbM1+nfecmTH/vkjsINqOCfliHMKxtAsDhhNpmuj1N95Uox+x00DIr35L5gMAnOL7VCsQ+xVeoPcZQY4D1hwZKLaDshrUL6l2lsP0+HGxdJP+uTguU7rP7ys6JzzSpyI09QXZ9DGCnitPlfVdod+f866E+ds6L715a5xtjuLZRdvxQy3EZuR5a4gnL8xHFhD/biUsPO3ygbZgwoOnCNdI747xzUAstZBJDfmjBSqIGbj5aXJ6A5z+0stUpOuEj8JXaUNjw7w0JXMdVMHayHGQ+jXvo8O21Nu2bRZaesPSmSh8+5nfBFDLOzNF80G1dDgCciAZE0fWFZr9j/4igAHPtkuzQZnjJktPyCeVFHgHc0Qv/r37z3GixyQDnp32KL04DerInn1Dsb/kUYEMzxDagZaOANKKCxbmYLGcDMsGIErAiBA+K7TRFzFCEd+zyu9d4s0XD7Own6hRbOiA2mkE1qMkn7a1dq1vpNIThWrRekuYKE2EeF5Fma4kDNPJALm+pA1vVZ7bG89zpHIOcxZymvT4dZDO51CCbyIIoMQOc7Asx2lVM6x3XhwOYP0WJLVkHvulvk7T8rEGs66VFa8Bb3Mc2DPL/Mq+so+KN5DxTHJfgywiemE4K8YWnLorasU3TTVmEqhRM963oLUjjGjF/TWYFjaCZhsc2hpFS82WlzIWtMvLR1Jvm5DqgCKBBYjvIQjETLRocbUJI6GzInk204lW3C3wT4gEthoPBG52TROTWvy6vCCufo+K2UPg6OXH+YhqymMgWFeiopJnmDJUPFKlrbP2krpi+oYgcLJm/ZQxzR2l4L1yr82EodJWnZEBC/VWng00pybBjx8EC2wFgIxDkMCq3yvbbl6122tLBW7UOvbDbHLM9S3GFi82vRYrgKBbOXID\r\n' +
+        'User-Agent: axios/1.12.2\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: graph.microsoft.com\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v1.0/me',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: true,
+      host: 'graph.microsoft.com',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: { error: [Object] }
+  },
+  status: 403
+}
+1:07:53 AM [express] GET /api/integrations/outlook 200 in 1005ms :: {"connected":false,"error":"toke…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Send Email] Attempting to send email via gmail to dashboardpilotai@gmail.com
+[Send Email] Lead has email: dashboardpilotai@gmail.com
+[Send Email] Message type: outgoing
+[Send Email] Looking up integration with service="gmail" and orgId="21f621ba-3802-460c-869b-a267a1477f33"
+[Send Email] Integration lookup result: FOUND
+[Send Email] Integration ID: 6c3af876-df37-4078-b98e-d9f38b30fc05, has tokens: false
+[Send Email] No tokens found for integration: gmail
+1:07:59 AM [express] POST /api/conversations 201 in 306ms :: {"id":"7189dff3-560f-43bf-8796-793a62aa…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:07:59 AM [express] GET /api/leads 200 in 181ms :: [{"id":"7a22f7b4-4be6-4961-8631-f34c4d8d0841","o…
+1:07:59 AM [express] GET /api/leads/7a22f7b4-4be6-4961-8631-f34c4d8d0841 200 in 255ms :: {"id":"7a22…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:08:00 AM [express] GET /api/leads/7a22f7b4-4be6-4961-8631-f34c4d8d0841 304 in 252ms :: {"id":"7a22…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:08:00 AM [express] GET /api/notifications/unread-count 304 in 171ms :: {"count":"1"}
+1:08:00 AM [express] GET /api/notifications 304 in 225ms :: [{"id":"e4dcc05b-4e2a-4934-a51c-f1845750…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+1:08:10 AM [express] GET /api/notifications/unread-count 304 in 182ms :: {"count":"1"}
+1:08:10 AM [express] GET /api/notifications 304 in 209ms :: [{"id":"e4dcc05b-4e2a-4934-a51c-f1845750…
