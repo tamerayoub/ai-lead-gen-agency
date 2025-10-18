@@ -115,8 +115,8 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   const integrationsLoading = gmailLoading || outlookLoading;
   
   const availableIntegrations = integrationsLoading ? [] : [
-    ...(gmailIntegration?.metadata?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
-    ...(outlookIntegration?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
+    ...((gmailIntegration as any)?.metadata?.connected ? [{ id: "gmail", name: "Gmail" }] : []),
+    ...((outlookIntegration as any)?.connected ? [{ id: "outlook", name: "Outlook" }] : []),
   ];
 
   // Extract unique email subjects from messages, filtered by selected integration
@@ -455,133 +455,148 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
           </div>
         </SheetHeader>
 
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto px-6 space-y-6">
+        {/* Fixed profile info section */}
+        <div className="shrink-0 px-6 pb-3 border-b">
           {isEditing ? (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-name">Name</Label>
-                <Input
-                  id="edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  data-testid="input-edit-name"
-                />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-name" className="text-xs">Name</Label>
+                  <Input
+                    id="edit-name"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    data-testid="input-edit-name"
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-status" className="text-xs">Status</Label>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(value) => setEditForm({ ...editForm, status: value as LeadStatus })}
+                  >
+                    <SelectTrigger id="edit-status" data-testid="select-edit-status" className="h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new">New</SelectItem>
+                      <SelectItem value="contacted">Contacted</SelectItem>
+                      <SelectItem value="prequalified">Pre-qualified</SelectItem>
+                      <SelectItem value="application">Application</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
-                <Input
-                  id="edit-email"
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  data-testid="input-edit-email"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-email" className="text-xs">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    data-testid="input-edit-email"
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-phone" className="text-xs">Phone</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    data-testid="input-edit-phone"
+                    className="h-8"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone">Phone</Label>
-                <Input
-                  id="edit-phone"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  data-testid="input-edit-phone"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <Select
-                  value={editForm.status}
-                  onValueChange={(value) => setEditForm({ ...editForm, status: value as LeadStatus })}
-                >
-                  <SelectTrigger id="edit-status" data-testid="select-edit-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="contacted">Contacted</SelectItem>
-                    <SelectItem value="prequalified">Pre-qualified</SelectItem>
-                    <SelectItem value="application">Application</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-income">Income (optional)</Label>
-                <Input
-                  id="edit-income"
-                  value={editForm.income}
-                  onChange={(e) => setEditForm({ ...editForm, income: e.target.value })}
-                  data-testid="input-edit-income"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-moveInDate">Move-in Date (optional)</Label>
-                <Input
-                  id="edit-moveInDate"
-                  value={editForm.moveInDate}
-                  onChange={(e) => setEditForm({ ...editForm, moveInDate: e.target.value })}
-                  data-testid="input-edit-moveindate"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-income" className="text-xs">Income</Label>
+                  <Input
+                    id="edit-income"
+                    value={editForm.income}
+                    onChange={(e) => setEditForm({ ...editForm, income: e.target.value })}
+                    data-testid="input-edit-income"
+                    className="h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-moveInDate" className="text-xs">Move-in Date</Label>
+                  <Input
+                    id="edit-moveInDate"
+                    value={editForm.moveInDate}
+                    onChange={(e) => setEditForm({ ...editForm, moveInDate: e.target.value })}
+                    data-testid="input-edit-moveindate"
+                    className="h-8"
+                  />
+                </div>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{lead.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{lead.phone}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{lead.property}</span>
-              </div>
-              {lead.income && (
-                <div className="flex items-center gap-2 text-sm">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span>Income: {lead.income}</span>
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{lead.email}</span>
                 </div>
-              )}
-              {lead.moveInDate && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span>Move-in: {lead.moveInDate}</span>
+                <div className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{lead.phone}</span>
+                </div>
+                <div className="flex items-center gap-1.5 col-span-2">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="truncate">{lead.property}</span>
+                </div>
+                {lead.income && (
+                  <div className="flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">Income: {lead.income}</span>
+                  </div>
+                )}
+                {lead.moveInDate && (
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">Move-in: {lead.moveInDate}</span>
+                  </div>
+                )}
+              </div>
+              {lead.qualificationScore !== undefined && (
+                <div className="pt-1">
+                  <div className="text-xs font-medium mb-1">Qualification Score</div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary"
+                        style={{ width: `${lead.qualificationScore}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold">{lead.qualificationScore}%</span>
+                  </div>
                 </div>
               )}
             </div>
           )}
+        </div>
 
-          {lead.qualificationScore !== undefined && (
-            <div className="p-4 rounded-md bg-muted">
-              <div className="text-sm font-medium mb-2">Qualification Score</div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary"
-                    style={{ width: `${lead.qualificationScore}%` }}
-                  />
-                </div>
-                <span className="text-sm font-semibold">{lead.qualificationScore}%</span>
-              </div>
-            </div>
-          )}
-
-          <Tabs defaultValue="conversation" className="w-full">
-            <TabsList className="w-full">
+        {/* Scrollable tabs area */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <Tabs defaultValue="conversation" className="flex-1 flex flex-col">
+            <TabsList className="w-full shrink-0 mx-6">
               <TabsTrigger value="conversation" className="flex-1" data-testid="tab-conversation">Conversation</TabsTrigger>
               <TabsTrigger value="notes" className="flex-1" data-testid="tab-notes">Notes</TabsTrigger>
             </TabsList>
-            <TabsContent value="conversation" className="space-y-4 mt-4">
+            <TabsContent value="conversation" className="flex-1 overflow-y-auto px-6 mt-4">
               <ConversationTimeline 
-                messages={lead.conversations} 
+                messages={[...lead.conversations].reverse()} 
                 leadName={lead.name}
                 onRetryMessage={handleRetryMessage}
                 onDeleteMessage={handleDeleteMessage}
               />
             </TabsContent>
-            <TabsContent value="notes" className="space-y-3 mt-4">
+            <TabsContent value="notes" className="flex-1 overflow-y-auto px-6 space-y-3 mt-4">
               {lead.notes.map((note) => (
                 <div key={note.id} className="p-3 rounded-md bg-muted space-y-1">
                   <div className="flex items-center justify-between">
