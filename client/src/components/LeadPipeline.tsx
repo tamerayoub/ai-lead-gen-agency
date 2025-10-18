@@ -11,6 +11,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  CollisionDetection,
 } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -128,6 +129,23 @@ export function LeadPipeline({ stages, onLeadStatusChange, onLeadClick }: LeadPi
     })
   );
 
+  // Custom collision detection that prioritizes droppable zones over draggable items
+  const customCollisionDetection: CollisionDetection = (args) => {
+    // First, get all collisions using rectIntersection
+    const rectIntersectionCollisions = rectIntersection(args);
+    
+    // Filter to only droppable zones (stages), not draggable items (leads)
+    const droppableCollisions = rectIntersectionCollisions.filter((collision) => {
+      // Stage IDs are: 'new', 'contacted', 'prequalified', 'application', 'approved'
+      // Lead IDs are UUIDs
+      const id = String(collision.id);
+      return ['new', 'contacted', 'prequalified', 'application', 'approved'].includes(id);
+    });
+    
+    // Return droppable collisions if found, otherwise return all collisions
+    return droppableCollisions.length > 0 ? droppableCollisions : rectIntersectionCollisions;
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -161,7 +179,7 @@ export function LeadPipeline({ stages, onLeadStatusChange, onLeadClick }: LeadPi
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={rectIntersection}
+      collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
