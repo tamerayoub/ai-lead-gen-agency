@@ -97,7 +97,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     queryKey: ["/api/integrations/gmail"],
   });
 
-  const availableIntegrations = gmailIntegration?.isConnected
+  const availableIntegrations = gmailIntegration?.connected
     ? [{ id: "gmail", name: "Gmail" }]
     : [];
 
