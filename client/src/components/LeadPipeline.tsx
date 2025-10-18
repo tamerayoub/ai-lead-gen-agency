@@ -89,7 +89,7 @@ function DroppableStage({ stage, title, leads, count, color, onLeadClick }: Pipe
         <CardContent
           ref={setNodeRef}
           className={cn(
-            "space-y-2 min-h-[200px] max-h-[calc(100vh-300px)] overflow-y-auto transition-colors",
+            "space-y-2 min-h-[200px] transition-colors",
             isOver && "bg-accent/50"
           )}
         >
