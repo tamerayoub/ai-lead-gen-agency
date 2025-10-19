@@ -38,6 +38,15 @@ The frontend employs a component-based architecture, separating UI primitives, f
 
 This ensures email conversations are properly threaded and replies are not incorrectly treated as duplicate leads.
 
+**Email Threading Implementation (RFC 822):** When sending email replies through the CRM:
+1. The system stores the Message-ID header from all incoming emails in `conversations.emailMessageId`
+2. When sending a reply, it fetches all conversations for the lead and builds RFC 822 threading headers:
+   - `In-Reply-To`: Set to the Message-ID of the most recent received message
+   - `References`: Space-separated list of all Message-IDs in chronological order
+   - `threadId`: Gmail's internal thread ID for Gmail API threading
+3. After sending, the system fetches the sent message to extract its Message-ID and stores it
+4. **Design constraint**: Each lead maps to exactly ONE email thread. The import logic enforces this by creating new leads for new threads. This means all conversations for a given lead are guaranteed to be from the same thread.
+
 **Email Body Cleaning:** The system includes a `cleanEmailBody()` utility function that processes incoming email messages before storage. This function:
 1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns and everything after)
 2. Removes forwarded email markers ("From:") and everything after them

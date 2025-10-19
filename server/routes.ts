@@ -8,13 +8,13 @@ import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } 
 import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLongLivedPageAccessToken, subscribePage } from "./facebook";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
-import { cleanEmailBody } from "./emailUtils";
+import { cleanEmailBody, cleanEmailSubject } from "./emailUtils";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
 import { db } from "./db";
 import { zillowListings, properties, organizations, conversations } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull, isNotNull } from "drizzle-orm";
 
 console.log("🔥🔥🔥 ROUTES.TS LOADED AT:", new Date().toISOString(), "🔥🔥🔥");
 
@@ -393,18 +393,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Use the email subject from the request, or generate a default
             const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
             
-            // Send email using Gmail API with threading
+            // Fetch conversation history to build proper email threading headers
+            // Note: By design, each lead maps to exactly ONE Gmail thread (lead.gmailThreadId)
+            // The import logic ensures this by creating new leads for new threads
+            const conversationHistory = await storage.getConversationsByLeadId(lead.id);
+            
+            // Filter to only Gmail emails (conversations for this lead are already from the same thread)
+            // We filter by sourceIntegration to ensure we're only looking at Gmail messages
+            let threadEmails = conversationHistory
+              .filter(c => 
+                c.channel === 'email' && 
+                c.sourceIntegration === 'gmail'
+              )
+              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Chronological order
+            
+            // Check if this subject matches any existing conversation subjects
+            // If it does, the user is replying to an existing thread
+            // If it doesn't, they're starting a new conversation
+            const existingSubjects = new Set(
+              threadEmails
+                .filter(c => c.emailSubject)
+                .map(c => c.emailSubject)
+            );
+            const isNewSubject = !existingSubjects.has(emailSubject);
+            
+            console.log('[Send Email] Thread detection:', {
+              requestedSubject: emailSubject,
+              existingSubjects: Array.from(existingSubjects),
+              isNewSubject,
+              totalConversations: threadEmails.length
+            });
+            
+            // Backfill missing Message-IDs on-demand
+            for (const conv of threadEmails) {
+              if (!conv.emailMessageId && conv.externalId) {
+                try {
+                  console.log('[Send Email] Fetching missing Message-ID for conversation', conv.id);
+                  const gmailMessage = await getMessage(integration.config, conv.externalId);
+                  const headers = gmailMessage.payload?.headers || [];
+                  const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+                  
+                  if (messageId) {
+                    // Update the conversation with the Message-ID
+                    await db
+                      .update(conversations)
+                      .set({ emailMessageId: messageId })
+                      .where(eq(conversations.id, conv.id));
+                    conv.emailMessageId = messageId; // Update in-memory too
+                    console.log('[Send Email] Backfilled Message-ID:', messageId);
+                  }
+                } catch (error: any) {
+                  console.error('[Send Email] Failed to backfill Message-ID:', error.message);
+                }
+              }
+            }
+            
+            // Filter to only emails with Message-IDs (after backfill)
+            threadEmails = threadEmails.filter(c => c.emailMessageId);
+            
+            // Determine if we should use threading:
+            // 1. If subject doesn't match any existing conversation subjects, start a new thread
+            // 2. If subject matches an existing one, thread if there's a recent incoming message WITH THE SAME SUBJECT
+            
+            // IMPORTANT: Only look at emails with the SAME subject when replying to an existing conversation
+            // This prevents us from using Message-IDs from a different thread
+            const sameSubjectEmails = !isNewSubject 
+              ? threadEmails.filter(c => c.emailSubject === emailSubject)
+              : [];
+            
+            const lastIncomingMessage = sameSubjectEmails
+              .filter(c => c.type === 'received')
+              .reverse()[0]; // Last received message with the same subject
+            
+            const shouldUseThreading = !isNewSubject && !!lastIncomingMessage;
+            
+            let threadId: string | undefined;
+            let inReplyTo: string | undefined;
+            let references: string | undefined;
+            
+            if (shouldUseThreading) {
+              // This is a reply to an existing conversation - use threading
+              // IMPORTANT: Only use Message-IDs from emails with the SAME subject for proper threading
+              const emailMessageIds = sameSubjectEmails.map(c => c.emailMessageId).filter(Boolean) as string[];
+              threadId = lead.gmailThreadId || undefined;
+              inReplyTo = lastIncomingMessage.emailMessageId;
+              references = emailMessageIds.length > 0 ? emailMessageIds.join(' ') : undefined;
+              
+              console.log('[Send Email] Replying to existing thread:', {
+                threadId,
+                inReplyTo,
+                referencesCount: emailMessageIds.length,
+                subject: emailSubject
+              });
+            } else {
+              // Start a new thread (either new subject or no recent incoming)
+              const reason = isNewSubject ? 'new subject' : 'no recent incoming messages';
+              console.log(`[Send Email] Starting new thread (${reason})`);
+            }
+            
+            // Send email using Gmail API
             console.log('[Send Email] Sending email...');
-            await sendReply(integration.config, {
+            const sentEmailResponse = await sendReply(integration.config, {
               to: lead.email,
               subject: emailSubject,
               body: validatedData.message,
-              threadId: lead.gmailThreadId || undefined,
+              threadId,
+              inReplyTo,
+              references,
             });
             
             console.log('[Send Email] Email sent successfully');
             emailSendStatus = { sent: true };
             (validatedData as any).deliveryStatus = 'sent';
+            
+            // Extract and store the sent message's Message-ID for future threading
+            if (sentEmailResponse && sentEmailResponse.id) {
+              try {
+                const sentMessage = await getMessage(integration.config, sentEmailResponse.id);
+                const sentHeaders = sentMessage.payload?.headers || [];
+                const sentMessageId = sentHeaders.find((h: any) => h.name === "Message-ID")?.value;
+                if (sentMessageId) {
+                  (validatedData as any).emailMessageId = sentMessageId;
+                  console.log('[Send Email] Captured outgoing Message-ID for threading:', sentMessageId);
+                }
+                
+                // If we started a new thread (threadId was undefined), capture the new threadId Gmail assigned
+                if (!threadId && sentEmailResponse.threadId) {
+                  console.log('[Send Email] New thread created by Gmail. Updating lead threadId from', lead.gmailThreadId, 'to', sentEmailResponse.threadId);
+                  await storage.updateLead(lead.id, { gmailThreadId: sentEmailResponse.threadId } as any, req.orgId);
+                  console.log('[Send Email] Lead gmailThreadId updated successfully');
+                }
+              } catch (error) {
+                console.error('[Send Email] Failed to capture sent Message-ID:', error);
+              }
+            }
             
             // Ensure email metadata is stored
             validatedData.emailSubject = emailSubject;
@@ -478,16 +600,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           const emailSubject = conv.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
           
+          // Fetch conversation history to build proper email threading headers
+          // Note: By design, each lead maps to exactly ONE Gmail thread (lead.gmailThreadId)
+          // The import logic ensures this by creating new leads for new threads
+          const conversationHistory = await storage.getConversationsByLeadId(lead.id);
+          
+          // Filter to only Gmail emails (conversations for this lead are already from the same thread)
+          // We filter by sourceIntegration to ensure we're only looking at Gmail messages
+          let threadEmails = conversationHistory
+            .filter(c => 
+              c.channel === 'email' && 
+              c.sourceIntegration === 'gmail'
+            )
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Chronological order
+          
+          // Check if this subject matches any existing conversation subjects
+          const existingSubjects = new Set(
+            threadEmails
+              .filter(c => c.emailSubject)
+              .map(c => c.emailSubject)
+          );
+          const isNewSubject = !existingSubjects.has(emailSubject);
+          
+          // Backfill missing Message-IDs on-demand
+          for (const conv of threadEmails) {
+            if (!conv.emailMessageId && conv.externalId) {
+              try {
+                console.log('[Retry Email] Fetching missing Message-ID for conversation', conv.id);
+                const gmailMessage = await getMessage(integration.config, conv.externalId);
+                const headers = gmailMessage.payload?.headers || [];
+                const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+                
+                if (messageId) {
+                  // Update the conversation with the Message-ID
+                  await db
+                    .update(conversations)
+                    .set({ emailMessageId: messageId })
+                    .where(eq(conversations.id, conv.id));
+                  conv.emailMessageId = messageId; // Update in-memory too
+                  console.log('[Retry Email] Backfilled Message-ID:', messageId);
+                }
+              } catch (error: any) {
+                console.error('[Retry Email] Failed to backfill Message-ID:', error.message);
+              }
+            }
+          }
+          
+          // Filter to only emails with Message-IDs (after backfill)
+          threadEmails = threadEmails.filter(c => c.emailMessageId);
+          
+          // Determine if we should use threading:
+          // 1. If subject doesn't match any existing conversation subjects, start a new thread
+          // 2. If subject matches an existing one, thread if there's a recent incoming message WITH THE SAME SUBJECT
+          
+          // IMPORTANT: Only look at emails with the SAME subject when replying to an existing conversation
+          // This prevents us from using Message-IDs from a different thread
+          const sameSubjectEmails = !isNewSubject 
+            ? threadEmails.filter(c => c.emailSubject === emailSubject)
+            : [];
+          
+          const lastIncomingMessage = sameSubjectEmails
+            .filter(c => c.type === 'received')
+            .reverse()[0]; // Last received message with the same subject
+          
+          const shouldUseThreading = !isNewSubject && !!lastIncomingMessage;
+          
+          let threadId: string | undefined;
+          let inReplyTo: string | undefined;
+          let references: string | undefined;
+          
+          if (shouldUseThreading) {
+            // This is a reply to an existing conversation - use threading
+            // IMPORTANT: Only use Message-IDs from emails with the SAME subject for proper threading
+            const emailMessageIds = sameSubjectEmails.map(c => c.emailMessageId).filter(Boolean) as string[];
+            threadId = lead.gmailThreadId || undefined;
+            inReplyTo = lastIncomingMessage.emailMessageId;
+            references = emailMessageIds.length > 0 ? emailMessageIds.join(' ') : undefined;
+            
+            console.log('[Retry Email] Replying to existing thread:', {
+              threadId,
+              inReplyTo,
+              referencesCount: emailMessageIds.length,
+              subject: emailSubject
+            });
+          } else {
+            // Start a new thread (either new subject or no recent incoming)
+            const reason = isNewSubject ? 'new subject' : 'no recent incoming messages';
+            console.log(`[Retry Email] Starting new thread (${reason})`);
+          }
+          
           console.log('[Retry Email] Sending email...');
-          await sendReply(integration.config, {
+          const sentEmailResponse = await sendReply(integration.config, {
             to: lead.email,
             subject: emailSubject,
             body: conv.message,
-            threadId: lead.gmailThreadId || undefined,
+            threadId,
+            inReplyTo,
+            references,
           });
           
           console.log('[Retry Email] Email sent successfully');
           emailSendStatus = { sent: true };
+          
+          // Extract and store the sent message's Message-ID for future threading
+          if (sentEmailResponse && sentEmailResponse.id) {
+            try {
+              const sentMessage = await getMessage(integration.config, sentEmailResponse.id);
+              const sentHeaders = sentMessage.payload?.headers || [];
+              const sentMessageId = sentHeaders.find((h: any) => h.name === "Message-ID")?.value;
+              if (sentMessageId) {
+                // Update the conversation with the sent Message-ID
+                await db
+                  .update(conversations)
+                  .set({ emailMessageId: sentMessageId })
+                  .where(eq(conversations.id, conversationId));
+                console.log('[Retry Email] Captured outgoing Message-ID for threading:', sentMessageId);
+              }
+              
+              // If we started a new thread (threadId was undefined), capture the new threadId Gmail assigned
+              if (!threadId && sentEmailResponse.threadId) {
+                console.log('[Retry Email] New thread created by Gmail. Updating lead threadId from', lead.gmailThreadId, 'to', sentEmailResponse.threadId);
+                await storage.updateLead(lead.id, { gmailThreadId: sentEmailResponse.threadId } as any, req.orgId);
+                console.log('[Retry Email] Lead gmailThreadId updated successfully');
+              }
+            } catch (error) {
+              console.error('[Retry Email] Failed to capture sent Message-ID:', error);
+            }
+          }
           
           // Update conversation status
           await db
@@ -1506,6 +1745,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
             console.log('[Gmail] Raw email body length:', emailBody.length);
             console.log('[Gmail] Body preview:', emailBody.substring(0, 100));
             
+            // Extract Message-ID header for email threading
+            const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+            
             // Create conversation record with raw email body
             await storage.createConversation({
               leadId: threadLead.id,
@@ -1514,7 +1756,8 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
               channel: "email",
               aiGenerated: false,
               externalId: msg.id,
-              emailSubject: subject,
+              emailMessageId: messageId,
+              emailSubject: cleanEmailSubject(subject),
               sourceIntegration: "gmail",
               createdAt: emailTimestamp,
             });
@@ -1788,6 +2031,9 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           const initialMessageType = initialIsFromPM ? "outgoing" : "received";
           console.log(`[Gmail Initial Sender] From: "${from}" | Property Manager: "${propertyManagerEmail}" | Match: ${initialIsFromPM} | Type: ${initialMessageType}`);
           
+          // Extract Message-ID header for email threading
+          const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+          
           // Create conversation record with raw email body
           await storage.createConversation({
             leadId: leadToUse.id,
@@ -1796,7 +2042,8 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             channel: "email",
             aiGenerated: false,
             externalId: msg.id,
-            emailSubject: subject,
+            emailMessageId: messageId,
+            emailSubject: cleanEmailSubject(subject),
             sourceIntegration: "gmail",
             createdAt: emailTimestamp,
           });
@@ -1852,7 +2099,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
               
               await sendReply(tokens, {
                 to: leadToUse.email,
-                subject: `Re: ${subject}`,
+                subject: subject,
                 body: aiReplyContent,
                 threadId: threadId || undefined,
                 inReplyTo: messageId || undefined,
@@ -1873,7 +2120,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 leadId: leadToUse.id,
                 leadName: leadToUse.name,
                 leadEmail: leadToUse.email,
-                subject: `Re: ${subject}`,
+                subject: subject,
                 content: aiReplyContent,
                 originalMessage: emailBody,
                 channel: 'email',
@@ -1890,7 +2137,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 leadId: leadToUse.id,
                 leadName: leadToUse.name,
                 leadEmail: leadToUse.email,
-                subject: `Re: ${subject}`,
+                subject: subject,
                 content: aiReplyContent,
                 originalMessage: emailBody,
                 channel: 'email',
@@ -2989,5 +3236,66 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   const httpServer = createServer(app);
+  // Backfill Message-IDs for existing conversations
+  app.post("/api/conversations/backfill-message-ids", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Backfill] Starting Message-ID backfill for org:', req.orgId);
+      
+      // Get Gmail integration
+      const integration = await storage.getIntegrationConfig('gmail', req.orgId);
+      if (!integration || !integration.config?.access_token) {
+        return res.status(400).json({ error: "Gmail not connected" });
+      }
+      
+      // Get all conversations without Message-IDs that have externalId (Gmail message ID)
+      const conversationsToBackfill = await db.select()
+        .from(conversations)
+        .where(
+          and(
+            isNull(conversations.emailMessageId),
+            isNotNull(conversations.externalId),
+            eq(conversations.channel, 'email')
+          )
+        )
+        .limit(100); // Process in batches
+      
+      console.log('[Backfill] Found', conversationsToBackfill.length, 'conversations to backfill');
+      
+      let updated = 0;
+      let failed = 0;
+      
+      for (const conv of conversationsToBackfill) {
+        try {
+          // Fetch the original Gmail message
+          const gmailMessage = await getMessage(integration.config, conv.externalId!);
+          const headers = gmailMessage.payload?.headers || [];
+          const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
+          
+          if (messageId) {
+            // Update the conversation with the Message-ID
+            await db
+              .update(conversations)
+              .set({ emailMessageId: messageId })
+              .where(eq(conversations.id, conv.id));
+            updated++;
+            console.log('[Backfill] Updated conversation', conv.id, 'with Message-ID:', messageId);
+          } else {
+            console.log('[Backfill] No Message-ID found for conversation', conv.id);
+            failed++;
+          }
+        } catch (error: any) {
+          console.error('[Backfill] Failed to process conversation', conv.id, ':', error.message);
+          failed++;
+        }
+      }
+      
+      console.log('[Backfill] Complete:', updated, 'updated,', failed, 'failed');
+      res.json({ updated, failed, total: conversationsToBackfill.length });
+    } catch (error) {
+      console.error('[Backfill] Error:', error);
+      res.status(500).json({ error: "Failed to backfill Message-IDs" });
+    }
+  });
+
   return httpServer;
 }

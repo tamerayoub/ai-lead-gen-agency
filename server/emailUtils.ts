@@ -1,4 +1,25 @@
 /**
+ * Strips email reply/forward prefixes from subject lines
+ * Removes: Re:, RE:, Fwd:, FW:, FWD:, etc. (including multiple occurrences)
+ */
+export function cleanEmailSubject(subject: string): string {
+  if (!subject) return "";
+  
+  // Remove all instances of Re:, Fwd:, and similar prefixes (case-insensitive)
+  // This regex handles multiple prefixes like "Re: Fwd: Re: Subject"
+  let cleaned = subject;
+  let previousCleaned = "";
+  
+  // Keep looping until no more prefixes can be removed
+  while (cleaned !== previousCleaned) {
+    previousCleaned = cleaned;
+    cleaned = cleaned.replace(/^\s*(Re|RE|Fwd|FWD|FW|Fw):\s*/i, '').trim();
+  }
+  
+  return cleaned;
+}
+
+/**
  * Cleans email body by removing quoted content and preserving original formatting
  */
 export function cleanEmailBody(emailBody: string): string {

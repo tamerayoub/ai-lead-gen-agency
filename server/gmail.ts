@@ -130,7 +130,7 @@ export async function sendReply(
 
   const messageParts = [
     `To: ${to}`,
-    `Subject: Re: ${subject}`,
+    `Subject: ${subject}`,
     ...(inReplyTo ? [`In-Reply-To: ${inReplyTo}`] : []),
     ...(references ? [`References: ${references}`] : []),
     'Content-Type: text/plain; charset="UTF-8"',

@@ -95,6 +95,7 @@ export const conversations = pgTable("conversations", {
   message: text("message").notNull(),
   aiGenerated: boolean("ai_generated").default(false),
   externalId: text("external_id"),
+  emailMessageId: text("email_message_id"), // RFC 822 Message-ID header for email threading
   emailSubject: text("email_subject"),
   sourceIntegration: text("source_integration"),
   deliveryStatus: text("delivery_status"), // 'sent', 'failed', 'pending', null for non-email
