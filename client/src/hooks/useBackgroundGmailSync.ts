@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "./use-toast";
 
-const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const SYNC_INTERVAL = 1 * 60 * 1000; // 1 minute
 const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes of inactivity stops syncing
 
 export function useBackgroundGmailSync() {

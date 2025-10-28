@@ -47,8 +47,62 @@ export default function Integrations() {
   const [userClosedLogs, setUserClosedLogs] = useState(false);
   const [isConnectingGmail, setIsConnectingGmail] = useState(false);
   const [isConnectingOutlook, setIsConnectingOutlook] = useState(false);
+  const [waitingForSyncCompletion, setWaitingForSyncCompletion] = useState<{ deleteLeads: boolean } | null>(null);
   
   const { progress, isPolling, startPolling, stopPolling, progressPercentage } = useSyncProgress();
+
+  // Mutations - declared before useEffects that reference them
+  const deleteGmailLeadsMutation = useMutation({
+    mutationFn: (leadIds?: string[]) => {
+      const body = leadIds && leadIds.length > 0 ? { leadIds } : {};
+      return apiRequest("DELETE", "/api/leads/gmail-sourced", body);
+    },
+    onSuccess: () => {
+      toast({ 
+        title: "Gmail leads deleted", 
+        description: "Leads from current sync have been removed" 
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to delete leads", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const cancelSyncMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/leads/cancel-sync", {}),
+    onSuccess: () => {
+      // Optimistically update the progress cache to stop the spinner immediately
+      queryClient.setQueryData(["/api/leads/sync-progress"], (old: any) => {
+        if (old) {
+          return { ...old, isRunning: false };
+        }
+        return old;
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to stop sync", 
+        description: "Please try again",
+        variant: "destructive" 
+      });
+      setWaitingForSyncCompletion(null);
+    },
+  });
+
+  const clearSyncProgressMutation = useMutation({
+    mutationFn: () => {
+      // Use dedicated backend endpoint that preserves OAuth tokens
+      return apiRequest("POST", "/api/integrations/gmail/clear-sync-progress", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
+    },
+  });
 
   // Auto-enable polling and show logs if sync is already running
   useEffect(() => {
@@ -57,6 +111,61 @@ export default function Integrations() {
       startPolling();
     }
   }, [progress?.isRunning, isPolling, startPolling, userClosedLogs]);
+
+  // Auto-refresh leads list whenever ANY sync completes (normal or cancelled)
+  useEffect(() => {
+    if (progress && !progress.isRunning && progress.completedAt && progress.summary) {
+      // Sync just completed - refresh all lead-related data
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads/unread"] });
+    }
+  }, [progress?.isRunning, progress?.completedAt]);
+
+  // Watch for sync completion after cancellation
+  useEffect(() => {
+    if (waitingForSyncCompletion && progress && !progress.isRunning && progress.completedAt) {
+      // Sync has completed - show final results
+      const { deleteLeads } = waitingForSyncCompletion;
+      
+      // Delete leads if requested (using fresh data from progress)
+      if (deleteLeads && progress.createdLeadIds && progress.createdLeadIds.length > 0) {
+        deleteGmailLeadsMutation.mutate(progress.createdLeadIds);
+      }
+      
+      // Stop polling and clear progress
+      stopPolling();
+      setShowSyncLogs(false);
+      setUserClosedLogs(true);
+      clearSyncProgressMutation.mutate();
+      
+      // Auto-refresh leads list to show newly imported leads
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads/unread"] });
+      
+      // Show toast with accurate counts (compute total if not provided)
+      console.log('[Stop Sync Toast] Progress object:', progress);
+      console.log('[Stop Sync Toast] progress.summary:', progress.summary);
+      console.log('[Stop Sync Toast] progress.createdLeadIds:', progress.createdLeadIds);
+      
+      const summary = progress.summary || { created: 0, updated: 0, total: 0 };
+      const totalCount = summary.total || (summary.created + (summary.updated || 0));
+      
+      console.log('[Stop Sync Toast] Computed summary:', summary);
+      console.log('[Stop Sync Toast] Computed totalCount:', totalCount);
+      
+      toast({ 
+        title: "Sync stopped", 
+        description: deleteLeads 
+          ? `Sync stopped and ${progress.createdLeadIds?.length || 0} current sync leads deleted` 
+          : `Sync stopped - ${totalCount} leads imported (${summary.created} new, ${summary.updated || 0} updated)`
+      });
+      
+      // Clear waiting state
+      setWaitingForSyncCompletion(null);
+    }
+  }, [waitingForSyncCompletion, progress, stopPolling, clearSyncProgressMutation, deleteGmailLeadsMutation, toast]);
 
   // Handle OAuth callback success - invalidate cache and show toast
   useEffect(() => {
@@ -235,41 +344,6 @@ export default function Integrations() {
     }
   };
 
-  const deleteGmailLeadsMutation = useMutation({
-    mutationFn: (leadIds?: string[]) => {
-      const body = leadIds && leadIds.length > 0 ? { leadIds } : {};
-      return apiRequest("DELETE", "/api/leads/gmail-sourced", body);
-    },
-    onSuccess: () => {
-      toast({ 
-        title: "Gmail leads deleted", 
-        description: "Leads from current sync have been removed" 
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
-    },
-    onError: () => {
-      toast({ 
-        title: "Failed to delete leads", 
-        variant: "destructive" 
-      });
-    },
-  });
-
-  const cancelSyncMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/leads/cancel-sync", {}),
-  });
-
-  const clearSyncProgressMutation = useMutation({
-    mutationFn: () => {
-      // Use dedicated backend endpoint that preserves OAuth tokens
-      return apiRequest("POST", "/api/integrations/gmail/clear-sync-progress", {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/integrations/gmail"] });
-    },
-  });
-
   const saveIntegrationMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/integrations", data),
     onSuccess: () => {
@@ -278,20 +352,20 @@ export default function Integrations() {
   });
 
   const handleStopSync = (deleteLeads: boolean) => {
+    // Cancel the sync on backend
     cancelSyncMutation.mutate();
-    if (isPolling) stopPolling();
-    setShowSyncLogs(false);
-    setUserClosedLogs(true);
-    if (deleteLeads && progress?.createdLeadIds) {
-      // Only delete leads from current sync
-      deleteGmailLeadsMutation.mutate(progress.createdLeadIds);
-    }
-    clearSyncProgressMutation.mutate();
+    
+    // Close the dialog immediately
     setShowStopSyncDialog(false);
-    toast({ 
-      title: "Sync stopped", 
-      description: deleteLeads ? "Sync stopped and current sync leads deleted" : "Sync stopped, leads preserved" 
-    });
+    
+    // Keep polling running and wait for completion
+    // The useEffect above will handle showing the toast when sync completes
+    setWaitingForSyncCompletion({ deleteLeads });
+    
+    // Ensure polling is active to catch the completion
+    if (!isPolling) {
+      startPolling();
+    }
   };
 
   const handleDisconnectGmail = (deleteLeads: boolean) => {
@@ -351,15 +425,40 @@ export default function Integrations() {
   };
 
   const syncGmailMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/leads/sync-from-gmail", {}),
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/leads/sync-from-gmail", {});
+      return await response.json();
+    },
     onSuccess: (data: any) => {
-      const { summary = {}, total = 0 } = data;
-      const created = summary.created || 0;
+      console.log("[Gmail Sync Toast] Raw response data:", data);
+      console.log("[Gmail Sync Toast] isCancelled flag:", data?.isCancelled);
+      console.log("[Gmail Sync Toast] Response keys:", Object.keys(data || {}));
       
-      toast({ 
-        title: `✅ Sync Complete!`, 
-        description: `Created ${created} new leads from ${total} emails`,
-      });
+      const { summary = {}, total = 0, isCancelled = false } = data || {};
+      console.log("[Gmail Sync Toast] Extracted summary:", summary);
+      console.log("[Gmail Sync Toast] Extracted total emails:", total);
+      console.log("[Gmail Sync Toast] Extracted isCancelled:", isCancelled);
+      
+      const totalLeads = summary.total || 0;
+      const created = summary.created || 0;
+      const updated = summary.updated || 0;
+      
+      console.log("[Gmail Sync Toast] Computed values:", { totalLeads, created, updated });
+      console.log("[Gmail Sync Toast] Will show toast:", !isCancelled);
+      
+      // Only show "Sync Complete" toast if sync was not cancelled
+      // (The "Sync stopped" toast is already shown for cancelled syncs)
+      if (!isCancelled) {
+        console.log("[Gmail Sync Toast] Showing Sync Complete toast");
+        toast({ 
+          title: `✅ Sync Complete!`, 
+          description: totalLeads > 0
+            ? `${totalLeads} leads imported (${created} new${updated > 0 ? `, ${updated} updated` : ''}) from ${total} emails`
+            : `No new leads found in ${total} emails`,
+        });
+      } else {
+        console.log("[Gmail Sync Toast] Skipping toast - sync was cancelled");
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
@@ -371,6 +470,12 @@ export default function Integrations() {
   });
 
   const syncGmailLeads = () => {
+    // Prevent starting a new sync if one is already running or waiting for completion
+    if (syncGmailMutation.isPending || progress?.isRunning || waitingForSyncCompletion) {
+      console.log('[Sync Gmail] Blocked - already running or waiting for completion');
+      return;
+    }
+    
     // Invalidate sync progress cache to ensure we get fresh data
     queryClient.invalidateQueries({ queryKey: ["/api/leads/sync-progress"] });
     setShowSyncLogs(true);
@@ -428,15 +533,21 @@ export default function Integrations() {
   };
 
   const syncOutlookMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/leads/sync-from-outlook", {}),
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/leads/sync-from-outlook", {});
+      return await response.json();
+    },
     onSuccess: (data: any) => {
       const { summary = {}, total = 0 } = data;
       const created = summary.created || 0;
       
-      toast({ 
-        title: `✅ Outlook Sync Complete!`, 
-        description: `Created ${created} new leads from ${total} emails`,
-      });
+      // Only show "Sync Complete" toast if sync was not cancelled
+      if (!data.isCancelled) {
+        toast({ 
+          title: `✅ Outlook Sync Complete!`, 
+          description: `Created ${created} new leads from ${total} emails`,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ai-activity"] });
     },

@@ -1,0 +1,91 @@
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+3:40:00 PM [express] GET /api/notifications 304 in 268ms :: [{"id":"b4f8c985-728b-4983-9073-59fc8b5f…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:00 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:01 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:02 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:03 PM [express] GET /api/leads/sync-progress 304 in 47ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:05 PM [express] GET /api/leads/sync-progress 304 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:06 PM [express] GET /api/leads/sync-progress 304 in 49ms :: {"isRunning":true,"totalEmails":107…
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:07 PM [express] GET /api/leads/sync-progress 200 in 64ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:08 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:09 PM [express] GET /api/leads/sync-progress 304 in 46ms :: {"isRunning":true,"totalEmails":107…
+3:40:10 PM [express] GET /api/notifications/unread-count 304 in 187ms :: {"count":"33"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:10 PM [express] GET /api/notifications 304 in 271ms :: [{"id":"b4f8c985-728b-4983-9073-59fc8b5f…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:11 PM [express] GET /api/leads/sync-progress 304 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:12 PM [express] GET /api/leads/sync-progress 304 in 46ms :: {"isRunning":true,"totalEmails":107…
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:13 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":true,"totalEmails":107…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:13 PM [express] POST /api/leads/cancel-sync 200 in 45ms :: {"message":"Sync cancelled"}
+3:40:13 PM [express] POST /api/integrations/gmail/clear-sync-progress 200 in 259ms :: {"success":tru…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:14 PM [express] GET /api/integrations/gmail 200 in 177ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+Gmail sync error: TypeError: storage.getLeadById is not a function
+    at <anonymous> (/home/runner/workspace/server/routes.ts:2414:77)
+    at Array.map (<anonymous>)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:2414:59)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+3:40:16 PM [express] POST /api/leads/sync-from-gmail 500 in 74340ms :: {"error":"Failed to sync Gmai…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:20 PM [express] GET /api/notifications/unread-count 304 in 178ms :: {"count":"33"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+3:40:20 PM [express] GET /api/notifications 304 in 255ms :: [{"id":"b4f8c985-728b-4983-9073-59fc8b5f…
+[Gmail Scanner] Scanning 2 organizations
+[Gmail Scanner] Scanning org 21f621ba-3802-460c-869b-a267a1477f33...
+[Gmail Scanner] Found 50 messages
+[EmailClean] Final cleaned length: 1388
+\n32e0584f-11c5-4b49-b048-87fb97980514-00-1itc7nvtms4me.riker.replit.dev
+[Gmail Scanner] AI filtered out non-rental email from no-reply@accounts.google.com - Subject: "Security alert"
+[EmailClean] Final cleaned length: 8
+[EmailClean] Preview: Sheridan
+[Gmail Scanner] AI filtered out non-rental email from tamergayoub@hotmail.com - Subject: "Shsisjsnssns"
+[Gmail Scanner] Linking new thread 19a01a64ca6056a3 to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 19a019be1b9eb44b to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 19a00dd121ef81b7 to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 19a010f350336b83 to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 19a010e1a65153c3 to existing lead tamerfayoub@hotmail.com
+[EmailClean] Final cleaned length: 13
+[EmailClean] Preview: Toys for sale
+[Gmail Scanner] Linking new thread 19a00dc982164571 to existing lead tamerayoubbusiness@gmail.com

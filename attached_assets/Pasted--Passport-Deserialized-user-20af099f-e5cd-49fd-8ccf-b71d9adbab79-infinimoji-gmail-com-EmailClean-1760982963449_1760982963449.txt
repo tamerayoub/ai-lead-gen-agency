@@ -1,0 +1,1151 @@
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Final cleaned length: 698
+[EmailClean] Preview: Dear Dashboard Pilot,\n\nThank you for your interest in the property at 1430 Minnehaha Ave! I've recei
+5:53:25 PM [express] GET /api/notifications/unread-count 304 in 175ms :: {"count":"39"}
+[EmailClean] Final cleaned length: 39
+[EmailClean] Preview: Is 1430 Minnehaha Ave Rental Available?
+[Gmail Scanner] Linking new thread 19a010f350336b83 to existing lead dashboardpilotai@gmail.com
+[Gmail Initial] Raw body length: 845
+[Gmail Initial] Body preview: Hello, rental available?
+
+On Mon, Oct 20, 2025 at 5:39 AM <infinimoji@gmail.com> wrote:
+
+> Dear 
+[Gmail Initial Sender] From: "Dashboard Pilot <dashboardpilotai@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Final cleaned length: 4
+[EmailClean] Preview: test
+5:53:26 PM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":107…
+[EmailClean] Final cleaned length: 13
+[EmailClean] Preview: Toys for sale
+[Gmail Scanner] AI filtered out non-rental email from tamerfayoub@hotmail.com - Subject: "Toys for sale"
+[Gmail Scanner] Linking new thread 19a00dc982164571 to existing lead tamerayoubbusiness@gmail.com
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 838 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:27 PM [express] GET /api/leads/sync-progress 200 in 43ms :: {"isRunning":true,"totalEmails":107…
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 525 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Final cleaned length: 223
+\n*Minnesota State U**niversity, Mankato*ve Rental Available?
+[Gmail Scanner] Linking new thread 199efbbc1ff6ec37 to existing lead dashboardpilotai@gmail.com
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2460 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2284 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2088 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:28 PM [express] GET /api/leads/sync-progress 304 in 44ms :: {"isRunning":true,"totalEmails":107…
+[EmailClean] Found Gmail quote marker at position 10
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 10 (original length: 1923 )
+[EmailClean] Final cleaned length: 9
+[EmailClean] Preview: hi test 1
+[EmailClean] Found Gmail quote marker at position 6
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 6 (original length: 1756 )
+[EmailClean] Final cleaned length: 5
+[EmailClean] Preview: hello
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1598 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 6
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 6 (original length: 1433 )
+[EmailClean] Final cleaned length: 5
+[EmailClean] Preview: Hello
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1288 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:30 PM [express] GET /api/leads/sync-progress 304 in 44ms :: {"isRunning":true,"totalEmails":107…
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1151 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:30 PM [express] POST /api/leads/cancel-sync 200 in 45ms :: {"message":"Sync cancelled"}
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1019 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 892 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Cutting at position 3 (original length: 770 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[Gmail Initial] Raw body length: 56
+[Gmail Initial] Body preview: Hi, yes this is available, when can you come and see it?
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[EmailClean] Final cleaned length: 651
+[EmailClean] Preview: Hi Infinimoji,\n\nThank you for your interest in the property at 2427 N 4th St! I appreciate you reach
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:31 PM [express] GET /api/leads/sync-progress 200 in 49ms :: {"isRunning":false,"totalEmails":10…
+[Gmail Scanner] Linking new thread 199fd0c9ec9ca788 to existing lead tamerayoubbusiness@gmail.com
+[Gmail Sender Check] From: "Tamer Ayoub <tamerfayoub@hotmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail] Raw email body length: 27
+[Gmail] Body preview: Is your rental available?
+
+5:53:31 PM [express] GET /api/notifications 304 in 262ms :: [{"id":"7fa483ae-3673-4683-ab53-54f1dacb…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1521 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+5:53:31 PM [express] POST /api/integrations/gmail/clear-sync-progress 200 in 276ms :: {"success":tru…
+[EmailClean] Found Gmail quote marker at position 52
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 52 (original length: 1182 )
+[EmailClean] Final cleaned length: 51
+[EmailClean] Preview: is 2427 N 4th St Minneapolis MN available for rent?
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 806 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+5:53:31 PM [express] GET /api/integrations/gmail 200 in 179ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[EmailClean] Found Gmail quote marker at position 10
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 10 (original length: 493 )
+[EmailClean] Final cleaned length: 9
+[EmailClean] Preview: test 3 v1
+[EmailClean] Final cleaned length: 184
+\n*A.A.S Software Development | B.S. Comp
+[Gmail Scanner] Linking new thread 199fcf3067e3a032 to existing lead tamerayoubbusiness@gmail.com
+[EmailClean] Final cleaned length: 182
+\n*A.A.S Software Development | B.S. Comput
+[Gmail Scanner] Linking new thread 199fcf1ed80a04a9 to existing lead dashboardpilotai@gmail.com
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[Gmail Scanner] Linking new thread 199fcaf14d39ec9c to existing lead tamerayoubbusiness@gmail.com
+[EmailClean] Final cleaned length: 182
+\n*A.A.S Software Development | B.S. Comput
+[Gmail Scanner] Imported 30 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:35 PM [express] GET /api/notifications/unread-count 304 in 182ms :: {"count":"39"}
+[Gmail Scanner] Created 2 unreplied message notifications for 1 users
+[Gmail Scanner] Scanning org a963dc65-4ebd-4691-8c5b-4f25ea3ff37d...
+[Gmail Scanner] Found 50 messages
+[Gmail Scanner] Linking new thread 19a02ab9efbcdabe to existing lead email@email.menards.com
+[EmailClean] Final cleaned length: 11772
+\n &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; 
+[Gmail Scanner] AI filtered out non-rental email from shutterstock@emktng.shutterstock.com - Subject: "Shine a light on Diwali delights 🪔"
+[EmailClean] Final cleaned length: 2551
+\nAnaheim, we're back – and red teamwork
+[Gmail Scanner] AI filtered out non-rental email from info@e.atlassian.com - Subject: "Lock in your spot at Team '26 + biggest savings today"
+[EmailClean] Final cleaned length: 3460
+\n onnect: High Velocity is just weeks away!
+[Gmail Scanner] AI filtered out non-rental email from info@e.atlassian.com - Subject: "Join us at Connect: High Velocity – coming to Dallas and Denver!"
+[EmailClean] Final cleaned length: 353
+ for s is a friendly reminder that your *insulation appointment* is scheduled
+[Gmail Scanner] AI filtered out non-rental email from guevarainsulation@gmail.com - Subject: "tamerayoubbusiness@gmail.com"
+[Gmail Scanner] Linking new thread 19a0260f07784d45 to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a023bf99dd6d4b to existing lead membersupport@mnreia.com
+[EmailClean] Final cleaned length: 13122
+[EmailClean] Preview: <p><br></p><div><table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" style
+[Gmail Scanner] AI filtered out non-rental email from noreply@notifications.trustone.org - Subject: "Your Credit Card eStatement is Available"
+[EmailClean] Final cleaned length: 3819
+\nWe're pleased to announce a new incentive for borrowers transitioning from their Park P
+[Gmail Scanner] AI filtered out non-rental email from jack@parkplaceus.com - Subject: "Get a $500 Rental Credit When You Refinance into a Rental (DSCR) Loan with Park Place Finance"
+[Gmail Scanner] Linking new thread 19a022d9bf2bbf2c to existing lead membersupport@mnreia.com
+[Gmail Scanner] Linking new thread 19a02155259c7753 to existing lead recommended-pads@alerts.hotpads.com
+[EmailClean] Final cleaned length: 3751
+[EmailClean] Preview: [Plaid and MIT Technology Review logo](https://assets.ctfassets.net/ss5kfr270og3/76RuIcI8n1KkHvBJ9Rz
+[Gmail Scanner] AI filtered out non-rental email from info@email.plaid.com - Subject: "$12.3B in fraud losses hit the U.S. in a single year"
+[Gmail Scanner] Linking new thread 19a01eece326b6cd to existing lead membersupport@mnreia.com
+[EmailClean] Final cleaned length: 20794
+\nEmpire Flippers (https://in.9M: Amazon FBA, eCommerce, YouTube, Subscription, and more...
+[Gmail Scanner] AI filtered out non-rental email from info@empireflippers.com - Subject: "📣 11 NEW Listings @ Empire Flippers"
+[Gmail Scanner] Linking new thread 19a01ebeeaf767cd to existing lead notifications@acquire.com
+[EmailClean] Final cleaned length: 11759
+ developers to incorporate Mapsps integration is now available in the Gemini API, enabling
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Gmail Initial] Raw body length: 792
+[Gmail Initial] Body preview: hi
+
+On Sun, Oct 19, 2025 at 7:39 AM <infinimoji@gmail.com> wrote:
+
+> Hi Infinimoji,
+>
+> Thank 
+[Gmail Initial Sender] From: "Dashboard Pilot <dashboardpilotai@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "Google Maps Gemini API 🗺️, Karpathy on AGI 🤖, Siri concerns 📱"
+5:53:41 PM [express] GET /api/notifications 200 in 262ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+[Gmail Scanner] Linking new thread 19a01c33b3a09927 to existing lead alex@rebeloper.com
+[Gmail Scanner] Linking new thread 19a01c1f86715863 to existing lead targetnews@em.target.com
+[EmailClean] Final cleaned length: 7682
+[EmailClean] Preview: Don’t miss your chance to save.  ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌  ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌  ‌ ‌ ‌ ‌ ‌ ‌ ‌
+[Gmail Scanner] AI filtered out non-rental email from info@theshadestore.com - Subject: "FINAL DAYS: Up to 25% Off Window Treatments"
+[Gmail Scanner] Linking new thread 19a01ad6255a7cea to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a01aa1b0216755 to existing lead email@email.menards.com
+[EmailClean] Final cleaned length: 13005
+ $8.21 billion, marking the hipital raised in Q3 2025 increased 47% quarter-over-quarter to
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "State of Crypto Fundraising 💰, Tempo Acquires Dankrad 🧑‍💻, OpenSea Token Plan 🌊"
+[Gmail Scanner] Linking new thread 19a01928a843de57 to existing lead customercare@email.movoto.com
+[Gmail Scanner] Linking new thread 19a017dc9e24cead to existing lead automated@airbnb.com
+[Gmail Scanner] Linking new thread 199fe379299e02f9 to existing lead express@airbnb.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@messaging.squareup.com - Subject: "D Time Cutz has accepted your appointment"
+[EmailClean] Final cleaned length: 12750
+ billions on infrastructure instead ty is collapsing. Big Tech's response is to spend
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "Software quality collapse ⬇️, GraphQL myths 🛠, SQL anti-patterns 💠"
+[EmailClean] Final cleaned length: 21658
+ Engineer and Staff Softwly Now, Caitlyn and Christine are hiring for Cosmos SDK Senior Protocol
+[Gmail Scanner] AI filtered out non-rental email from jobs@alerts.jobot.com - Subject: "Cosmos SDK Senior Protocol Engineer opportunities need to be filled"
+[EmailClean] Final cleaned length: 2020
+\n[30% OFF Ys](https://www.gradimages.com/)www.gradimages.com/)
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 672
+[Gmail] Body preview: Hi Infinimoji,
+
+Thank you for reaching out and expressing your interest in the property at 2427 N 4t
+[Gmail Scanner] AI filtered out non-rental email from email@marketing.gradimages.com - Subject: "30% Off Your Graduation Photos"
+[EmailClean] Final cleaned length: 11173
+ app initially had an opt-out cle a series of calculated moves when it released Sora. The
+[Gmail Sender Check] From: "Dashboard Pilot <dashboardpilotai@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail] Raw email body length: 105
+[Gmail] Body preview: Any availabilities today?
+
+
+On Sat, Oct 18, 2025 at 9:06 PM <infinimoji@gmail.com> wrote:
+
+> hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "OpenAI vs Hollywood 🎬, Hyperliquid's ascent 📈, sequencing your DNA 🧬"
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:46 PM [express] GET /api/notifications/unread-count 200 in 178ms :: {"count":"41"}
+[Gmail Scanner] Linking new thread 199feff4c2dbfaec to existing lead targetnews@em.target.com
+[Gmail Scanner] Linking new thread 199fedb9808a28d7 to existing lead info@trabajo.org
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Scanner] Linking new thread 199fed106a65f280 to existing lead recommended-pads@alerts.hotpads.com
+[Gmail Scanner] Linking new thread 199febdec9d7fcf1 to existing lead nike@official.nike.com
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:54 PM [express] GET /api/auth/user 304 in 46ms :: {"id":"20af099f-e5cd-49fd-8ccf-b71d9adbab79",…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:53:54 PM [express] GET /api/integrations/gmail 304 in 178ms :: {"id":"6c3af876-df37-4078-b98e-d9f3…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:53:54 PM [express] GET /api/organizations 304 in 89ms :: [{"orgId":"21f621ba-3802-460c-869b-a267a1…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:53:54 PM [express] GET /api/organizations/current 304 in 138ms :: {"orgId":"21f621ba-3802-460c-869…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:54 PM [express] GET /api/leads/unread 200 in 185ms :: [{"id":"701c4b8b-8175-430d-8d72-7809c0692…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:53:55 PM [express] GET /api/notifications 304 in 262ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:53:55 PM [express] GET /api/pending-replies 200 in 186ms :: [{"id":"96ba1159-efe1-44b4-bb88-8d3f3e…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:55 PM [express] GET /api/notifications/unread-count 304 in 184ms :: {"count":"41"}
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:53:55 PM [express] GET /api/leads 200 in 179ms :: [{"id":"4cb6c0f5-e8c8-4820-98c1-8084026cd881","o…
+5:53:55 PM [express] GET /api/properties 304 in 219ms :: []
+5:53:55 PM [express] GET /api/analytics/stats 200 in 283ms :: {"totalLeads":5,"conversionRate":"0%",…
+5:53:55 PM [express] GET /api/ai-activity 304 in 449ms :: []
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:05 PM [express] GET /api/leads/sync-progress 200 in 48ms :: {"isRunning":false,"totalEmails":10…
+🚨🚨🚨 [v2] OUTLOOK STATUS CHECK for org: 21f621ba-3802-460c-869b-a267a1477f33
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+==> Config found: YES
+==> Fetching Outlook user profile...
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:54:05 PM [express] GET /api/integrations/messenger 304 in 177ms
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+==> Access token expired, refreshing...
+5:54:05 PM [express] GET /api/notifications 304 in 266ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+5:54:05 PM [express] GET /api/notifications/unread-count 304 in 209ms :: {"count":"41"}
+==> Token refreshed successfully
+==> Token refresh failed: AxiosError: Request failed with status code 403
+    at settle (file:///home/runner/workspace/node_modules/axios/lib/core/settle.js:19:12)
+    at Unzip.handleStreamEnd (file:///home/runner/workspace/node_modules/axios/lib/adapters/http.js:617:11)
+    at Unzip.emit (node:events:536:35)
+    at endReadableNT (node:internal/streams/readable:1698:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+    at Axios.request (file:///home/runner/workspace/node_modules/axios/lib/core/Axios.js:45:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getUserProfile (/home/runner/workspace/server/outlook.ts:199:20)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:1150:29) {
+  code: 'ERR_BAD_REQUEST',
+  config: {
+    transitional: {
+      silentJSONParsing: true,
+      forcedJSONParsing: true,
+      clarifyTimeoutError: false
+    },
+    adapter: [ 'xhr', 'http', 'fetch' ],
+    transformRequest: [ [Function: transformRequest] ],
+    transformResponse: [ [Function: transformResponse] ],
+    timeout: 0,
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN',
+    maxContentLength: -1,
+    maxBodyLength: -1,
+    env: { FormData: [Function [FormData]], Blob: [class Blob] },
+    validateStatus: [Function: validateStatus],
+    headers: Object [AxiosHeaders] {
+      Accept: 'application/json, text/plain, */*',
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAeJ0mafHiupGFHnmT8EpTWecP3mfwFKDJeyjsYiP5wbJk51KEJhxTx6+E2R6W2Q47vdGWV5ilF3JJG8+ee+hNV06DpznI5wOzkS81daO+rtKTWxWHr+6cFnWezN3DBVcl91eCtKWTioQP410zrrOFdrehfNsWI7bfotdhqO5dc2H9XNc7iQMWgLugbdLMkg9R1h5fYJTH5ixJntSv/XWQ1vcTBMm1Aq0CBiokX6FX4T/4lzC6TzIVJ/Ldt+6JCszUd/Fb5fSTBQrU36/9zrjY4wtJD411dwO5VdckxSOmQv7APmWpuNnif5GxsdnLRC1fS9X15YdS6luEHX4m7mRqnsQZgAAEDvl5cRbF3qH5vs7TAQPIyowA1iexudlFjBYEaFHicGHMS0fb1FnD9mdvIoqZHUQQiQE3P8rR3G451UFJlZj0b1wJR/7KkLjm5YPDTXiACLUlQAfyxpoDQl5fwarAo1yvf1gK5mQzQNPi/gve0rJvg44qV3ka33hhA0SUpAMHyleasp5JGn19Zva3v4OsX6kz7FZB07suu+NWstT7R26iLcyjjkFQTsrrxsZzRWi8JusVm2mN0wbwDTtdeUFOr5aQ0gyzTZ5tFmeSfWmBPgbb4TZl/LtSFASBbZDxfhU2Zfh7zmf6VnWyrTwTLBkDxI6Da8s81713GT/4l6swcZ/oyQIHEhHzYbS41+C/TlU6lDtzU9SBYWkEVHCmaYKs7y/biU83tZ/hegwxD7YdB7NvPwoVBDfMx+1b1+K1w25obmVCfjd2Aw7uXqmth3+Gp9zQn9f4012JLmSuPzV9XQlXZHEmvTDX6AxeqIm/JLxlOBMQqno4kyPZOu7UjMzmk68AHr485WvSfV3i8JEmxa/H14IpeDlODRmhPOltw+jLyxhCM5qP5xR/33VAtJ5jeb5bi8wS5R+8aFbOj5WLPLUHHIkURzV4HPoyvYhyer0etKwn0dlCKNEPUIWrN5cdRA17rtpxn+axZkzIU0Fk2TZi0Go6mh5ZDmOHYaMluNVTV27syivMqm6h4KbTRylAvnRhniUuqRiVEglex+B6+mkP1o1Psv/43NNNNERmTPxt/RdOuTiSRSaPGYh6Q+5MXk6pyODL3s2Atp/+AnM2vUfnPMQVNf9S/mkQo+bI60gVPONMDr0SmEoWqtNdp4NMe8+XYSAXkvowW9ARwAmfDZHEsRDwcWVeJVRagjXjDoB8dJ9rMKjGJbQId4ah2pXxlps/zYoQJwaOCarl9VLE4UY7Lr27EMMVB0c8y0SaAcM35/HElSn6lZePSQt8sOmGlQfbllbdaJ9ANeOFIriXu8u5CB8bfnptfr9eVlhK6sMkDkOyWgBMnaUViEhHTDpwJzntFgccpJbu/J5C77HTCePEjcVyYpkF7TOegXedCKvBnwLuczjCaXEoOzQOazSPAao6I6SSwTrOyfn4v3r+qO5AHdTBHID',
+      'User-Agent': 'axios/1.12.2',
+      'Accept-Encoding': 'gzip, compress, deflate, br'
+    },
+    method: 'get',
+    url: 'https://graph.microsoft.com/v1.0/me',
+    allowAbsoluteUrls: true,
+    data: undefined
+  },
+  request: <ref *1> ClientRequest {
+    _events: [Object: null prototype] {
+      abort: [Function (anonymous)],
+      aborted: [Function (anonymous)],
+      connect: [Function (anonymous)],
+      error: [Function (anonymous)],
+      socket: [Function (anonymous)],
+      timeout: [Function (anonymous)],
+      finish: [Function: requestOnFinish]
+    },
+    _eventsCount: 7,
+    _maxListeners: undefined,
+    outputData: [],
+    outputSize: 0,
+    writable: true,
+    destroyed: true,
+    _last: true,
+    chunkedEncoding: false,
+    shouldKeepAlive: true,
+    maxRequestsOnConnectionReached: false,
+    _defaultKeepAlive: true,
+    useChunkedEncodingByDefault: false,
+    sendDate: false,
+    _removedConnection: false,
+    _removedContLen: false,
+    _removedTE: false,
+    strictContentLength: false,
+    _contentLength: 0,
+    _hasBody: true,
+    _trailer: '',
+    finished: true,
+    _headerSent: true,
+    _closed: true,
+    socket: TLSSocket {
+      _tlsOptions: [Object],
+      _secureEstablished: true,
+      _securePending: false,
+      _newSessionPending: false,
+      _controlReleased: true,
+      secureConnecting: false,
+      _SNICallback: null,
+      servername: 'graph.microsoft.com',
+      alpnProtocol: false,
+      authorized: true,
+      authorizationError: null,
+      encrypted: true,
+      _events: [Object: null prototype],
+      _eventsCount: 9,
+      connecting: false,
+      _hadError: false,
+      _parent: null,
+      _host: 'graph.microsoft.com',
+      _closeAfterHandlingError: false,
+      _readableState: [ReadableState],
+      _writableState: [WritableState],
+      allowHalfOpen: false,
+      _maxListeners: undefined,
+      _sockname: null,
+      _pendingData: null,
+      _pendingEncoding: '',
+      server: undefined,
+      _server: null,
+      ssl: [TLSWrap],
+      _requestCert: true,
+      _rejectUnauthorized: true,
+      timeout: 5000,
+      parser: null,
+      _httpMessage: null,
+      autoSelectFamilyAttemptedAddresses: [Array],
+      [Symbol(alpncallback)]: null,
+      [Symbol(res)]: [TLSWrap],
+      [Symbol(verified)]: true,
+      [Symbol(pendingSession)]: null,
+      [Symbol(async_id_symbol)]: -1,
+      [Symbol(kHandle)]: [TLSWrap],
+      [Symbol(lastWriteQueueSize)]: 0,
+      [Symbol(timeout)]: Timeout {
+        _idleTimeout: 5000,
+        _idlePrev: [TimersList],
+        _idleNext: [Timeout],
+        _idleStart: 4188987,
+        _onTimeout: [Function: bound ],
+        _timerArgs: undefined,
+        _repeat: null,
+        _destroyed: false,
+        [Symbol(refed)]: false,
+        [Symbol(kHasPrimitive)]: false,
+        [Symbol(asyncId)]: 629257,
+        [Symbol(triggerId)]: 629255
+      },
+      [Symbol(kBuffer)]: null,
+      [Symbol(kBufferCb)]: null,
+      [Symbol(kBufferGen)]: null,
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kSetNoDelay)]: false,
+      [Symbol(kSetKeepAlive)]: true,
+      [Symbol(kSetKeepAliveInitialDelay)]: 1,
+      [Symbol(kBytesRead)]: 0,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(connect-options)]: [Object]
+    },
+    _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+      'Accept: application/json, text/plain, */*\r\n' +
+      'Content-Type: application/json\r\n' +
+      'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAeJ0mafHiupGFHnmT8EpTWecP3mfwFKDJeyjsYiP5wbJk51KEJhxTx6+E2R6W2Q47vdGWV5ilF3JJG8+ee+hNV06DpznI5wOzkS81daO+rtKTWxWHr+6cFnWezN3DBVcl91eCtKWTioQP410zrrOFdrehfNsWI7bfotdhqO5dc2H9XNc7iQMWgLugbdLMkg9R1h5fYJTH5ixJntSv/XWQ1vcTBMm1Aq0CBiokX6FX4T/4lzC6TzIVJ/Ldt+6JCszUd/Fb5fSTBQrU36/9zrjY4wtJD411dwO5VdckxSOmQv7APmWpuNnif5GxsdnLRC1fS9X15YdS6luEHX4m7mRqnsQZgAAEDvl5cRbF3qH5vs7TAQPIyowA1iexudlFjBYEaFHicGHMS0fb1FnD9mdvIoqZHUQQiQE3P8rR3G451UFJlZj0b1wJR/7KkLjm5YPDTXiACLUlQAfyxpoDQl5fwarAo1yvf1gK5mQzQNPi/gve0rJvg44qV3ka33hhA0SUpAMHyleasp5JGn19Zva3v4OsX6kz7FZB07suu+NWstT7R26iLcyjjkFQTsrrxsZzRWi8JusVm2mN0wbwDTtdeUFOr5aQ0gyzTZ5tFmeSfWmBPgbb4TZl/LtSFASBbZDxfhU2Zfh7zmf6VnWyrTwTLBkDxI6Da8s81713GT/4l6swcZ/oyQIHEhHzYbS41+C/TlU6lDtzU9SBYWkEVHCmaYKs7y/biU83tZ/hegwxD7YdB7NvPwoVBDfMx+1b1+K1w25obmVCfjd2Aw7uXqmth3+Gp9zQn9f4012JLmSuPzV9XQlXZHEmvTDX6AxeqIm/JLxlOBMQqno4kyPZOu7UjMzmk68AHr485WvSfV3i8JEmxa/H14IpeDlODRmhPOltw+jLyxhCM5qP5xR/33VAtJ5jeb5bi8wS5R+8aFbOj5WLPLUHHIkURzV4HPoyvYhyer0etKwn0dlCKNEPUIWrN5cdRA17rtpxn+axZkzIU0Fk2TZi0Go6mh5ZDmOHYaMluNVTV27syivMqm6h4KbTRylAvnRhniUuqRiVEglex+B6+mkP1o1Psv/43NNNNERmTPxt/RdOuTiSRSaPGYh6Q+5MXk6pyODL3s2Atp/+AnM2vUfnPMQVNf9S/mkQo+bI60gVPONMDr0SmEoWqtNdp4NMe8+XYSAXkvowW9ARwAmfDZHEsRDwcWVeJVRagjXjDoB8dJ9rMKjGJbQId4ah2pXxlps/zYoQJwaOCarl9VLE4UY7Lr27EMMVB0c8y0SaAcM35/HElSn6lZePSQt8sOmGlQfbllbdaJ9ANeOFIriXu8u5CB8bfnptfr9eVlhK6sMkDkOyWgBMnaUViEhHTDpwJzntFgccpJbu/J5C77HTCePEjcVyYpkF7TOegXedCKvBnwLuczjCaXEoOzQOazSPAao6I6SSwTrOyfn4v3r+qO5AHdTBHID\r\n' +
+      'User-Agent: axios/1.12.2\r\n' +
+      'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+      'Host: graph.microsoft.com\r\n' +
+      'Connection: keep-alive\r\n' +
+      '\r\n',
+    _keepAliveTimeout: 0,
+    _onPendingData: [Function: nop],
+    agent: Agent {
+      _events: [Object: null prototype],
+      _eventsCount: 2,
+      _maxListeners: undefined,
+      defaultPort: 443,
+      protocol: 'https:',
+      options: [Object: null prototype],
+      requests: [Object: null prototype] {},
+      sockets: [Object: null prototype] {},
+      freeSockets: [Object: null prototype],
+      keepAliveMsecs: 1000,
+      keepAlive: true,
+      maxSockets: Infinity,
+      maxFreeSockets: 256,
+      scheduling: 'lifo',
+      maxTotalSockets: Infinity,
+      totalSocketCount: 4,
+      maxCachedSessions: 100,
+      _sessionCache: [Object],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false
+    },
+    socketPath: undefined,
+    method: 'GET',
+    maxHeaderSize: undefined,
+    insecureHTTPParser: undefined,
+    joinDuplicateHeaders: undefined,
+    path: '/v1.0/me',
+    _ended: true,
+    res: IncomingMessage {
+      _events: [Object],
+      _readableState: [ReadableState],
+      _maxListeners: undefined,
+      socket: null,
+      httpVersionMajor: 1,
+      httpVersionMinor: 1,
+      httpVersion: '1.1',
+      complete: true,
+      rawHeaders: [Array],
+      rawTrailers: [],
+      joinDuplicateHeaders: undefined,
+      aborted: false,
+      upgrade: false,
+      url: '',
+      method: null,
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+      client: [TLSSocket],
+      _consuming: true,
+      _dumped: false,
+      req: [Circular *1],
+      _eventsCount: 4,
+      responseUrl: 'https://graph.microsoft.com/v1.0/me',
+      redirects: [],
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false,
+      [Symbol(kHeaders)]: [Object],
+      [Symbol(kHeadersCount)]: 18,
+      [Symbol(kTrailers)]: null,
+      [Symbol(kTrailersCount)]: 0
+    },
+    aborted: false,
+    timeoutCb: null,
+    upgradeOrConnect: false,
+    parser: null,
+    maxHeadersCount: null,
+    reusedSocket: true,
+    host: 'graph.microsoft.com',
+    protocol: 'https:',
+    _redirectable: Writable {
+      _events: [Object],
+      _writableState: [WritableState],
+      _maxListeners: undefined,
+      _options: [Object],
+      _ended: true,
+      _ending: true,
+      _redirectCount: 0,
+      _redirects: [],
+      _requestBodyLength: 0,
+      _requestBodyBuffers: [],
+      _eventsCount: 3,
+      _onNativeResponse: [Function (anonymous)],
+      _currentRequest: [Circular *1],
+      _currentUrl: 'https://graph.microsoft.com/v1.0/me',
+      [Symbol(shapeMode)]: true,
+      [Symbol(kCapture)]: false
+    },
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false,
+    [Symbol(kBytesWritten)]: 0,
+    [Symbol(kNeedDrain)]: false,
+    [Symbol(corked)]: 0,
+    [Symbol(kOutHeaders)]: [Object: null prototype] {
+      accept: [Array],
+      'content-type': [Array],
+      authorization: [Array],
+      'user-agent': [Array],
+      'accept-encoding': [Array],
+      host: [Array]
+    },
+    [Symbol(errored)]: null,
+    [Symbol(kHighWaterMark)]: 16384,
+    [Symbol(kRejectNonStandardBodyWrites)]: false,
+    [Symbol(kUniqueHeaders)]: null
+  },
+  response: {
+    status: 403,
+    statusText: 'Forbidden',
+    headers: Object [AxiosHeaders] {
+      'transfer-encoding': 'chunked',
+      'content-type': 'application/json',
+      vary: 'Accept-Encoding',
+      'strict-transport-security': 'max-age=31536000',
+      'request-id': 'e0df9a5b-5be3-492e-80bd-39d914934d26',
+      'client-request-id': 'e0df9a5b-5be3-492e-80bd-39d914934d26',
+      'x-ms-ags-diagnostic': '{"ServerInfo":{"DataCenter":"Central US","Slice":"E","Ring":"4","ScaleUnit":"003","RoleInstance":"DS1PEPF000274E6"}}',
+      date: 'Mon, 20 Oct 2025 17:54:04 GMT'
+    },
+    config: {
+      transitional: [Object],
+      adapter: [Array],
+      transformRequest: [Array],
+      transformResponse: [Array],
+      timeout: 0,
+      xsrfCookieName: 'XSRF-TOKEN',
+      xsrfHeaderName: 'X-XSRF-TOKEN',
+      maxContentLength: -1,
+      maxBodyLength: -1,
+      env: [Object],
+      validateStatus: [Function: validateStatus],
+      headers: [Object [AxiosHeaders]],
+      method: 'get',
+      url: 'https://graph.microsoft.com/v1.0/me',
+      allowAbsoluteUrls: true,
+      data: undefined
+    },
+    request: <ref *1> ClientRequest {
+      _events: [Object: null prototype],
+      _eventsCount: 7,
+      _maxListeners: undefined,
+      outputData: [],
+      outputSize: 0,
+      writable: true,
+      destroyed: true,
+      _last: true,
+      chunkedEncoding: false,
+      shouldKeepAlive: true,
+      maxRequestsOnConnectionReached: false,
+      _defaultKeepAlive: true,
+      useChunkedEncodingByDefault: false,
+      sendDate: false,
+      _removedConnection: false,
+      _removedContLen: false,
+      _removedTE: false,
+      strictContentLength: false,
+      _contentLength: 0,
+      _hasBody: true,
+      _trailer: '',
+      finished: true,
+      _headerSent: true,
+      _closed: true,
+      socket: [TLSSocket],
+      _header: 'GET /v1.0/me HTTP/1.1\r\n' +
+        'Accept: application/json, text/plain, */*\r\n' +
+        'Content-Type: application/json\r\n' +
+        'Authorization: Bearer EwBoBMl6BAAUBKgm8k1UswUNwklmy2v7U/S+1fEAAeJ0mafHiupGFHnmT8EpTWecP3mfwFKDJeyjsYiP5wbJk51KEJhxTx6+E2R6W2Q47vdGWV5ilF3JJG8+ee+hNV06DpznI5wOzkS81daO+rtKTWxWHr+6cFnWezN3DBVcl91eCtKWTioQP410zrrOFdrehfNsWI7bfotdhqO5dc2H9XNc7iQMWgLugbdLMkg9R1h5fYJTH5ixJntSv/XWQ1vcTBMm1Aq0CBiokX6FX4T/4lzC6TzIVJ/Ldt+6JCszUd/Fb5fSTBQrU36/9zrjY4wtJD411dwO5VdckxSOmQv7APmWpuNnif5GxsdnLRC1fS9X15YdS6luEHX4m7mRqnsQZgAAEDvl5cRbF3qH5vs7TAQPIyowA1iexudlFjBYEaFHicGHMS0fb1FnD9mdvIoqZHUQQiQE3P8rR3G451UFJlZj0b1wJR/7KkLjm5YPDTXiACLUlQAfyxpoDQl5fwarAo1yvf1gK5mQzQNPi/gve0rJvg44qV3ka33hhA0SUpAMHyleasp5JGn19Zva3v4OsX6kz7FZB07suu+NWstT7R26iLcyjjkFQTsrrxsZzRWi8JusVm2mN0wbwDTtdeUFOr5aQ0gyzTZ5tFmeSfWmBPgbb4TZl/LtSFASBbZDxfhU2Zfh7zmf6VnWyrTwTLBkDxI6Da8s81713GT/4l6swcZ/oyQIHEhHzYbS41+C/TlU6lDtzU9SBYWkEVHCmaYKs7y/biU83tZ/hegwxD7YdB7NvPwoVBDfMx+1b1+K1w25obmVCfjd2Aw7uXqmth3+Gp9zQn9f4012JLmSuPzV9XQlXZHEmvTDX6AxeqIm/JLxlOBMQqno4kyPZOu7UjMzmk68AHr485WvSfV3i8JEmxa/H14IpeDlODRmhPOltw+jLyxhCM5qP5xR/33VAtJ5jeb5bi8wS5R+8aFbOj5WLPLUHHIkURzV4HPoyvYhyer0etKwn0dlCKNEPUIWrN5cdRA17rtpxn+axZkzIU0Fk2TZi0Go6mh5ZDmOHYaMluNVTV27syivMqm6h4KbTRylAvnRhniUuqRiVEglex+B6+mkP1o1Psv/43NNNNERmTPxt/RdOuTiSRSaPGYh6Q+5MXk6pyODL3s2Atp/+AnM2vUfnPMQVNf9S/mkQo+bI60gVPONMDr0SmEoWqtNdp4NMe8+XYSAXkvowW9ARwAmfDZHEsRDwcWVeJVRagjXjDoB8dJ9rMKjGJbQId4ah2pXxlps/zYoQJwaOCarl9VLE4UY7Lr27EMMVB0c8y0SaAcM35/HElSn6lZePSQt8sOmGlQfbllbdaJ9ANeOFIriXu8u5CB8bfnptfr9eVlhK6sMkDkOyWgBMnaUViEhHTDpwJzntFgccpJbu/J5C77HTCePEjcVyYpkF7TOegXedCKvBnwLuczjCaXEoOzQOazSPAao6I6SSwTrOyfn4v3r+qO5AHdTBHID\r\n' +
+        'User-Agent: axios/1.12.2\r\n' +
+        'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+        'Host: graph.microsoft.com\r\n' +
+        'Connection: keep-alive\r\n' +
+        '\r\n',
+      _keepAliveTimeout: 0,
+      _onPendingData: [Function: nop],
+      agent: [Agent],
+      socketPath: undefined,
+      method: 'GET',
+      maxHeaderSize: undefined,
+      insecureHTTPParser: undefined,
+      joinDuplicateHeaders: undefined,
+      path: '/v1.0/me',
+      _ended: true,
+      res: [IncomingMessage],
+      aborted: false,
+      timeoutCb: null,
+      upgradeOrConnect: false,
+      parser: null,
+      maxHeadersCount: null,
+      reusedSocket: true,
+      host: 'graph.microsoft.com',
+      protocol: 'https:',
+      _redirectable: [Writable],
+      [Symbol(shapeMode)]: false,
+      [Symbol(kCapture)]: false,
+      [Symbol(kBytesWritten)]: 0,
+      [Symbol(kNeedDrain)]: false,
+      [Symbol(corked)]: 0,
+      [Symbol(kOutHeaders)]: [Object: null prototype],
+      [Symbol(errored)]: null,
+      [Symbol(kHighWaterMark)]: 16384,
+      [Symbol(kRejectNonStandardBodyWrites)]: false,
+      [Symbol(kUniqueHeaders)]: null
+    },
+    data: { error: [Object] }
+  },
+  status: 403
+}
+5:54:05 PM [express] GET /api/integrations/outlook 200 in 765ms :: {"connected":false,"error":"token…
+[Gmail Initial] Raw body length: 2
+[Gmail Initial] Body preview: hi
+[Gmail Initial Sender] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 5
+[Gmail] Body preview: test3
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 5
+[Gmail] Body preview: test2
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 4
+[Gmail] Body preview: yolo
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 4
+[Gmail] Body preview: yolo
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:15 PM [express] GET /api/notifications/unread-count 304 in 178ms :: {"count":"41"}
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+5:54:16 PM [express] GET /api/notifications 304 in 271ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: Hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 3
+[Gmail] Body preview: hhi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: "infinimoji@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 2
+[Gmail] Body preview: hi
+[Gmail Sender Check] From: ""Infinimoji Inc." <infinimoji@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 594
+[Gmail] Body preview: Hi,
+
+Does monday still work?
+
+On Thu, Oct 16, 2025 at 8:24 PM Dashboard Pilot <dashboardpilotai@
+[Gmail Sender Check] From: "Dashboard Pilot <dashboardpilotai@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail] Raw email body length: 454
+[Gmail] Body preview: Monday
+
+On Thu, Oct 16, 2025 at 8:24 PM Infinimoji Inc. <infinimoji@gmail.com>
+wrote:
+
+> Rent i
+[Gmail Sender Check] From: ""Infinimoji Inc." <infinimoji@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[Gmail] Raw email body length: 346
+[Gmail] Body preview: Rent is $1500, when are you available this week?
+
+On Thu, Oct 16, 2025 at 8:14 PM Dashboard Pilot 
+[Gmail Scanner] Scanning 2 organizations
+[Gmail Scanner] Scanning org a963dc65-4ebd-4691-8c5b-4f25ea3ff37d...
+[Gmail Scanner] Found 50 messages
+[Gmail Sender Check] From: "Dashboard Pilot <dashboardpilotai@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail] Raw email body length: 197
+[Gmail] Body preview: Hi, my name is Kareem Johnson, im interested in your property,  I make 60k
+a year, credit score is 
+[Gmail Scanner] Linking new thread 19a02ab9efbcdabe to existing lead email@email.menards.com
+[EmailClean] Final cleaned length: 11772
+\n &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; &zwnj; 
+[Gmail Scanner] AI filtered out non-rental email from shutterstock@emktng.shutterstock.com - Subject: "Shine a light on Diwali delights 🪔"
+[EmailClean] Final cleaned length: 2551
+\nAnaheim, we're back – and red teamwork
+[Gmail Scanner] AI filtered out non-rental email from info@e.atlassian.com - Subject: "Lock in your spot at Team '26 + biggest savings today"
+[EmailClean] Final cleaned length: 3460
+\n onnect: High Velocity is just weeks away!
+[Gmail Scanner] AI filtered out non-rental email from info@e.atlassian.com - Subject: "Join us at Connect: High Velocity – coming to Dallas and Denver!"
+[EmailClean] Final cleaned length: 353
+ for s is a friendly reminder that your *insulation appointment* is scheduled
+[Gmail Scanner] AI filtered out non-rental email from guevarainsulation@gmail.com - Subject: "tamerayoubbusiness@gmail.com"
+[Gmail Scanner] Linking new thread 19a0260f07784d45 to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a023bf99dd6d4b to existing lead membersupport@mnreia.com
+[EmailClean] Final cleaned length: 13122
+[EmailClean] Preview: <p><br></p><div><table align="center" border="0" cellpadding="0" cellspacing="0" height="100%" style
+[Gmail Scanner] AI filtered out non-rental email from noreply@notifications.trustone.org - Subject: "Your Credit Card eStatement is Available"
+[EmailClean] Final cleaned length: 3819
+\nWe're pleased to announce a new incentive for borrowers transitioning from their Park P
+[Gmail Scanner] AI filtered out non-rental email from jack@parkplaceus.com - Subject: "Get a $500 Rental Credit When You Refinance into a Rental (DSCR) Loan with Park Place Finance"
+[Gmail Scanner] Linking new thread 19a022d9bf2bbf2c to existing lead membersupport@mnreia.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Gmail Scanner] Linking new thread 19a02155259c7753 to existing lead recommended-pads@alerts.hotpads.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+5:54:26 PM [express] GET /api/notifications/unread-count 304 in 180ms :: {"count":"41"}
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Final cleaned length: 3751
+[EmailClean] Preview: [Plaid and MIT Technology Review logo](https://assets.ctfassets.net/ss5kfr270og3/76RuIcI8n1KkHvBJ9Rz
+5:54:26 PM [express] GET /api/notifications 304 in 261ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+[Gmail Scanner] AI filtered out non-rental email from info@email.plaid.com - Subject: "$12.3B in fraud losses hit the U.S. in a single year"
+[Gmail Scanner] Linking new thread 19a01eece326b6cd to existing lead membersupport@mnreia.com
+[Gmail Initial] Raw body length: 819
+[Gmail Initial] Body preview: Dear Gustavo,
+
+Thank you for your interest in the 2-bedroom apartment located at 2427
+N 4th St in
+[Gmail Initial Sender] From: "tamerayoubbusiness@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[EmailClean] Final cleaned length: 20794
+\nEmpire Flippers (https://in.9M: Amazon FBA, eCommerce, YouTube, Subscription, and more...
+[Gmail Scanner] AI filtered out non-rental email from info@empireflippers.com - Subject: "📣 11 NEW Listings @ Empire Flippers"
+[Gmail Scanner] Linking new thread 19a01ebeeaf767cd to existing lead notifications@acquire.com
+[EmailClean] Final cleaned length: 11759
+ developers to incorporate Mapsps integration is now available in the Gemini API, enabling
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "Google Maps Gemini API 🗺️, Karpathy on AGI 🤖, Siri concerns 📱"
+[Gmail Scanner] Linking new thread 19a01c33b3a09927 to existing lead alex@rebeloper.com
+[Gmail Scanner] Linking new thread 19a01c1f86715863 to existing lead targetnews@em.target.com
+[EmailClean] Final cleaned length: 7682
+[EmailClean] Preview: Don’t miss your chance to save.  ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌  ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌ ‌  ‌ ‌ ‌ ‌ ‌ ‌ ‌
+[Gmail Scanner] AI filtered out non-rental email from info@theshadestore.com - Subject: "FINAL DAYS: Up to 25% Off Window Treatments"
+[Gmail Scanner] Linking new thread 19a01ad6255a7cea to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a01aa1b0216755 to existing lead email@email.menards.com
+[EmailClean] Final cleaned length: 13005
+ $8.21 billion, marking the hipital raised in Q3 2025 increased 47% quarter-over-quarter to
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "State of Crypto Fundraising 💰, Tempo Acquires Dankrad 🧑‍💻, OpenSea Token Plan 🌊"
+[Gmail Scanner] Linking new thread 19a01928a843de57 to existing lead customercare@email.movoto.com
+[Gmail Scanner] Linking new thread 19a017dc9e24cead to existing lead automated@airbnb.com
+[Gmail Scanner] Linking new thread 199fe379299e02f9 to existing lead express@airbnb.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@messaging.squareup.com - Subject: "D Time Cutz has accepted your appointment"
+[EmailClean] Final cleaned length: 12750
+ billions on infrastructure instead ty is collapsing. Big Tech's response is to spend
+[Gmail Initial] Raw body length: 800
+[Gmail Initial] Body preview: Hi Gustavo,
+
+Thank you for your interest in the 2-bedroom apartment at 2427 N 4th
+St. We apprecia
+[Gmail Initial Sender] From: "tamerayoubbusiness@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "Software quality collapse ⬇️, GraphQL myths 🛠, SQL anti-patterns 💠"
+[EmailClean] Final cleaned length: 21658
+ Engineer and Staff Softwly Now, Caitlyn and Christine are hiring for Cosmos SDK Senior Protocol
+[Gmail Scanner] AI filtered out non-rental email from jobs@alerts.jobot.com - Subject: "Cosmos SDK Senior Protocol Engineer opportunities need to be filled"
+[EmailClean] Final cleaned length: 2020
+\n[30% OFF Ys](https://www.gradimages.com/)www.gradimages.com/)
+[Gmail Scanner] AI filtered out non-rental email from email@marketing.gradimages.com - Subject: "30% Off Your Graduation Photos"
+[EmailClean] Final cleaned length: 11173
+ app initially had an opt-out cle a series of calculated moves when it released Sora. The
+[Gmail Scanner] AI filtered out non-rental email from dan@tldrnewsletter.com - Subject: "OpenAI vs Hollywood 🎬, Hyperliquid's ascent 📈, sequencing your DNA 🧬"
+[Gmail Scanner] Linking new thread 199feff4c2dbfaec to existing lead targetnews@em.target.com
+[Gmail Scanner] Linking new thread 199fedb9808a28d7 to existing lead info@trabajo.org
+[Gmail Scanner] Linking new thread 199fed106a65f280 to existing lead recommended-pads@alerts.hotpads.com
+[Gmail Scanner] Linking new thread 199febdec9d7fcf1 to existing lead nike@official.nike.com
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Gmail Scanner] Scanning org 21f621ba-3802-460c-869b-a267a1477f33...
+[Gmail Scanner] Found 50 messages
+[EmailClean] Final cleaned length: 3135
+\nHY CONSOLE Preview: You have more time to upgrade your project to the Blaze pricing plan.
+[Gmail Scanner] AI filtered out non-rental email from firebase-noreply@google.com - Subject: "[Important Update] Cloud Storage for Firebase changes delayed to Feb 2, 2026"
+[EmailClean] Final cleaned length: 1388
+\n32e0584f-11c5-4b49-b048-87fb97980514-00-1itc7nvtms4me.riker.replit.dev
+[Gmail Scanner] AI filtered out non-rental email from no-reply@accounts.google.com - Subject: "Security alert"
+[EmailClean] Final cleaned length: 8
+[EmailClean] Preview: Sheridan
+[Gmail Scanner] AI filtered out non-rental email from tamergayoub@hotmail.com - Subject: "Shsisjsnssns"
+[Gmail Scanner] Linking new thread 19a01a64ca6056a3 to existing lead dashboardpilotai@gmail.com
+[Gmail Initial] Raw body length: 710
+[Gmail Initial] Body preview: Hi Gustavo,
+
+Thank you for your interest in the 2-bedroom apartment at 2427 N 4th
+St! I appreciat
+[Gmail Initial Sender] From: "tamerayoubbusiness@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Gmail Scanner] Linking new thread 19a019be1b9eb44b to existing lead dashboardpilotai@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:36 PM [express] GET /api/notifications/unread-count 304 in 178ms :: {"count":"41"}
+[Gmail Scanner] Linking new thread 19a00dd121ef81b7 to existing lead dashboardpilotai@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:37 PM [express] GET /api/notifications 304 in 225ms :: [{"id":"6fcd1000-6ef4-436d-8a8f-5550d77e…
+[Gmail Scanner] Linking new thread 19a010f350336b83 to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 19a010e1a65153c3 to existing lead tamerfayoub@hotmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[EmailClean] Final cleaned length: 13
+[EmailClean] Preview: Toys for sale
+5:54:37 PM [express] GET /api/leads 200 in 180ms :: [{"id":"4cb6c0f5-e8c8-4820-98c1-8084026cd881","o…
+[Gmail Scanner] Linking new thread 19a00dc982164571 to existing lead tamerayoubbusiness@gmail.com
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2460 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2284 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 2088 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 10
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 10 (original length: 1923 )
+[EmailClean] Final cleaned length: 9
+[EmailClean] Preview: hi test 1
+[EmailClean] Found Gmail quote marker at position 6
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 6 (original length: 1756 )
+[EmailClean] Final cleaned length: 5
+[EmailClean] Preview: hello
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1598 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 6
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 6 (original length: 1433 )
+[EmailClean] Final cleaned length: 5
+[EmailClean] Preview: Hello
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1288 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1151 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 1019 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[Gmail Initial] Raw body length: 1126
+[Gmail Initial] Body preview: What type of floors are in the rental property?
+
+On Fri, Oct 10, 2025 at 5:58 PM <tamerayoubbusine
+[Gmail Initial Sender] From: ""Infinimoji Inc." <infinimoji@gmail.com>" | Property Manager: "infinimoji@gmail.com" | Match: true | Type: outgoing
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Found multi-line Gmail quote at line 2
+[EmailClean] Cutting at position 3 (original length: 892 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Found Gmail quote marker at position 3
+[EmailClean] Cutting at position 3 (original length: 770 )
+[EmailClean] Final cleaned length: 2
+[EmailClean] Preview: Hi
+[EmailClean] Final cleaned length: 651
+[EmailClean] Preview: Hi Infinimoji,\n\nThank you for your interest in the property at 2427 N 4th St! I appreciate you reach
+[Gmail Scanner] Linking new thread 199fd0c9ec9ca788 to existing lead tamerayoubbusiness@gmail.com
+[Gmail Scanner] Linking new thread 199fcf3067e3a032 to existing lead tamerayoubbusiness@gmail.com
+[Gmail Scanner] Linking new thread 199fcf1ed80a04a9 to existing lead dashboardpilotai@gmail.com
+[Gmail Scanner] Linking new thread 199fcaf14d39ec9c to existing lead tamerayoubbusiness@gmail.com
+[Gmail Scanner] Imported 14 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Gmail Scanner] Created 1 unreplied message notifications for 1 users
+[Gmail Initial] Raw body length: 954
+[Gmail Initial] Body preview: Dear Gustavo,
+
+Thank you for reaching out and expressing your interest in the
+2-bedroom apartment
+[Gmail Initial Sender] From: "tamerayoubbusiness@gmail.com" | Property Manager: "infinimoji@gmail.com" | Match: false | Type: received
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:46 PM [express] GET /api/notifications/unread-count 200 in 177ms :: {"count":"42"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+5:54:47 PM [express] GET /api/notifications 200 in 263ms :: [{"id":"0c0c5f99-822f-4078-85f9-17ab3006…

@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useLocation } from "wouter";
+import { useLeadSheet } from "@/contexts/LeadSheetContext";
 import { formatDistanceToNow } from "date-fns";
 
 interface Notification {
@@ -27,7 +27,7 @@ interface Notification {
 }
 
 export function NotificationBell() {
-  const [, setLocation] = useLocation();
+  const { openLeadSheet } = useLeadSheet();
   const [open, setOpen] = useState(false);
 
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
@@ -66,7 +66,11 @@ export function NotificationBell() {
     }
     setOpen(false);
     if (notification.actionUrl) {
-      setLocation(notification.actionUrl);
+      // Extract lead ID from actionUrl (format: /leads?selected=<leadId>)
+      const leadId = notification.actionUrl.match(/selected=([^&]+)/)?.[1];
+      if (leadId) {
+        openLeadSheet(leadId);
+      }
     }
   };
 

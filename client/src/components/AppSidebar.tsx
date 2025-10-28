@@ -14,6 +14,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -163,17 +164,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <Bot className="h-5 w-5 text-primary-foreground" />
+        <SidebarHeader className="p-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
+              <Bot className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">LeaseLoopAI</h2>
+              <p className="text-xs text-muted-foreground">Property CRM</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-semibold">LeaseLoopAI</h2>
-            <p className="text-xs text-muted-foreground">Property CRM</p>
-          </div>
-        </div>
-      </SidebarHeader>
+        </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>

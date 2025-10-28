@@ -1,0 +1,41 @@
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+12:33:10 PM [express] GET /api/organizations/current 304 in 129ms :: {"orgId":"21f621ba-3802-460c-869…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:10 PM [express] GET /api/notifications/unread-count 304 in 169ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+12:33:10 PM [express] GET /api/notifications 304 in 220ms :: [{"id":"9a286db7-0a6a-4e33-9f2c-909a9313…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:10 PM [express] GET /api/organizations 304 in 91ms :: [{"orgId":"21f621ba-3802-460c-869b-a267a1…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+12:33:10 PM [express] GET /api/leads/unread 304 in 222ms :: [{"id":"879205db-d34e-41ad-a1cb-8ea15fcaf…
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:10 PM [express] GET /api/pending-replies 304 in 205ms :: [{"id":"9974f9bb-3cf8-4bf3-a710-7ce4e7…
+12:33:10 PM [express] GET /api/leads 304 in 175ms :: [{"id":"879205db-d34e-41ad-a1cb-8ea15fcaff27","o…
+12:33:11 PM [express] GET /api/properties 304 in 224ms :: []
+12:33:11 PM [express] GET /api/analytics/stats 304 in 286ms :: {"totalLeads":7,"conversionRate":"0%",…
+12:33:11 PM [express] GET /api/ai-activity 304 in 407ms :: []
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+Error generating AI reply: TypeError: storage.getOrganization is not a function
+    at <anonymous> (/home/runner/workspace/server/routes.ts:931:42)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+12:33:15 PM [express] POST /api/leads/879205db-d34e-41ad-a1cb-8ea15fcaff27/ai-reply 500 in 172ms :: {…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:26 PM [express] GET /api/notifications/unread-count 304 in 184ms :: {"count":"1"}
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:27 PM [express] GET /api/notifications 304 in 227ms :: [{"id":"9a286db7-0a6a-4e33-9f2c-909a9313…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:32 PM [express] GET /api/leads/unread 304 in 231ms :: [{"id":"879205db-d34e-41ad-a1cb-8ea15fcaf…
+[Passport] Deserializing user ID: 20af099f-e5cd-49fd-8ccf-b71d9adbab79
+[Passport] Deserialized user: 20af099f-e5cd-49fd-8ccf-b71d9adbab79 infinimoji@gmail.com
+12:33:32 PM [express] GET /api/pending-replies 304 in 223ms :: [{"id":"9974f9bb-3cf8-4bf3-a710-7ce4e7…

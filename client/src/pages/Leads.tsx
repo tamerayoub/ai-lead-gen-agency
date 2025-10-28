@@ -5,12 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Filter } from "lucide-react";
 import { LeadCard } from "@/components/LeadCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { format, isToday, differenceInDays, parseISO } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { LeadStatus } from "@/components/LeadCard";
+import { useLocation } from "wouter";
 
 const statusColors: Record<string, string> = {
   new: "bg-status-new text-white",
@@ -28,15 +29,63 @@ const statusTitles: Record<string, string> = {
   approved: "Approved",
 };
 
+const formatTimestamp = (timestamp: string) => {
+  try {
+    let date: Date;
+    if (timestamp.includes('T') || timestamp.includes('Z')) {
+      date = parseISO(timestamp);
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return timestamp;
+    }
+
+    const now = new Date();
+    const daysDiff = differenceInDays(now, date);
+
+    if (isToday(date)) {
+      return format(date, "h:mm a");
+    } else if (daysDiff <= 7) {
+      return format(date, "EEEE h:mm a");
+    } else {
+      return format(date, "MMM d, h:mm a");
+    }
+  } catch (error) {
+    return timestamp;
+  }
+};
+
 export default function Leads() {
+  const [location, setLocation] = useLocation();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("pipeline");
   const { toast } = useToast();
-  const { data: leads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
+  const { data: leads = [] } = useQuery<any[]>({ 
+    queryKey: ["/api/leads"],
+    refetchInterval: 30000,
+    refetchIntervalInBackground: true,
+  });
   const { data: selectedLeadData } = useQuery({
     queryKey: ["/api/leads", selectedLeadId],
     enabled: !!selectedLeadId,
   });
+
+  // Read 'selected' query parameter from URL and open lead detail
+  useEffect(() => {
+    const params = new URLSearchParams(location.split('?')[1] || '');
+    const selectedParam = params.get('selected');
+    if (selectedParam) {
+      setSelectedLeadId(selectedParam);
+      setActiveTab("list"); // Switch to list view for better UX
+      // Clean URL after reading parameter
+      setTimeout(() => {
+        setLocation('/leads', { replace: true });
+      }, 100);
+    }
+  }, [location, setLocation]);
 
   // Mutation to update lead status
   const updateLeadStatusMutation = useMutation({
@@ -129,7 +178,7 @@ export default function Leads() {
         </Button>
       </div>
 
-      <Tabs defaultValue="pipeline" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="pipeline" data-testid="tab-pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="list" data-testid="tab-list">List View</TabsTrigger>
@@ -174,7 +223,7 @@ export default function Leads() {
                     status={lead.status}
                     source={mappedSource}
                     aiHandled={lead.aiHandled}
-                    lastContact={formatDistanceToNow(new Date(lead.lastContactAt), { addSuffix: true })}
+                    lastContact={formatTimestamp(lead.lastContactAt)}
                     onClick={() => setSelectedLeadId(lead.id)}
                   />
                 );
@@ -203,7 +252,7 @@ export default function Leads() {
           })) || [],
           notes: (selectedLeadData as any).notes?.map((n: any) => ({
             ...n,
-            timestamp: formatDistanceToNow(new Date(n.createdAt), { addSuffix: true }),
+            timestamp: formatTimestamp(n.createdAt),
           })) || [],
         } : null}
       />

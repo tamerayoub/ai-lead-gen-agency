@@ -269,35 +269,29 @@ export function ConversationTimeline({ messages, leadName, onRetryMessage, onDel
                     </div>
                   </Card>
 
-                  {/* Email Metadata */}
-                  {msg.channel === 'email' && (msg.emailSubject || msg.sourceIntegration) && (
-                    <div className={cn(
-                      "flex items-center gap-1.5 text-xs text-muted-foreground mt-1",
-                      fromUs && "justify-end"
-                    )}>
-                      <Mail className="h-3 w-3" />
-                      {msg.sourceIntegration && (
+                  {/* Timestamp with thread name and integration */}
+                  <div className={cn(
+                    "flex items-center gap-2 text-xs text-muted-foreground",
+                    fromUs && "justify-end"
+                  )}>
+                    <span>{formatTimestamp(msg.timestamp)}</span>
+                    {msg.channel === 'email' && msg.sourceIntegration && (
+                      <>
+                        <span>•</span>
+                        <Mail className="h-3 w-3" />
                         <span className="font-medium" data-testid={`text-${msg.sourceIntegration}`}>
                           {integrationLabels[msg.sourceIntegration as keyof typeof integrationLabels]}
                         </span>
-                      )}
-                      {msg.emailSubject && (
-                        <>
-                          {msg.sourceIntegration && <span>•</span>}
-                          <span className="truncate" data-testid="text-email-subject">
-                            {msg.emailSubject}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Timestamp - shown below email metadata */}
-                  <div className={cn(
-                    "text-xs text-muted-foreground",
-                    fromUs && "text-right"
-                  )}>
-                    {formatTimestamp(msg.timestamp)}
+                      </>
+                    )}
+                    {msg.emailSubject && (
+                      <>
+                        <span>•</span>
+                        <span className="truncate max-w-[200px]" data-testid="text-thread-name">
+                          {msg.emailSubject}
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {/* Delivery Error */}

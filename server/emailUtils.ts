@@ -134,8 +134,9 @@ export function cleanEmailBody(emailBody: string): string {
   
   result = normalizedLines.join('').trimEnd();
 
-  console.log('[EmailClean] Final cleaned length:', result.length);
-  console.log('[EmailClean] Preview:', result.substring(0, 100).replace(/\n/g, '\\n'));
+  // Log only for debugging when needed
+  // console.log('[EmailClean] Final cleaned length:', result.length);
+  // console.log('[EmailClean] Preview:', result.substring(0, 100).replace(/\n/g, '\\n'));
 
   return result;
 }

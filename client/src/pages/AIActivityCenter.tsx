@@ -6,7 +6,35 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Bot, Phone, Mail, MessageSquare, Search, Filter, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { formatDistanceToNow } from "date-fns";
+import { format, isToday, differenceInDays, parseISO } from "date-fns";
+
+const formatTimestamp = (timestamp: string) => {
+  try {
+    let date: Date;
+    if (timestamp.includes('T') || timestamp.includes('Z')) {
+      date = parseISO(timestamp);
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return timestamp;
+    }
+
+    const now = new Date();
+    const daysDiff = differenceInDays(now, date);
+
+    if (isToday(date)) {
+      return format(date, "h:mm a");
+    } else if (daysDiff <= 7) {
+      return format(date, "EEEE h:mm a");
+    } else {
+      return format(date, "MMM d, h:mm a");
+    }
+  } catch (error) {
+    return timestamp;
+  }
+};
 
 interface Activity {
   id: string;
@@ -49,7 +77,7 @@ export default function AIActivityCenter() {
     select: (data: any[]) => data.map(activity => ({
       ...activity,
       timestamp: activity.createdAt 
-        ? formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })
+        ? formatTimestamp(activity.createdAt)
         : activity.timestamp || 'Unknown time',
     }))
   });

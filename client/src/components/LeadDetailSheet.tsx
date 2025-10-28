@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeEmailSubject } from "@shared/emailUtils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,13 +124,14 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
   ];
 
   // Extract unique email subjects from messages, filtered by selected integration
+  // Normalize subjects to strip "Re:", "Fwd:" prefixes so "Hi" and "Re: Hi" appear as one thread
   const existingSubjects = lead?.conversations
     .filter(msg => 
       msg.channel === 'email' && 
       msg.emailSubject && 
       msg.sourceIntegration === selectedIntegration
     )
-    .map(msg => msg.emailSubject!)
+    .map(msg => normalizeEmailSubject(msg.emailSubject!))
     .filter((subject, index, self) => self.indexOf(subject) === index) || [];
 
   // Reset thread/subject options when integration changes
@@ -198,6 +200,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads/unread"] });
       toast({
         title: "Success",
         description: "Lead deleted successfully",
@@ -269,17 +272,20 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
       });
     },
     onSuccess: (data: any) => {
+      // Always invalidate lead data to show the conversation update
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       queryClient.invalidateQueries({ queryKey: ["/api/leads", lead?.id] });
       
       // Check if email was actually sent
       if (data.emailStatus?.sent) {
+        // Only remove from unreplied list if email was successfully sent
+        queryClient.invalidateQueries({ queryKey: ["/api/leads/unread"] });
         toast({
           title: "Message sent",
           description: "Your message has been sent successfully via email",
         });
       } else if (data.emailStatus?.error) {
-        // Email failed to send - show warning
+        // Email failed to send - DON'T invalidate unread cache so lead stays visible
         toast({
           title: "Message saved but not sent",
           description: `Email failed to send: ${data.emailStatus.error}`,

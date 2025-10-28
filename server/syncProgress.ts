@@ -7,6 +7,8 @@ interface SyncProgress {
   logs: SyncLog[];
   summary?: {
     created: number;
+    updated?: number;
+    total: number;
     duplicates: number;
     skipped: number;
     errors: number;
@@ -110,11 +112,50 @@ class SyncProgressTracker {
   }
 
   cancel() {
+    console.log('[Sync Cancel] Current summary before cancel:', this.progress.summary);
+    console.log('[Sync Cancel] Created lead IDs:', this.progress.createdLeadIds);
+    
+    // Compute summary from tracking data when cancelled
+    const created = (this.progress.createdLeadIds || []).length;
+    
+    // Count updates, duplicates, skipped, and errors from logs
+    let updated = 0;
+    let duplicates = 0;
+    let skipped = 0;
+    let errors = 0;
+    
+    for (const log of this.progress.logs) {
+      // Count thread replies and added conversation messages as updates
+      if (log.message.includes('Thread reply') || 
+          log.message.includes('Added outgoing reply') || 
+          log.message.includes('Added received reply')) {
+        updated++;
+      } else if (log.message.includes('duplicate')) {
+        duplicates++;
+      } else if (log.message.includes('Skipped')) {
+        skipped++;
+      } else if (log.type === 'error') {
+        errors++;
+      }
+    }
+    
+    // Set the computed summary
+    this.progress.summary = {
+      created,
+      updated,
+      total: created + updated,
+      duplicates,
+      skipped,
+      errors,
+    };
+    
     this.progress.isCancelled = true;
     this.progress.isRunning = false;
     this.progress.currentStep = 'Sync cancelled';
     this.progress.completedAt = new Date();
     this.addLog('warning', '⚠️ Sync cancelled by user');
+    
+    console.log('[Sync Cancel] Computed summary after cancel:', this.progress.summary);
   }
 
   isCancelled(): boolean {

@@ -95,12 +95,13 @@ export const conversations = pgTable("conversations", {
   message: text("message").notNull(),
   aiGenerated: boolean("ai_generated").default(false),
   externalId: text("external_id"),
+  gmailMessageId: text("gmail_message_id"), // Gmail message ID for deduplication
   emailMessageId: text("email_message_id"), // RFC 822 Message-ID header for email threading
   emailSubject: text("email_subject"),
   sourceIntegration: text("source_integration"),
   deliveryStatus: text("delivery_status"), // 'sent', 'failed', 'pending', null for non-email
   deliveryError: text("delivery_error"), // Error message if failed
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
 });
 
 export const notes = pgTable("notes", {
@@ -253,6 +254,7 @@ export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  leadId: varchar("lead_id").references(() => leads.id, { onDelete: 'cascade' }), // Optional: for lead-specific notifications
   type: text("type").notNull(), // 'gmail_leads_found', 'lead_status_changed', etc.
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -261,6 +263,23 @@ export const notifications = pgTable("notifications", {
   read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Track deleted leads to prevent auto-reimport by scanner unless new messages arrive
+export const deletedLeads = pgTable("deleted_leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  gmailThreadId: text("gmail_thread_id"),
+  outlookConversationId: text("outlook_conversation_id"),
+  // Track the most recent message date when lead was deleted
+  // Scanner will only re-import if new messages are AFTER this date
+  lastMessageDate: timestamp("last_message_date").notNull(),
+  deletedAt: timestamp("deleted_at").defaultNow().notNull(),
+}, (table) => ({
+  emailOrgIndex: index("deleted_leads_email_org_idx").on(table.orgId, table.email),
+  threadOrgIndex: index("deleted_leads_thread_org_idx").on(table.orgId, table.gmailThreadId),
+}));
 
 export const zillowIntegrations = pgTable("zillow_integrations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -308,6 +327,11 @@ export const insertSchedulePreferenceSchema = createInsertSchema(schedulePrefere
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertDeletedLeadSchema = createInsertSchema(deletedLeads).omit({
+  id: true,
+  deletedAt: true,
 });
 
 export const insertZillowIntegrationSchema = createInsertSchema(zillowIntegrations).omit({
@@ -359,6 +383,9 @@ export type SchedulePreference = typeof schedulePreferences.$inferSelect;
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+
+export type InsertDeletedLead = z.infer<typeof insertDeletedLeadSchema>;
+export type DeletedLead = typeof deletedLeads.$inferSelect;
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,

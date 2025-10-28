@@ -9,6 +9,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
+import { useNotificationToasts } from "@/hooks/useNotificationToasts";
+import { LeadSheetProvider } from "@/contexts/LeadSheetContext";
+import { GlobalLeadDetailSheet } from "@/components/GlobalLeadDetailSheet";
 // (blueprint:javascript_log_in_with_replit) Import useAuth hook
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
@@ -102,7 +105,18 @@ function AuthenticatedLayout({ style }: { style: Record<string, string> }) {
     return <Router />;
   }
 
-  // Show full app with sidebar for authenticated users
+  // Show full app with sidebar for authenticated users - wrapped in LeadSheetProvider
+  return (
+    <LeadSheetProvider>
+      <AuthenticatedApp style={style} />
+    </LeadSheetProvider>
+  );
+}
+
+function AuthenticatedApp({ style }: { style: Record<string, string> }) {
+  // Show toast notifications for new unreplied messages
+  useNotificationToasts();
+
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
@@ -119,6 +133,7 @@ function AuthenticatedLayout({ style }: { style: Record<string, string> }) {
             <Router />
           </main>
         </div>
+        <GlobalLeadDetailSheet />
       </div>
     </SidebarProvider>
   );

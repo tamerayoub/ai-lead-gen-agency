@@ -9,6 +9,7 @@ import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLon
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken } from "./googleCalendar";
 import { getAvailabilityContext } from "./calendarAvailability";
 import { cleanEmailBody, cleanEmailSubject } from "./emailUtils";
+import { normalizeEmailSubject } from "@shared/emailUtils";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
@@ -171,6 +172,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Sync cancelled" });
   });
 
+  // Get leads with unread messages
+  app.get("/api/leads/unread", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const leadsWithUnread = await storage.getLeadsWithUnreadMessages(req.orgId);
+      res.json(leadsWithUnread);
+    } catch (error) {
+      console.error("[Leads] Failed to fetch leads with unread messages:", error);
+      res.status(500).json({ error: "Failed to fetch leads with unread messages" });
+    }
+  });
+
   app.get("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const lead = await storage.getLead(req.params.id, req.orgId);
@@ -181,7 +193,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversations = await storage.getConversationsByLeadId(lead.id);
       const notes = await storage.getNotesByLeadId(lead.id);
       
-      res.json({ ...lead, conversations, notes });
+      // Map createdAt to timestamp for frontend compatibility
+      // Note: createdAt is already in ISO UTC format from the database query
+      const conversationsWithTimestamp = conversations.map(c => ({
+        ...c,
+        timestamp: c.createdAt
+      }));
+      
+      const notesWithTimestamp = notes.map(n => ({
+        ...n,
+        timestamp: new Date(n.createdAt).toISOString()
+      }));
+      
+      res.json({ ...lead, conversations: conversationsWithTimestamp, notes: notesWithTimestamp });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch lead" });
     }
@@ -248,14 +272,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
+      // Get lead details before deleting
+      const lead = await storage.getLead(req.params.id, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Get most recent conversation date to track when we last saw messages
+      const conversations = await storage.getConversationsByLeadId(lead.id);
+      const lastMessageDate = conversations.length > 0
+        ? new Date(Math.max(...conversations.map(c => new Date(c.createdAt).getTime())))
+        : new Date();
+
+      // Track deleted lead to prevent auto-reimport by scanner
+      await storage.createDeletedLead({
+        orgId: req.orgId,
+        email: lead.email || null,
+        phone: lead.phone || null,
+        gmailThreadId: lead.gmailThreadId || null,
+        outlookConversationId: null,
+        lastMessageDate,
+      });
+
+      // Now delete the lead
       const deleted = await storage.deleteLead(req.params.id, req.orgId);
       if (!deleted) {
         return res.status(404).json({ error: "Lead not found" });
       }
+      
+      console.log(`[Delete Lead] Tracked deleted lead ${lead.email} to prevent auto-reimport`);
       res.status(204).send();
     } catch (error) {
       console.error("[Delete Lead] Error:", error);
       res.status(500).json({ error: "Failed to delete lead" });
+    }
+  });
+
+  // Send a manual reply to a lead
+  app.post("/api/leads/:id/reply", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const leadId = req.params.id;
+      const { message } = req.body;
+
+      if (!message || !message.trim()) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Get lead details
+      const lead = await storage.getLead(leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Get all conversations to build proper threading
+      const conversations = await storage.getConversationsByLeadId(leadId);
+
+      // Determine channel based on lead source
+      const channel = lead.source === 'gmail' || lead.source === 'outlook' ? 'email' : 
+                     lead.source === 'twilio' ? 'sms' : 'email';
+
+      // Send the reply based on channel
+      if (channel === 'email') {
+        // Check for Gmail integration
+        const gmailConfig = await storage.getIntegrationConfig('gmail', req.orgId);
+        if (gmailConfig?.isConnected && lead.gmailThreadId) {
+          // Build threading headers from conversations
+          const messageIds = conversations
+            .filter((c: any) => c.emailMessageId)
+            .map((c: any) => c.emailMessageId);
+          
+          const inReplyTo = messageIds.length > 0 ? messageIds[messageIds.length - 1] : undefined;
+          const references = messageIds.join(' ');
+
+          // Send via Gmail
+          await sendReply(gmailConfig.tokens, {
+            to: lead.email,
+            subject: lead.subject || `Re: Inquiry about ${lead.propertyName || 'property'}`,
+            body: message.trim(),
+            threadId: lead.gmailThreadId,
+            inReplyTo,
+            references: references || undefined
+          });
+
+          console.log(`[Send Reply] Sent Gmail reply to ${lead.email}`);
+        } else {
+          // Check for Outlook integration
+          const outlookConfig = await storage.getIntegrationConfig('outlook', req.orgId);
+          if (outlookConfig?.isConnected && lead.outlookConversationId) {
+            // Get the original message ID
+            const originalMessage = conversations.find((c: any) => c.externalId);
+            if (!originalMessage?.externalId) {
+              return res.status(400).json({ 
+                error: "Cannot find original message to reply to" 
+              });
+            }
+
+            // Send via Outlook
+            await sendOutlookReply(
+              outlookConfig.tokens.access_token,
+              originalMessage.externalId,
+              message.trim(),
+              { name: lead.name, email: lead.email }
+            );
+
+            console.log(`[Send Reply] Sent Outlook reply to ${lead.email}`);
+          } else {
+            return res.status(400).json({ 
+              error: "No email integration configured for this lead" 
+            });
+          }
+        }
+      } else if (channel === 'sms') {
+        // Send via Twilio SMS
+        const twilioConfig = await storage.getIntegrationConfig('twilio', req.orgId);
+        if (!twilioConfig?.isConnected) {
+          return res.status(400).json({ error: "Twilio integration not configured" });
+        }
+        // TODO: Implement Twilio SMS sending
+        return res.status(501).json({ error: "SMS sending not yet implemented" });
+      }
+
+      // Store the conversation
+      await storage.createConversation({
+        leadId: lead.id,
+        type: 'outgoing',
+        channel,
+        message: message.trim(),
+        subject: lead.subject || `Re: Inquiry about ${lead.propertyName || 'property'}`,
+      });
+
+      // Update lead's last contact time
+      await storage.updateLead(leadId, { 
+        lastContactAt: new Date().toISOString() 
+      }, req.orgId);
+
+      // Mark all notifications for this lead as read since the user has replied
+      const markedCount = await storage.markAllLeadNotificationsAsRead(leadId, req.orgId);
+      console.log(`[Send Reply] Marked ${markedCount} notifications as read for lead ${leadId}`);
+
+      res.json({ success: true, message: "Reply sent successfully" });
+    } catch (error) {
+      console.error("[Send Reply] Error:", error);
+      res.status(500).json({ error: "Failed to send reply" });
     }
   });
 
@@ -350,15 +508,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/conversations", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
+      console.log('[Create Conversation] Request body:', JSON.stringify(req.body, null, 2));
       const validatedData = insertConversationSchema.parse(req.body);
+      console.log('[Create Conversation] Validated data:', JSON.stringify(validatedData, null, 2));
       
       // Get lead details to send email
       const lead = await storage.getLead(validatedData.leadId, req.orgId);
       if (!lead) {
+        console.error('[Create Conversation] Lead not found:', validatedData.leadId, 'orgId:', req.orgId);
         return res.status(404).json({ error: "Lead not found" });
       }
       
       let emailSendStatus: { sent: boolean; error?: string } = { sent: false };
+      
+      // For email conversations, ensure metadata is always set (even if sending fails)
+      if (validatedData.channel === "email") {
+        const integrationToUse = validatedData.sourceIntegration || 'gmail';
+        const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
+        validatedData.emailSubject = emailSubject;
+        validatedData.sourceIntegration = integrationToUse;
+      }
       
       // If channel is email and type is outgoing, send actual email
       if (validatedData.channel === "email" && (validatedData.type === "outgoing" || validatedData.type === "sent") && lead.email) {
@@ -394,32 +563,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
             
             // Fetch conversation history to build proper email threading headers
-            // Note: By design, each lead maps to exactly ONE Gmail thread (lead.gmailThreadId)
+            // Note: By design, each lead maps to exactly ONE email thread per integration
             // The import logic ensures this by creating new leads for new threads
             const conversationHistory = await storage.getConversationsByLeadId(lead.id);
             
-            // Filter to only Gmail emails (conversations for this lead are already from the same thread)
-            // We filter by sourceIntegration to ensure we're only looking at Gmail messages
+            // Filter to only emails from the SAME integration (Gmail, Outlook, etc.)
+            // This ensures we're looking at conversations from the correct email account
             let threadEmails = conversationHistory
               .filter(c => 
                 c.channel === 'email' && 
-                c.sourceIntegration === 'gmail'
+                c.sourceIntegration === integrationToUse
               )
               .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Chronological order
             
             // Check if this subject matches any existing conversation subjects
             // If it does, the user is replying to an existing thread
             // If it doesn't, they're starting a new conversation
-            const existingSubjects = new Set(
+            // IMPORTANT: Normalize subjects to strip "Re:", "Fwd:" prefixes
+            // This ensures "Hi" and "Re: Hi" are treated as the same thread
+            const normalizedRequestSubject = normalizeEmailSubject(emailSubject);
+            const existingNormalizedSubjects = new Set(
               threadEmails
                 .filter(c => c.emailSubject)
-                .map(c => c.emailSubject)
+                .map(c => normalizeEmailSubject(c.emailSubject!))
             );
-            const isNewSubject = !existingSubjects.has(emailSubject);
+            const isNewSubject = !existingNormalizedSubjects.has(normalizedRequestSubject);
             
             console.log('[Send Email] Thread detection:', {
               requestedSubject: emailSubject,
-              existingSubjects: Array.from(existingSubjects),
+              normalizedRequestSubject,
+              existingNormalizedSubjects: Array.from(existingNormalizedSubjects),
               isNewSubject,
               totalConversations: threadEmails.length
             });
@@ -453,41 +626,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Determine if we should use threading:
             // 1. If subject doesn't match any existing conversation subjects, start a new thread
-            // 2. If subject matches an existing one, thread if there's a recent incoming message WITH THE SAME SUBJECT
-            
-            // IMPORTANT: Only look at emails with the SAME subject when replying to an existing conversation
-            // This prevents us from using Message-IDs from a different thread
-            const sameSubjectEmails = !isNewSubject 
-              ? threadEmails.filter(c => c.emailSubject === emailSubject)
-              : [];
-            
-            const lastIncomingMessage = sameSubjectEmails
-              .filter(c => c.type === 'received')
-              .reverse()[0]; // Last received message with the same subject
-            
-            const shouldUseThreading = !isNewSubject && !!lastIncomingMessage;
+            // 2. If subject matches an existing one, ALWAYS use the lead's gmailThreadId
+            //    (even if there's no recent incoming message - the thread ID itself is enough)
             
             let threadId: string | undefined;
             let inReplyTo: string | undefined;
             let references: string | undefined;
             
-            if (shouldUseThreading) {
-              // This is a reply to an existing conversation - use threading
-              // IMPORTANT: Only use Message-IDs from emails with the SAME subject for proper threading
-              const emailMessageIds = sameSubjectEmails.map(c => c.emailMessageId).filter(Boolean) as string[];
-              threadId = lead.gmailThreadId || undefined;
-              inReplyTo = lastIncomingMessage.emailMessageId;
-              references = emailMessageIds.length > 0 ? emailMessageIds.join(' ') : undefined;
+            if (!isNewSubject && lead.gmailThreadId) {
+              // User selected "Reply to existing thread" - use the lead's Gmail thread ID
+              threadId = lead.gmailThreadId;
+              
+              // Get messages from the same normalized subject for References/In-Reply-To headers
+              // This ensures we include all messages regardless of Re:/Fwd: prefixes
+              const sameSubjectEmails = threadEmails.filter(c => 
+                c.emailSubject && normalizeEmailSubject(c.emailSubject) === normalizedRequestSubject
+              );
+              const lastIncomingMessage = sameSubjectEmails
+                .filter(c => c.type === 'received')
+                .reverse()[0]; // Last received message with the same normalized subject
+              
+              // Include In-Reply-To and References if we have a recent incoming message
+              if (lastIncomingMessage) {
+                const emailMessageIds = sameSubjectEmails.map(c => c.emailMessageId).filter(Boolean) as string[];
+                inReplyTo = lastIncomingMessage.emailMessageId;
+                references = emailMessageIds.length > 0 ? emailMessageIds.join(' ') : undefined;
+              }
               
               console.log('[Send Email] Replying to existing thread:', {
                 threadId,
-                inReplyTo,
-                referencesCount: emailMessageIds.length,
+                inReplyTo: inReplyTo || '(none - no recent incoming)',
+                referencesCount: references ? references.split(' ').length : 0,
                 subject: emailSubject
               });
             } else {
-              // Start a new thread (either new subject or no recent incoming)
-              const reason = isNewSubject ? 'new subject' : 'no recent incoming messages';
+              // Start a new thread
+              const reason = isNewSubject ? 'new subject' : 'no gmailThreadId on lead';
               console.log(`[Send Email] Starting new thread (${reason})`);
             }
             
@@ -527,10 +701,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error('[Send Email] Failed to capture sent Message-ID:', error);
               }
             }
-            
-            // Ensure email metadata is stored
-            validatedData.emailSubject = emailSubject;
-            validatedData.sourceIntegration = integrationToUse;
           }
         } catch (emailError: any) {
           console.error('[Send Email] Failed to send email:', emailError);
@@ -545,13 +715,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update lead's lastContactAt
       await storage.updateLead(validatedData.leadId, { lastContactAt: new Date() } as any, req.orgId);
       
+      // If this is an outgoing message, mark all notifications for this lead as read
+      if (validatedData.type === 'outgoing' || validatedData.type === 'sent') {
+        const markedCount = await storage.markAllLeadNotificationsAsRead(validatedData.leadId, req.orgId);
+        console.log(`[Send Message] Marked ${markedCount} notifications as read for lead ${validatedData.leadId}`);
+      }
+      
       res.status(201).json({ 
         ...conversation, 
         emailStatus: emailSendStatus 
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Create Conversation] Error:', error);
-      res.status(400).json({ error: "Invalid conversation data" });
+      
+      // If it's a Zod validation error, show the actual validation errors
+      if (error.errors && Array.isArray(error.errors)) {
+        return res.status(400).json({ 
+          error: "Invalid conversation data", 
+          details: error.errors 
+        });
+      }
+      
+      res.status(400).json({ error: error.message || "Invalid conversation data" });
     }
   });
 
@@ -807,6 +992,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
 
+      // Get user information
+      const user = req.user;
+      const userName = user?.name || user?.email?.split('@')[0] || 'Property Manager';
+      const userEmail = user?.email || '';
+      
+      // Get organization information
+      const organization = await storage.getOrganization(req.orgId);
+      const orgName = organization?.name || 'Our Property Management';
+
       // Get conversations for this lead
       const conversations = await storage.getConversationsByLeadId(leadId);
       
@@ -824,7 +1018,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate AI reply based on the lead's inquiry
       const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
-      
+
+Your Information (use this to sign the email):
+- Your Name: ${userName}
+- Company/Organization: ${orgName}
+${userEmail ? `- Email: ${userEmail}` : ''}
+
 Lead Information:
 - Name: ${lead.name}
 - Property Interested In: ${lead.propertyName || 'our property'}
@@ -839,7 +1038,16 @@ Write a friendly, professional email response that:
 3. Briefly addresses their specific questions or needs
 4. If they're asking about viewing/showing times, suggest specific available times based on the calendar above
 5. Mentions next steps (viewing, application, etc.)
-6. Signs off warmly
+6. Signs off warmly with YOUR REAL NAME (${userName}) and company/organization (${orgName})
+
+CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE:
+- Sign the email with the EXACT name: "${userName}" - NO PLACEHOLDERS
+- Use the EXACT organization name: "${orgName}" - NO PLACEHOLDERS
+- DO NOT use bracketed placeholders like [Your Name], [Company], [Your Contact Information], etc.
+- The signature should look professional, for example:
+  "Best regards,
+  ${userName}
+  ${orgName}${userEmail ? `\n${userEmail}` : ''}"
 
 Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
@@ -1589,10 +1797,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       syncProgressTracker.start(0);
       syncProgressTracker.updateStep('Initializing sync...');
       
-      // Check for cancellation before starting
-      if (syncProgressTracker.isCancelled()) {
-        return res.json({ message: "Sync cancelled before start" });
-      }
+      // Note: We don't return early on cancellation - let it complete with current state
       
       // Get Gmail integration config
       const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
@@ -1608,33 +1813,30 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const propertyManagerEmail = await getGmailUserEmail(tokens);
       syncProgressTracker.addLog('info', `📧 Property manager email: ${propertyManagerEmail}`);
 
-      // Check for cancellation
-      if (syncProgressTracker.isCancelled()) {
-        return res.json({ message: "Sync cancelled" });
-      }
+      // Note: We don't return early on cancellation - let it complete with current state
 
       // Get all properties to match against
       const properties = await storage.getAllProperties(req.orgId);
       syncProgressTracker.addLog('info', `✓ Loaded ${properties.length} properties`);
 
-      // Check for cancellation before fetching emails
-      if (syncProgressTracker.isCancelled()) {
-        return res.json({ message: "Sync cancelled" });
-      }
+      // Note: We don't return early on cancellation - let it complete with current state
 
       // Fetch comprehensive email history (up to 5000 emails)
       syncProgressTracker.addLog('info', '📧 Fetching emails from Gmail...');
       syncProgressTracker.updateStep('Fetching emails from Gmail...');
       const messages = await listMessages(tokens, 5000, () => syncProgressTracker.isCancelled());
       
-      // Check if cancelled during fetch
-      if (syncProgressTracker.isCancelled()) {
-        return res.json({ message: "Sync cancelled during email fetch" });
-      }
+      // Note: We don't return early on cancellation - let it complete with current state
 
       // Update total count now that we know how many emails we have (without resetting logs)
       syncProgressTracker.setTotal(messages.length);
       syncProgressTracker.addLog('success', `✓ Fetched ${messages.length} emails`);
+      
+      // Check if sync was cancelled during fetch and notify user
+      if (syncProgressTracker.isCancelled()) {
+        syncProgressTracker.addLog('warning', `⚠️ Sync cancelled - processing ${messages.length} fetched emails before stopping...`);
+      }
+      
       syncProgressTracker.updateStep(`Analyzing ${messages.length} emails with AI...`);
       
       const createdLeads = [];
@@ -1642,18 +1844,25 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const parseErrors = [];
       const skipped = [];
       const processingLogs = [];
+      const leadsWithNewMessages = new Set<string>(); // Track leads that got new messages (new or existing)
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
       // Track threadId -> leadId mapping to ensure all emails in a thread go to same lead
       const threadLeadMap = new Map<string, string>();
+      
+      // Track email -> leadId mapping to prevent duplicate leads from same email across different threads
+      const emailLeadMap = new Map<string, string>();
+      
+      // Track processed message IDs in this session to prevent duplicates within the same batch
+      const processedMessageIds = new Set<string>();
 
       for (const msg of messages) {
-        // Check for cancellation
+        // Check if sync was cancelled by user
         if (syncProgressTracker.isCancelled()) {
           syncProgressTracker.addLog('warning', '⚠️ Sync cancelled by user');
           break;
         }
-
+        
         if (!msg.id) {
           syncProgressTracker.incrementProcessed();
           continue;
@@ -1712,7 +1921,24 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
         const emailPreview = emailBody.substring(0, 150).replace(/\n/g, ' ').trim();
 
-        // Check if this exact message was already processed by externalId (message ID)
+        // Check if we already processed this message in this sync session
+        if (processedMessageIds.has(msg.id)) {
+          duplicates.push({ messageId: msg.id, reason: "Already processed in this session" });
+          syncProgressTracker.addLog('warning', `⏭️  Skipped duplicate: "${subject.substring(0, 50)}..."`);
+          processingLogs.push({
+            status: "duplicate",
+            from,
+            subject,
+            preview: emailPreview,
+            timestamp: new Date().toISOString(),
+          });
+          continue;
+        }
+
+        // Mark this message as being processed immediately to prevent duplicates within this batch
+        processedMessageIds.add(msg.id);
+
+        // Check if this exact message was already processed in database by externalId (message ID)
         const existingConversation = await storage.getConversationByExternalId(msg.id);
         if (existingConversation) {
           duplicates.push({ messageId: msg.id, reason: "Already processed" });
@@ -1931,7 +2157,14 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             syncProgressTracker.addLog('info', `🔗 Thread match: Using existing lead from thread`);
           }
           
-          // If not in thread map, check if lead already exists by email or phone
+          // If not in thread map, check if we've already seen this email in this sync session
+          if (!existingLead && emailLeadMap.has(leadEmail)) {
+            const leadId = emailLeadMap.get(leadEmail)!;
+            existingLead = await storage.getLead(leadId, req.orgId);
+            syncProgressTracker.addLog('info', `📧 Email match: Using existing lead from earlier in sync`);
+          }
+          
+          // If not in session maps, check if lead already exists in database by email or phone
           if (!existingLead) {
             existingLead = await storage.getLeadByEmail(leadEmail, req.orgId);
             if (!existingLead && leadPhone) {
@@ -2020,6 +2253,11 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
           // Store threadId -> leadId mapping for future emails in this thread
           if (threadId) {
             threadLeadMap.set(threadId, leadToUse.id);
+          }
+          
+          // Store email -> leadId mapping to prevent duplicate leads from same email
+          if (leadEmail) {
+            emailLeadMap.set(leadEmail, leadToUse.id);
           }
 
           // Store the raw email body as-is (including metadata)
@@ -2160,7 +2398,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
               subject,
             });
             syncProgressTracker.addLog('success', `✅ Processed: ${leadToUse.name} - "${subject.substring(0, 40)}..."`);
+          } else {
+            syncProgressTracker.addLog('success', `✅ Added message to existing lead: ${leadToUse.name} - "${subject.substring(0, 40)}..."`);
           }
+          
+          // Track all leads that got new messages (both new and existing)
+          leadsWithNewMessages.add(leadToUse.id);
 
           processingLogs.push({
             status: "success",
@@ -2188,20 +2431,36 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         }
       }
 
+      // Log the raw counts before computing summary
+      console.log(`[Gmail Sync Summary] createdLeads.length: ${createdLeads.length}`);
+      console.log(`[Gmail Sync Summary] leadsWithNewMessages.size: ${leadsWithNewMessages.size}`);
+      console.log(`[Gmail Sync Summary] createdLeads:`, createdLeads.map(l => ({ name: l.name, email: l.email })));
+      console.log(`[Gmail Sync Summary] leadsWithNewMessages IDs:`, Array.from(leadsWithNewMessages));
+
       const summary = {
         created: createdLeads.length,
+        updated: leadsWithNewMessages.size - createdLeads.length, // Leads that got new messages but weren't newly created
+        total: leadsWithNewMessages.size, // Total leads affected (new + updated)
         duplicates: duplicates.length,
         skipped: skipped.length,
         errors: parseErrors.length,
       };
 
-      syncProgressTracker.complete(summary);
-      syncProgressTracker.addLog('success', `✅ Sync complete! Created ${summary.created} leads from ${messages.length} emails`);
+      console.log(`[Gmail Sync Summary] Final summary:`, summary);
 
-      // Clear notified threads for synced leads
-      const syncedThreadIds = createdLeads
-        .map((lead: any) => lead.gmailThreadId)
-        .filter(Boolean) as string[];
+      syncProgressTracker.complete(summary);
+      syncProgressTracker.addLog('success', `✅ Sync complete! ${summary.total} leads imported (${summary.created} new, ${summary.updated} updated) from ${messages.length} emails`);
+
+      // Clear notified threads for ALL synced leads (both new and updated)
+      const syncedLeadIds = Array.from(leadsWithNewMessages);
+      const syncedThreadIds: string[] = [];
+      
+      for (const leadId of syncedLeadIds) {
+        const lead = await storage.getLead(leadId, req.orgId);
+        if (lead?.gmailThreadId) {
+          syncedThreadIds.push(lead.gmailThreadId);
+        }
+      }
       
       if (syncedThreadIds.length > 0) {
         await gmailScanner.clearNotifiedThreads(req.orgId, syncedThreadIds);
@@ -2215,7 +2474,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         await storage.markNotificationAsRead(notification.id, req.user.id);
       }
 
-      res.json({
+      const responseData = {
         success: true,
         createdLeads,
         duplicates,
@@ -2224,7 +2483,16 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         processingLogs,
         total: messages.length,
         summary,
+        isCancelled: syncProgressTracker.isCancelled(),
+      };
+      
+      console.log('[Gmail Sync Response] Sending response:', {
+        isCancelled: responseData.isCancelled,
+        summary: responseData.summary,
+        total: responseData.total,
       });
+      
+      res.json(responseData);
 
     } catch (error) {
       syncProgressTracker.fail(String(error));
@@ -2585,6 +2853,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       
       // Track conversationId -> leadId mapping
       const conversationLeadMap = new Map<string, string>();
+      
+      // Track email -> leadId mapping to prevent duplicate leads from same email across different conversations
+      const emailLeadMap = new Map<string, string>();
+      
+      // Track processed message IDs in this session to prevent duplicates within the same batch
+      const processedMessageIds = new Set<string>();
 
       for (let i = 0; i < messages.length; i++) {
         const msg = messages[i];
@@ -2611,6 +2885,24 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           if (!fromEmail) {
             syncProgressTracker.addLog('warning', `⚠️ Skipped: no sender email`);
             skipped.push({ reason: 'No sender email', subject });
+            continue;
+          }
+
+          // Check if we already processed this message in this sync session
+          if (processedMessageIds.has(msg.id)) {
+            duplicates.push({ email: fromEmail, reason: "Already processed in this session" });
+            syncProgressTracker.addLog('warning', `⏭️ Skipped duplicate: "${subject.substring(0, 50)}..."`);
+            continue;
+          }
+
+          // Mark this message as being processed immediately to prevent duplicates within this batch
+          processedMessageIds.add(msg.id);
+
+          // Check if this exact message was already processed in database by externalId
+          const existingConversation = await storage.getConversationByExternalId(msg.id);
+          if (existingConversation) {
+            duplicates.push({ email: fromEmail, reason: "Already processed" });
+            syncProgressTracker.addLog('warning', `⏭️ Skipped duplicate: "${subject.substring(0, 50)}..."`);
             continue;
           }
 
@@ -2678,8 +2970,19 @@ Return JSON with:
           const leadEmail = fromEmail.toLowerCase().trim();
           const leadPhone = (parsedData.phone || "").trim();
           
-          const existingLead = await storage.getLeadByEmail(leadEmail, req.orgId) || 
-                              (leadPhone ? await storage.getLeadByPhone(leadPhone, req.orgId) : null);
+          // First check if we've already seen this email in this sync session
+          let existingLead = null;
+          if (emailLeadMap.has(leadEmail)) {
+            const leadId = emailLeadMap.get(leadEmail)!;
+            existingLead = await storage.getLead(leadId, req.orgId);
+            syncProgressTracker.addLog('info', `📧 Email match: Using existing lead from earlier in sync`);
+          }
+          
+          // If not in session map, check database by email or phone
+          if (!existingLead) {
+            existingLead = await storage.getLeadByEmail(leadEmail, req.orgId) || 
+                            (leadPhone ? await storage.getLeadByPhone(leadPhone, req.orgId) : null);
+          }
 
           if (existingLead) {
             leadToUse = existingLead;
@@ -2728,6 +3031,11 @@ Return JSON with:
           if (conversationId) {
             conversationLeadMap.set(conversationId, leadToUse.id);
           }
+          
+          // Store email -> leadId mapping to prevent duplicate leads from same email
+          if (leadEmail) {
+            emailLeadMap.set(leadEmail, leadToUse.id);
+          }
 
           // Clean the email body to remove quoted content and fix line breaks
           const cleanedOutlookBody = cleanEmailBody(emailBody);
@@ -2751,6 +3059,7 @@ Return JSON with:
 
       const summary = {
         created: createdLeads.length,
+        total: createdLeads.length, // Total leads affected
         duplicates: duplicates.length,
         skipped: skipped.length,
         errors: parseErrors.length,
@@ -2767,6 +3076,7 @@ Return JSON with:
         parseErrors,
         total: messages.length,
         summary,
+        isCancelled: syncProgressTracker.isCancelled(),
       });
 
     } catch (error) {

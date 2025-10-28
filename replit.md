@@ -59,6 +59,26 @@ The function does NOT reformat or rejoin lines - it preserves the email body exa
 
 **Sync Session Tracking:** Each email sync session tracks the lead IDs created during that specific sync. When users choose to "disconnect and delete leads" or "stop sync and delete leads" during an active sync, the system only deletes leads from the current sync session, preserving all previously imported leads from earlier syncs. This prevents accidental deletion of established lead data.
 
+**Automatic Gmail Message Import:** The server-side Gmail scanner (`gmailScanner.ts`) runs every 60 seconds and automatically imports new messages from existing conversation threads. For each organization with Gmail connected:
+1. Fetches the last 50 messages from Gmail
+2. Groups messages by thread ID
+3. For existing leads (threads already in the system), checks for new messages not yet imported
+4. For new threads, checks if a lead with that email address already exists before creating a new lead (prevents duplicates from same email across different threads)
+5. Imports new messages as conversation entries with proper metadata (message ID, date, body)
+6. Updates the "Unreplied Messages" widget automatically without requiring manual sync or app to be open
+7. Includes per-message error handling to prevent API failures from blocking the entire scan
+8. Note: Currently limited to 50 most recent messages per scan; future enhancement planned for Gmail History API-based incremental sync
+
+**Scanner Deduplication & Timestamp Handling:** The Gmail scanner uses the `externalId` field (stores Gmail Message-ID header) for deduplication, consistent with the manual sync flow. Both scanner and manual sync call `storage.getConversationByExternalId()` to prevent duplicate message creation. The scanner passes Date objects (not ISO strings) when creating leads and conversations, matching schema validation requirements. Database defaults (`defaultNow()`) are used for `leads.lastContactAt` and `leads.createdAt` fields - these are never passed during insertion.
+
+**Session-Level Email Deduplication:** Both Gmail and Outlook manual sync implement session-scoped `emailLeadMap` (email → leadId mapping) to prevent duplicate lead creation when the same email address appears in multiple threads/conversations within a single sync batch. The deduplication hierarchy is:
+1. Check thread/conversation map (thread-level deduplication)
+2. Check emailLeadMap (email-level deduplication within sync session) - prevents race conditions
+3. Check database by email (cross-session deduplication)
+4. Check database by phone (alternative identifier deduplication)
+5. Create new lead only if none found
+This ensures that if two different Gmail threads or Outlook conversations from the same email address (e.g., tamerayoubbusiness@gmail.com) are processed in the same sync, they reuse the same lead instead of creating duplicates.
+
 ## External Dependencies
 
 ### Core Infrastructure

@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
   calendarConnections, calendarEvents, schedulePreferences, memberships, organizations, notifications,
-  zillowIntegrations, zillowListings,
+  zillowIntegrations, zillowListings, deletedLeads,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -16,7 +16,8 @@ import {
   type SchedulePreference, type InsertSchedulePreference,
   type Notification, type InsertNotification,
   type ZillowIntegration, type InsertZillowIntegration,
-  type ZillowListing, type InsertZillowListing
+  type ZillowListing, type InsertZillowListing,
+  type DeletedLead, type InsertDeletedLead
 } from "@shared/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
@@ -29,6 +30,7 @@ export interface IStorage {
   updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
 
   // Organization & Membership operations
+  getOrganization(orgId: string): Promise<Organization | undefined>;
   getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined>;
   getUserOrganizations(userId: string): Promise<Array<{ orgId: string; orgName: string; role: string }>>;
   getMembership(userId: string, orgId: string): Promise<{ orgId: string; role: string } | undefined>;
@@ -49,6 +51,7 @@ export interface IStorage {
   getLeadByPhone(phone: string, orgId: string): Promise<Lead | undefined>;
   getLeadByExternalId(externalId: string, orgId: string): Promise<Lead | undefined>;
   getLeadByGmailThreadId(threadId: string, orgId: string): Promise<Lead | undefined>;
+  getLeadsWithUnreadMessages(orgId: string): Promise<Array<Lead & { unreadCount: number }>>;
   createLead(lead: InsertLead & { orgId: string }): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>, orgId: string): Promise<Lead | undefined>;
   deleteLead(id: string, orgId: string): Promise<boolean>;
@@ -73,7 +76,13 @@ export interface IStorage {
   getUnreadNotificationCount(userId: string, orgId: string): Promise<number>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: string, userId: string): Promise<boolean>;
+  markAllLeadNotificationsAsRead(leadId: string, orgId: string): Promise<number>;
   deleteNotification(id: string, userId: string): Promise<boolean>;
+
+  // Deleted Lead operations (track manually deleted leads to prevent auto-reimport)
+  getDeletedLeadByEmail(email: string, orgId: string): Promise<DeletedLead | undefined>;
+  getDeletedLeadByGmailThread(threadId: string, orgId: string): Promise<DeletedLead | undefined>;
+  createDeletedLead(deletedLead: InsertDeletedLead): Promise<DeletedLead>;
 
   // Integration Config operations
   getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined>;
@@ -171,6 +180,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Organization & Membership operations
+  async getOrganization(orgId: string): Promise<Organization | undefined> {
+    const result = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    return result[0];
+  }
+
   async getUserOrganization(userId: string): Promise<{ orgId: string; role: string } | undefined> {
     const result = await db.select({
       orgId: memberships.orgId,
@@ -275,6 +289,63 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getLeadsWithUnreadMessages(orgId: string): Promise<Array<Lead & { unreadCount: number; lastMessage: string; lastMessageAt: string }>> {
+    // Use a single efficient query to get leads with their latest conversation
+    const result = await db.execute(sql`
+      WITH latest_received_messages AS (
+        SELECT DISTINCT ON (c.lead_id)
+          c.lead_id,
+          c.type,
+          c.message,
+          c.created_at
+        FROM conversations c
+        INNER JOIN leads l ON c.lead_id = l.id
+        WHERE l.org_id = ${orgId}
+          AND c.type = 'received'
+        ORDER BY c.lead_id, c.created_at DESC
+      ),
+      unread_counts AS (
+        SELECT 
+          c.lead_id,
+          COUNT(*) as unread_count
+        FROM conversations c
+        INNER JOIN leads l ON c.lead_id = l.id
+        WHERE l.org_id = ${orgId}
+          AND c.type = 'received'
+          AND c.created_at > COALESCE((
+            SELECT MAX(c2.created_at)
+            FROM conversations c2
+            WHERE c2.lead_id = c.lead_id
+              AND c2.type = 'outgoing'
+          ), '1970-01-01'::timestamp)
+        GROUP BY c.lead_id
+      )
+      SELECT 
+        l.*,
+        COALESCE(uc.unread_count, 0)::int as unread_count,
+        lrm.message as last_message,
+        to_char(lrm.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as last_message_at
+      FROM leads l
+      INNER JOIN latest_received_messages lrm ON l.id = lrm.lead_id
+      LEFT JOIN unread_counts uc ON l.id = uc.lead_id
+      WHERE l.org_id = ${orgId}
+        AND COALESCE(uc.unread_count, 0) > 0
+      ORDER BY lrm.created_at DESC
+    `);
+    
+    // Manually map snake_case database columns to camelCase for API
+    return result.rows.map((row: any) => ({
+      ...row,
+      unreadCount: row.unread_count,
+      lastMessage: row.last_message,
+      lastMessageAt: row.last_message_at,
+      // Remove snake_case versions
+      unread_count: undefined,
+      last_message: undefined,
+      last_message_at: undefined,
+    })) as Array<Lead & { unreadCount: number; lastMessage: string; lastMessageAt: string }>;
+  }
+
   async createLead(lead: InsertLead & { orgId: string }): Promise<Lead> {
     const result = await db.insert(leads).values(lead).returning();
     return result[0];
@@ -350,7 +421,45 @@ export class DatabaseStorage implements IStorage {
 
   // Conversation operations
   async getConversationsByLeadId(leadId: string): Promise<Conversation[]> {
-    return db.select().from(conversations).where(eq(conversations.leadId, leadId)).orderBy(conversations.createdAt);
+    // Use raw SQL to properly format timestamps with UTC timezone
+    const result = await db.execute(sql`
+      SELECT 
+        id,
+        lead_id,
+        type,
+        channel,
+        message,
+        ai_generated,
+        external_id,
+        gmail_message_id,
+        email_message_id,
+        email_subject,
+        source_integration,
+        delivery_status,
+        delivery_error,
+        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
+      FROM conversations
+      WHERE lead_id = ${leadId}
+      ORDER BY created_at ASC
+    `);
+    
+    // Map snake_case to camelCase
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      leadId: row.lead_id,
+      type: row.type,
+      channel: row.channel,
+      message: row.message,
+      aiGenerated: row.ai_generated,
+      externalId: row.external_id,
+      gmailMessageId: row.gmail_message_id,
+      emailMessageId: row.email_message_id,
+      emailSubject: row.email_subject,
+      sourceIntegration: row.source_integration,
+      deliveryStatus: row.delivery_status,
+      deliveryError: row.delivery_error,
+      createdAt: row.created_at,
+    })) as Conversation[];
   }
 
   async getConversationByExternalId(externalId: string): Promise<Conversation | undefined> {
@@ -430,6 +539,14 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async markAllLeadNotificationsAsRead(leadId: string, orgId: string): Promise<number> {
+    const result = await db.update(notifications)
+      .set({ read: true })
+      .where(and(eq(notifications.leadId, leadId), eq(notifications.orgId, orgId)))
+      .returning();
+    return result.length;
+  }
+
   async deleteNotification(id: string, userId: string): Promise<boolean> {
     const result = await db.delete(notifications)
       .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
@@ -437,10 +554,49 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  // Deleted Lead operations (track manually deleted leads to prevent auto-reimport)
+  async getDeletedLeadByEmail(email: string, orgId: string): Promise<DeletedLead | undefined> {
+    const result = await db.select().from(deletedLeads)
+      .where(and(eq(deletedLeads.email, email), eq(deletedLeads.orgId, orgId)))
+      .orderBy(desc(deletedLeads.deletedAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async getDeletedLeadByGmailThread(threadId: string, orgId: string): Promise<DeletedLead | undefined> {
+    const result = await db.select().from(deletedLeads)
+      .where(and(eq(deletedLeads.gmailThreadId, threadId), eq(deletedLeads.orgId, orgId)))
+      .orderBy(desc(deletedLeads.deletedAt))
+      .limit(1);
+    return result[0];
+  }
+
+  async createDeletedLead(deletedLead: InsertDeletedLead): Promise<DeletedLead> {
+    const result = await db.insert(deletedLeads).values(deletedLead).returning();
+    return result[0];
+  }
+
   // Integration Config operations
   async getIntegrationConfig(service: string, orgId: string): Promise<IntegrationConfig | undefined> {
     const result = await db.select().from(integrationConfig).where(and(eq(integrationConfig.service, service), eq(integrationConfig.orgId, orgId))).limit(1);
     return result[0];
+  }
+
+  async getIntegrationByOrgAndService(orgId: string, service: string): Promise<IntegrationConfig | undefined> {
+    return this.getIntegrationConfig(service, orgId);
+  }
+
+  async updateIntegrationLastSync(orgId: string, service: string, lastSyncTimestamp: Date): Promise<void> {
+    const existing = await this.getIntegrationConfig(service, orgId);
+    if (existing) {
+      const updatedConfig = {
+        ...existing.config,
+        lastSyncTimestamp: lastSyncTimestamp.toISOString()
+      };
+      await db.update(integrationConfig)
+        .set({ config: updatedConfig, updatedAt: new Date() })
+        .where(eq(integrationConfig.id, existing.id));
+    }
   }
 
   async upsertIntegrationConfig(config: InsertIntegrationConfig & { orgId: string }): Promise<IntegrationConfig> {

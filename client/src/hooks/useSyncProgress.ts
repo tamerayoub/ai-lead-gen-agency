@@ -16,6 +16,8 @@ interface SyncProgress {
   logs: SyncLog[];
   summary?: {
     created: number;
+    updated?: number;
+    total?: number;
     duplicates: number;
     skipped: number;
     errors: number;
