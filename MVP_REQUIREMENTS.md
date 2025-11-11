@@ -1,4 +1,4 @@
-# LeaseLoopAI - MVP Requirements Document
+# Lead2Lease - MVP Requirements Document
 
 **Version:** 1.0  
 **Last Updated:** October 13, 2025  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-LeaseLoopAI is a multi-tenant AI-powered CRM for property management companies that automates lead generation, qualification, and communication across email, SMS, phone, and social messaging platforms. The MVP focuses on automating the rental pipeline from initial contact through lease signing.
+Lead2Lease is a multi-tenant AI-powered CRM for property management companies that automates lead generation, qualification, and communication across email, SMS, phone, and social messaging platforms. The MVP focuses on automating the rental pipeline from initial contact through lease signing.
 
 ---
 

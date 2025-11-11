@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +24,16 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [onboardingToken, setOnboardingToken] = useState<string | null>(null);
+
+  // Check for onboarding token in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("onboardingToken");
+    if (token) {
+      setOnboardingToken(token);
+    }
+  }, []);
 
   const form = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
@@ -38,11 +48,15 @@ export default function Register() {
   async function onSubmit(values: z.infer<typeof registerSchema>) {
     try {
       setIsLoading(true);
-      const response = await apiRequest("POST", "/api/auth/register", values);
+      const payload = {
+        ...values,
+        ...(onboardingToken && { onboardingToken }),
+      };
+      const response = await apiRequest("POST", "/api/auth/register", payload);
       
       toast({
         title: "Account created!",
-        description: "Welcome to LeaseLoopAI. Your account has been created successfully.",
+        description: "Welcome to Lead2Lease. Your account has been created successfully.",
       });
       
       // Refresh user data and redirect
@@ -60,7 +74,11 @@ export default function Register() {
   }
 
   function handleOAuthRegister(provider: string) {
-    window.location.href = `/api/auth/${provider}`;
+    let url = `/api/auth/${provider}`;
+    if (onboardingToken) {
+      url += `?onboardingToken=${onboardingToken}`;
+    }
+    window.location.href = url;
   }
 
   return (
@@ -74,7 +92,7 @@ export default function Register() {
             Create your account
           </CardTitle>
           <CardDescription data-testid="text-register-subtitle">
-            Get started with LeaseLoopAI today
+            Get started with Lead2Lease today
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,4 +1,4 @@
-# LeaseLoopAI Design Guidelines
+# Lead2Lease Design Guidelines
 
 ## Design Approach
 

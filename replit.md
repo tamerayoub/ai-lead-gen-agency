@@ -1,8 +1,8 @@
-# LeaseLoopAI - AI-Powered Property Management CRM
+# Lead2Lease - AI-Powered Property Management CRM
 
 ## Overview
 
-LeaseLoopAI is an AI-powered CRM system designed for property management companies. Its primary goal is to automate lead generation and qualification across various communication channels like email, SMS, phone, and listing platforms. The system provides automated responses, pre-qualifies leads based on customizable criteria, and manages the entire rental pipeline from initial contact to application approval. Property managers utilize a dashboard to monitor AI interactions, track lead status, manage properties, analyze conversion metrics, and perform manual interventions when necessary. The project aims to streamline property management operations, enhance lead conversion, and provide a competitive edge in the rental market.
+Lead2Lease is an AI-powered CRM system for property management, designed to automate lead generation and qualification across multiple communication channels (email, SMS, phone, listing platforms). It provides automated responses, pre-qualifies leads based on customizable criteria, and manages the entire rental pipeline from initial contact to application approval. Property managers use a dashboard to monitor AI interactions, track lead status, manage properties, and analyze conversion metrics, aiming to streamline operations, enhance lead conversion, and gain a competitive edge.
 
 ## User Preferences
 
@@ -12,72 +12,69 @@ Preferred communication style: Simple, everyday language.
 
 ### UI/UX Decisions
 
-The frontend is built with React, TypeScript, and Vite, using Wouter for routing. It features a modern SaaS design inspired by platforms like Linear and Notion, implemented with Shadcn/ui (Radix UI-based) and Tailwind CSS, supporting both dark and light themes. State management utilizes TanStack Query for server-side data and local React state for UI-specific elements. Key user interfaces include a Dashboard, Leads management, Properties, Analytics, AI Training, and a unified AI Activity Center for real-time monitoring of AI communications.
+The frontend uses React, TypeScript, and Vite with Wouter for routing. It features a modern SaaS design, inspired by Linear and Notion, implemented with Shadcn/ui (Radix UI-based) and Tailwind CSS, supporting dark and light themes. State management utilizes TanStack Query for server data and local React state for UI. Key interfaces include Dashboard, Leads, Properties, Analytics, AI Training, and an AI Activity Center for real-time communication monitoring. The brand color palette uses Slate Blue for primary actions, Deep Navy for backgrounds, and Soft White Smoke for CRM interface bases.
+
+**Landing Page Animations:**
+- Framer Motion scroll-triggered fade-in animations with viewport triggers for all major sections
+- Staggered card animations using motion variants for feature grids and benefit cards
+- Custom Tailwind CSS blob animations with gradient backgrounds and staggered delays (2s, 4s)
+- Advanced hover effects with scale transforms, lift shadows, and glow effects on interactive cards
+- Animated Counter component for ROI metrics displaying "3x", "50%", "2x", "40%" with smooth number transitions
+- Smooth scroll behavior enabled site-wide for anchor navigation
+- Glassmorphism effects on sticky header with backdrop-blur-md and semi-transparent backgrounds
+- Subtle pulse animations on key icons (Bot icon) with 3-second cycles
 
 ### Technical Implementations
 
-The backend is an Express.js and TypeScript REST API. It uses PostgreSQL with Neon serverless driver and Drizzle ORM for type-safe data access. The database schema includes tables for users, sessions, properties, leads, conversations, AI settings, and integration configurations. Authentication is handled by Replit Auth, supporting various OAuth providers and email/password, with session management stored in PostgreSQL.
+The backend is an Express.js and TypeScript REST API, utilizing PostgreSQL with Neon serverless driver and Drizzle ORM. Database schemas cover users, sessions, properties, leads, conversations, AI settings, and integration configurations. Authentication is handled by Replit Auth, supporting various OAuth providers and email/password, with session management in PostgreSQL.
 
 ### Feature Specifications
 
 **AI Integration Points:**
-- **Configurable AI:** Supports template-based responses, customizable lead qualification rules (e.g., income, move-in date), and automation settings (auto-respond, follow-up scheduling, auto-pilot mode).
-- **AI Email Reply Approval:** Features a "Pending Replies Queue" for reviewing, approving, rejecting, or editing AI-generated email responses. An "Auto-Pilot Mode" enables automatic sending of approved replies, and a "Scan for Unanswered" feature generates replies for past inquiries. Email threading is maintained.
-- **Multi-Channel Communication:** Integrates email (Gmail, Outlook), SMS, and phone. An "AI Activity Center" provides a real-time, unified view of all AI communications, their status, and full conversation context.
-- **Lead Pre-qualification:** Assigns qualification scores to leads based on defined criteria, managing the lead pipeline from initial contact to application approval.
-- **Lead Capture:** Real-time lead capture from various sources including Facebook Messenger webhooks, and email integrations (Gmail, Outlook) with AI parsing to identify rental inquiries and extract lead data.
+- **Configurable AI:** Template-based responses, customizable lead qualification rules, and automation settings (auto-respond, follow-up, auto-pilot).
+- **AI Email Reply Approval:** "Pending Replies Queue" for review/approval/editing, "Auto-Pilot Mode" for automatic sending, and "Scan for Unanswered" for past inquiries.
+- **Multi-Channel Communication:** Integrates email (Gmail, Outlook), SMS, and phone with a unified "AI Activity Center".
+- **Lead Pre-qualification:** Assigns qualification scores and manages the lead pipeline.
+- **Lead Capture:** Real-time capture from Facebook Messenger webhooks and email integrations with AI parsing.
+
+**Demo Booking System:**
+- A public `/book-demo` page with dual booking options via tabbed interface:
+  - **Schedule Now**: Calendly inline calendar widget for direct appointment booking
+  - **Request Callback**: Contact form capturing prospect information
+- Form submissions stored in `demo_requests` table with success confirmation flow.
+- Calendly integration uses dynamic script loading with proper cleanup on unmount.
+- API endpoints exist for public submissions (`/api/demo-requests` POST) and authenticated admin viewing (`/api/demo-requests` GET).
+- Responsive design with mobile-friendly tabs and 320px minimum width for calendar widget.
+
+**Pre-Signup Onboarding Flow:**
+- A multi-step questionnaire at `/onboarding` captures prospect data before authentication.
+- A session token system links onboarding responses to user accounts post-signup, integrating with all Replit Auth methods (Email/Password, Google, Facebook, Microsoft, Apple OAuth).
+- Onboarding responses are stored in the `onboarding_intakes` table, viewable by admins at `/admin/onboarding`.
+
+**Admin Area:**
+- A separate, isolated admin portal at `/admin` with dedicated login and layout.
+- Admin authentication supports OAuth and email/password, enforcing `isAdmin=true` access.
+- Admin features include "Demo Requests Management" for viewing and managing demo submissions.
+
+**Sales Pipeline System:**
+- A drag-and-drop kanban board at `/admin/sales-pipeline` for managing prospects through 6 pipeline stages: Discovery, Evaluation, Probing, Offer, Sale, and Onboard.
+- Automatic prospect creation and email-based deduplication merging demo requests and onboarding intakes into unified sales prospects.
+- Pipeline stage badges display on Demo Requests and Onboarding Intakes pages, providing cross-view status visibility.
+- "Resync Prospects" feature backfills existing data from demo requests and onboarding submissions.
+- Database tables: `sales_prospects` (prospect records with pipeline stages) and `prospect_sources` (tracking source attribution from demo/onboarding).
+- Uses @dnd-kit library for drag-and-drop functionality with proper droppable targets and collision detection.
+
+**Admin Analytics Dashboard:**
+- Comprehensive analytics page at `/admin/analytics` displaying platform-wide KPIs and trends.
+- Real-time metrics include: total signups, demo requests, onboarding submissions, paying customers (organizations), sales prospects, and conversion rate.
+- Conversion rate calculated as percentage of prospects in "sale" or "onboard" stages relative to total prospects.
+- Visual data representations using Recharts: line charts for 6-month signup and demo request trends, pie chart for pipeline stage distribution.
+- Backend API endpoint `/api/admin/analytics` with SQL aggregation queries for efficient data retrieval.
+- Error handling and loading states for robust user experience.
 
 ### System Design Choices
 
-The frontend employs a component-based architecture, separating UI primitives, feature-specific components, and page-level elements. The backend API is RESTful, organized by resource, with Zod for request validation and standardized error handling. Data storage uses a schema-first approach with an abstract `IStorage` interface. Lead deduplication is implemented at the conversation thread level for emails and by normalized email/phone for multi-channel communications.
-
-**Email Threading & Conversation Management:** Gmail and Outlook email threads are tracked using `gmailThreadId` and `outlookConversationId` fields in the leads table. When a reply is received in an existing email thread, the system:
-1. Checks if the exact message ID was already processed (true duplicate) → skip
-2. Checks if the thread ID matches an existing lead → add message to that lead's conversation history
-3. Otherwise → create new lead and store thread ID for future replies
-
-This ensures email conversations are properly threaded and replies are not incorrectly treated as duplicate leads.
-
-**Email Threading Implementation (RFC 822):** When sending email replies through the CRM:
-1. The system stores the Message-ID header from all incoming emails in `conversations.emailMessageId`
-2. When sending a reply, it fetches all conversations for the lead and builds RFC 822 threading headers:
-   - `In-Reply-To`: Set to the Message-ID of the most recent received message
-   - `References`: Space-separated list of all Message-IDs in chronological order
-   - `threadId`: Gmail's internal thread ID for Gmail API threading
-3. After sending, the system fetches the sent message to extract its Message-ID and stores it
-4. **Design constraint**: Each lead maps to exactly ONE email thread. The import logic enforces this by creating new leads for new threads. This means all conversations for a given lead are guaranteed to be from the same thread.
-
-**Email Body Cleaning:** The system includes a `cleanEmailBody()` utility function that processes incoming email messages before storage. This function:
-1. Removes quoted/threaded content (lines starting with ">", "On...wrote:" patterns and everything after)
-2. Removes forwarded email markers ("From:") and everything after them
-3. Preserves EXACT original formatting and line breaks from the email as written
-4. Ensures stored conversations contain only the relevant, original message content without quoted replies
-
-The function does NOT reformat or rejoin lines - it preserves the email body exactly as it appears in the original message. This cleaning is applied to all email conversations stored in the system (Gmail, Outlook, initial messages, and replies).
-
-**Multi-Tenant Organization Management:** The user's active organization is persistently stored in the `users.currentOrgId` database field. Organization switching updates this field, and the system defaults to the user's first membership if no preference is set.
-
-**Sync Session Tracking:** Each email sync session tracks the lead IDs created during that specific sync. When users choose to "disconnect and delete leads" or "stop sync and delete leads" during an active sync, the system only deletes leads from the current sync session, preserving all previously imported leads from earlier syncs. This prevents accidental deletion of established lead data.
-
-**Automatic Gmail Message Import:** The server-side Gmail scanner (`gmailScanner.ts`) runs every 60 seconds and automatically imports new messages from existing conversation threads. For each organization with Gmail connected:
-1. Fetches the last 50 messages from Gmail
-2. Groups messages by thread ID
-3. For existing leads (threads already in the system), checks for new messages not yet imported
-4. For new threads, checks if a lead with that email address already exists before creating a new lead (prevents duplicates from same email across different threads)
-5. Imports new messages as conversation entries with proper metadata (message ID, date, body)
-6. Updates the "Unreplied Messages" widget automatically without requiring manual sync or app to be open
-7. Includes per-message error handling to prevent API failures from blocking the entire scan
-8. Note: Currently limited to 50 most recent messages per scan; future enhancement planned for Gmail History API-based incremental sync
-
-**Scanner Deduplication & Timestamp Handling:** The Gmail scanner uses the `externalId` field (stores Gmail Message-ID header) for deduplication, consistent with the manual sync flow. Both scanner and manual sync call `storage.getConversationByExternalId()` to prevent duplicate message creation. The scanner passes Date objects (not ISO strings) when creating leads and conversations, matching schema validation requirements. Database defaults (`defaultNow()`) are used for `leads.lastContactAt` and `leads.createdAt` fields - these are never passed during insertion.
-
-**Session-Level Email Deduplication:** Both Gmail and Outlook manual sync implement session-scoped `emailLeadMap` (email → leadId mapping) to prevent duplicate lead creation when the same email address appears in multiple threads/conversations within a single sync batch. The deduplication hierarchy is:
-1. Check thread/conversation map (thread-level deduplication)
-2. Check emailLeadMap (email-level deduplication within sync session) - prevents race conditions
-3. Check database by email (cross-session deduplication)
-4. Check database by phone (alternative identifier deduplication)
-5. Create new lead only if none found
-This ensures that if two different Gmail threads or Outlook conversations from the same email address (e.g., tamerayoubbusiness@gmail.com) are processed in the same sync, they reuse the same lead instead of creating duplicates.
+The frontend uses a component-based architecture. The backend API is RESTful, organized by resource, with Zod validation. Data storage uses a schema-first approach with an `IStorage` interface. Lead deduplication is implemented at the conversation thread level for emails and by normalized email/phone for multi-channel communications. Email threading uses RFC 822 headers and Gmail's `threadId` to ensure all conversations for a given lead are from the same thread. An email body cleaning utility removes quoted/forwarded content from incoming messages while preserving original formatting. Multi-tenant organization management stores the active organization in `users.currentOrgId`. Sync sessions track lead IDs to prevent accidental deletion of established leads during disconnect actions. An automatic Gmail scanner runs every 60 seconds to import new messages from existing threads and create new leads for new threads, using `externalId` for deduplication. Session-level email deduplication prevents duplicate lead creation within a single sync batch across different threads from the same email address.
 
 ## External Dependencies
 
@@ -97,13 +94,7 @@ This ensures that if two different Gmail threads or Outlook conversations from t
 - **Development:** Replit-specific dev tools, TypeScript, ESBuild.
 
 ### Third-Party Integrations
-- **Communication Services:**
-    - **Twilio:** For SMS and voice calls, integrated via Replit Connectors API.
-    - **Gmail (OAuth 2.0):** Email integration for background sync, lead detection, and conversation threading.
-    - **Microsoft Outlook (OAuth 2.0):** Email integration for background sync, lead detection, and conversation threading.
-    - **Facebook Messenger (Webhook):** Real-time lead capture from Facebook business pages.
-- **Calendar Integration:**
-    - **Google Calendar (OAuth 2.0):** For availability management, scheduling, and user-configurable AI scheduling preferences.
-- **Property Management Systems (PMS):** Supported providers include Buildium, AppFolio, Yardi, and Rent Manager, integrated via API keys.
-- **Authentication & Session Management:**
-    - **Replit Auth:** Provides full OAuth 2.0 support for Google, GitHub, X (Twitter), and Apple, as well as email/password authentication. Sessions are stored in PostgreSQL with a 7-day expiration and automatic token refresh.
+- **Communication Services:** Twilio (SMS/voice), Gmail (OAuth 2.0), Microsoft Outlook (OAuth 2.0), Facebook Messenger (Webhook).
+- **Calendar Integration:** Google Calendar (OAuth 2.0).
+- **Property Management Systems (PMS):** Buildium, AppFolio, Yardi, Rent Manager.
+- **Authentication & Session Management:** Replit Auth (Google, GitHub, X, Apple OAuth, email/password).

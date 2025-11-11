@@ -58,7 +58,7 @@ const channelIcons = {
 const channelColors = {
   email: "bg-blue-500/10 text-blue-500",
   sms: "bg-green-500/10 text-green-500",
-  phone: "bg-purple-500/10 text-purple-500",
+  phone: "bg-blue-500/10 text-blue-500",
 };
 
 const statusIcons = {

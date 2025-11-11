@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema } from "@shared/schema";
+import { insertLeadSchema, insertPropertySchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema, insertDemoRequestSchema, insertAppointmentSchema, type User } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
@@ -14,7 +14,7 @@ import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
 import { db } from "./db";
-import { zillowListings, properties, organizations, conversations } from "@shared/schema";
+import { zillowListings, properties, organizations, conversations, onboardingIntakes } from "@shared/schema";
 import { eq, and, isNull, isNotNull } from "drizzle-orm";
 
 console.log("🔥🔥🔥 ROUTES.TS LOADED AT:", new Date().toISOString(), "🔥🔥🔥");
@@ -3604,6 +3604,414 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error('[Backfill] Error:', error);
       res.status(500).json({ error: "Failed to backfill Message-IDs" });
+    }
+  });
+
+  // ===== DEMO REQUEST ROUTES (PUBLIC) =====
+  // Create a new demo request (no authentication required)
+  app.post("/api/demo-requests", async (req, res) => {
+    try {
+      const validatedData = insertDemoRequestSchema.parse(req.body);
+      const demoRequest = await storage.createDemoRequest(validatedData);
+      
+      // Automatically create/update sales prospect from this demo request
+      try {
+        await storage.upsertProspectFromDemo(demoRequest);
+        console.log("[Demo Request] Created/updated sales prospect for:", demoRequest.email);
+      } catch (prospectError: any) {
+        console.error("[Demo Request] Failed to create sales prospect:", prospectError.message);
+        // Don't fail the demo request if prospect creation fails
+      }
+      
+      res.status(201).json(demoRequest);
+    } catch (error: any) {
+      console.error("[Demo Request] Error creating demo request:", error);
+      res.status(400).json({ 
+        message: "Failed to submit demo request", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get all demo requests (admin only - would need auth)
+  app.get("/api/demo-requests", isAuthenticated, async (req, res) => {
+    try {
+      const requests = await storage.getAllDemoRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("[Demo Request] Error fetching demo requests:", error);
+      res.status(500).json({ message: "Failed to fetch demo requests" });
+    }
+  });
+
+  // ===== APPOINTMENT ROUTES =====
+  // Get available time slots for a date (public)
+  app.get("/api/appointments/availability", async (req, res) => {
+    try {
+      const { date } = req.query;
+      
+      if (!date || typeof date !== 'string') {
+        return res.status(400).json({ message: "Date parameter is required (YYYY-MM-DD format)" });
+      }
+
+      // Define business hours (9 AM to 5 PM) and slot duration (30 minutes)
+      const businessHours = {
+        start: 9, // 9 AM
+        end: 17,  // 5 PM
+        slotDuration: 30, // minutes
+      };
+
+      // Generate all possible time slots
+      const allSlots: string[] = [];
+      for (let hour = businessHours.start; hour < businessHours.end; hour++) {
+        for (let minute = 0; minute < 60; minute += businessHours.slotDuration) {
+          const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+          allSlots.push(timeString);
+        }
+      }
+
+      // Get existing appointments for this date
+      const existingAppointments = await storage.getAppointmentsByDate(date);
+      const bookedSlots = new Set(existingAppointments.map(apt => apt.appointmentTime));
+
+      // Filter out booked slots and past times if date is today
+      const now = new Date();
+      const requestedDate = new Date(date);
+      const isToday = requestedDate.toDateString() === now.toDateString();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+
+      const availableSlots = allSlots.filter(slot => {
+        if (bookedSlots.has(slot)) return false;
+        
+        if (isToday) {
+          const [hour, minute] = slot.split(':').map(Number);
+          const slotTime = hour * 60 + minute;
+          const currentTime = currentHour * 60 + currentMinute;
+          return slotTime > currentTime + 60; // At least 1 hour from now
+        }
+        
+        return true;
+      });
+
+      res.json({ 
+        date, 
+        availableSlots, 
+        bookedCount: bookedSlots.size,
+        totalSlots: allSlots.length 
+      });
+    } catch (error: any) {
+      console.error("[Appointments] Error fetching availability:", error);
+      res.status(500).json({ message: "Failed to fetch availability" });
+    }
+  });
+
+  // Create a new appointment (public - no authentication required)
+  app.post("/api/appointments", async (req, res) => {
+    try {
+      const validatedData = insertAppointmentSchema.parse(req.body);
+      
+      // Check if the time slot is still available
+      const existingAppointments = await storage.getAppointmentsByDate(validatedData.appointmentDate);
+      const isSlotTaken = existingAppointments.some(apt => 
+        apt.appointmentTime === validatedData.appointmentTime && 
+        apt.status === 'scheduled'
+      );
+
+      if (isSlotTaken) {
+        return res.status(409).json({ 
+          message: "This time slot is no longer available. Please select a different time." 
+        });
+      }
+
+      const appointment = await storage.createAppointment(validatedData);
+      console.log("[Appointments] Created appointment:", appointment.id);
+      
+      // Send confirmation emails
+      try {
+        const { sendAppointmentConfirmation } = await import("./email");
+        await sendAppointmentConfirmation(appointment);
+        console.log("[Appointments] Confirmation emails sent");
+      } catch (emailError) {
+        console.error("[Appointments] Error sending confirmation emails:", emailError);
+        // Don't fail the appointment creation if email fails
+      }
+      
+      res.status(201).json(appointment);
+    } catch (error: any) {
+      console.error("[Appointments] Error creating appointment:", error);
+      res.status(400).json({ 
+        message: "Failed to create appointment", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get all appointments (admin only)
+  app.get("/api/appointments", isAuthenticated, async (req, res) => {
+    try {
+      const appointments = await storage.getAllAppointments();
+      res.json(appointments);
+    } catch (error) {
+      console.error("[Appointments] Error fetching appointments:", error);
+      res.status(500).json({ message: "Failed to fetch appointments" });
+    }
+  });
+
+  // Update appointment status (admin only)
+  app.patch("/api/appointments/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['scheduled', 'completed', 'cancelled', 'no-show'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      const updated = await storage.updateAppointmentStatus(id, status);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("[Appointments] Error updating appointment status:", error);
+      res.status(500).json({ message: "Failed to update appointment status" });
+    }
+  });
+
+  // ===== ONBOARDING INTAKE ROUTES =====
+  // Create or update onboarding intake (public - no auth required)
+  app.post("/api/onboarding", async (req, res) => {
+    try {
+      const { sessionToken, ...intakeData } = req.body;
+      
+      if (!sessionToken) {
+        return res.status(400).json({ message: "Session token is required" });
+      }
+
+      // Check if intake already exists
+      const existingIntake = await storage.getOnboardingIntake(sessionToken);
+      
+      if (existingIntake) {
+        // Update existing intake
+        const updated = await storage.updateOnboardingIntake(sessionToken, intakeData);
+        return res.json(updated);
+      } else {
+        // Create new intake
+        const intake = await storage.createOnboardingIntake({
+          sessionToken,
+          ...intakeData,
+        });
+        return res.status(201).json(intake);
+      }
+    } catch (error: any) {
+      console.error("[Onboarding] Error saving onboarding intake:", error);
+      res.status(400).json({ 
+        message: "Failed to save onboarding data", 
+        error: error.message 
+      });
+    }
+  });
+
+  // Get onboarding intake by session token (public)
+  app.get("/api/onboarding/:sessionToken", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      const intake = await storage.getOnboardingIntake(sessionToken);
+      
+      if (!intake) {
+        return res.status(404).json({ message: "Onboarding intake not found" });
+      }
+      
+      res.json(intake);
+    } catch (error) {
+      console.error("[Onboarding] Error fetching onboarding intake:", error);
+      res.status(500).json({ message: "Failed to fetch onboarding data" });
+    }
+  });
+
+  // Mark onboarding as completed (public)
+  app.patch("/api/onboarding/:sessionToken/complete", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      // Update status to completed and manually set completedAt timestamp
+      const intake = await storage.getOnboardingIntake(sessionToken);
+      if (!intake) {
+        return res.status(404).json({ message: "Onboarding intake not found" });
+      }
+
+      // Use raw DB update to set completedAt
+      const result = await db
+        .update(onboardingIntakes)
+        .set({
+          status: 'completed',
+          completedAt: new Date(),
+        })
+        .where(eq(onboardingIntakes.sessionToken, sessionToken))
+        .returning();
+      
+      // Automatically create/update sales prospect from this onboarding intake
+      const completedIntake = result[0];
+      if (completedIntake) {
+        try {
+          await storage.upsertProspectFromOnboarding(completedIntake);
+          console.log("[Onboarding] Created/updated sales prospect for intake:", completedIntake.id);
+        } catch (prospectError: any) {
+          console.error("[Onboarding] Failed to create sales prospect:", prospectError.message);
+          // Don't fail the completion if prospect creation fails
+        }
+      }
+      
+      res.json(result[0]);
+    } catch (error) {
+      console.error("[Onboarding] Error completing onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  // Get all onboarding intakes (admin only)
+  app.get("/api/onboarding-intakes", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const intakes = await storage.getAllOnboardingIntakes();
+      res.json(intakes);
+    } catch (error) {
+      console.error("[Onboarding] Error fetching onboarding intakes:", error);
+      res.status(500).json({ message: "Failed to fetch onboarding intakes" });
+    }
+  });
+
+  // Get all sales prospects (admin only)
+  app.get("/api/sales-prospects", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const prospects = await storage.getAllSalesProspects();
+      res.json(prospects);
+    } catch (error) {
+      console.error("[Sales] Error fetching sales prospects:", error);
+      res.status(500).json({ message: "Failed to fetch sales prospects" });
+    }
+  });
+
+  // Update prospect pipeline stage (admin only)
+  app.patch("/api/sales-prospects/:id/stage", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const { stage } = req.body;
+
+      if (!stage) {
+        return res.status(400).json({ message: "Stage is required" });
+      }
+
+      const validStages = ['discovery', 'evaluation', 'probing', 'offer', 'sale', 'onboard'];
+      if (!validStages.includes(stage)) {
+        return res.status(400).json({ message: "Invalid stage" });
+      }
+
+      const prospect = await storage.updateProspectStage(id, stage);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      res.json(prospect);
+    } catch (error) {
+      console.error("[Sales] Error updating prospect stage:", error);
+      res.status(500).json({ message: "Failed to update prospect stage" });
+    }
+  });
+
+  // Update prospect details (admin only) - must come after specific routes like /stage
+  app.patch("/api/sales-prospects/:id", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { id } = req.params;
+      const updateData: Partial<InsertSalesProspect> = {};
+
+      // Only allow updating specific fields
+      if (req.body.notes !== undefined) {
+        updateData.notes = req.body.notes;
+      }
+      if (req.body.primaryName !== undefined) {
+        updateData.primaryName = req.body.primaryName;
+      }
+      if (req.body.phone !== undefined) {
+        updateData.phone = req.body.phone;
+      }
+      if (req.body.units !== undefined) {
+        updateData.units = req.body.units;
+      }
+
+      const prospect = await storage.updateSalesProspect(id, updateData);
+      if (!prospect) {
+        return res.status(404).json({ message: "Prospect not found" });
+      }
+
+      res.json(prospect);
+    } catch (error) {
+      console.error("[Sales] Error updating prospect:", error);
+      res.status(500).json({ message: "Failed to update prospect" });
+    }
+  });
+
+  // Resync all prospects from demo requests and onboarding intakes (admin only)
+  app.post("/api/sales-prospects/resync", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      console.log("[Sales] Starting prospect resync...");
+      const count = await storage.resyncAllProspects();
+      console.log("[Sales] Resync completed successfully:", count, "prospects");
+      res.json({ message: `Resynced ${count} prospects`, count });
+    } catch (error: any) {
+      console.error("[Sales] Error resyncing prospects:", error);
+      console.error("[Sales] Error stack:", error.stack);
+      console.error("[Sales] Error message:", error.message);
+      res.status(500).json({ message: "Failed to resync prospects", error: error.message });
+    }
+  });
+
+  // ===== ADMIN ANALYTICS ROUTES =====
+  // Get platform-wide analytics (admin only)
+  app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
+    try {
+      // Only allow admin users
+      const user = req.user as User;
+      if (!user.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const analytics = await storage.getAdminAnalytics();
+      res.json(analytics);
+    } catch (error: any) {
+      console.error("[Admin Analytics] Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics", error: error.message });
     }
   });
 

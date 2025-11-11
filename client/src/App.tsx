@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,6 +17,8 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import BookDemo from "@/pages/BookDemo";
+import OnboardingFlow from "@/pages/OnboardingFlow";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
 import Properties from "@/pages/Properties";
@@ -25,7 +27,14 @@ import AITraining from "@/pages/AITraining";
 import AIActivityCenter from "@/pages/AIActivityCenter";
 import Schedule from "@/pages/Schedule";
 import Integrations from "@/pages/Integrations";
+import DemoRequests from "@/pages/DemoRequests";
+import OnboardingIntakes from "@/pages/OnboardingIntakes";
+import SalesPipeline from "@/pages/SalesPipeline";
 import Settings from "@/pages/Settings";
+import AdminLogin from "@/pages/AdminLogin";
+import AdminAnalytics from "@/pages/AdminAnalytics";
+import Appointments from "@/pages/Appointments";
+import { AdminLayout } from "@/components/AdminLayout";
 import NotFound from "@/pages/not-found";
 
 function BackgroundSyncWrapper() {
@@ -56,12 +65,15 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/book-demo" component={BookDemo} />
+        <Route path="/onboarding" component={OnboardingFlow} />
+        <Route path="/admin" component={AdminLogin} />
         <Route component={Landing} /> {/* Catch-all: redirect to landing */}
       </Switch>
     );
   }
 
-  // Show authenticated routes
+  // Show authenticated routes for main app
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
@@ -78,6 +90,28 @@ function Router() {
   );
 }
 
+function AdminRouter() {
+  return (
+    <AdminLayout>
+      <Switch>
+        <Route path="/admin" component={SalesPipeline} />
+        <Route path="/admin/pipeline" component={SalesPipeline} />
+        <Route path="/admin/analytics" component={AdminAnalytics} />
+        <Route path="/admin/appointments" component={Appointments} />
+        <Route path="/admin/demo-requests" component={DemoRequests} />
+        <Route path="/admin/onboarding" component={OnboardingIntakes} />
+        <Route path="/admin/users">
+          {() => <div className="p-6"><h1 className="text-2xl font-bold">Users Management</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>}
+        </Route>
+        <Route path="/admin/settings">
+          {() => <div className="p-6"><h1 className="text-2xl font-bold">Admin Settings</h1><p className="text-muted-foreground mt-2">Coming soon...</p></div>}
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </AdminLayout>
+  );
+}
+
 function App() {
   const style = {
     "--sidebar-width": "16rem",
@@ -89,7 +123,9 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <BackgroundSyncWrapper />
-          <AuthenticatedLayout style={style} />
+          <WouterRouter>
+            <LayoutRouter style={style} />
+          </WouterRouter>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>
@@ -97,15 +133,25 @@ function App() {
   );
 }
 
-function AuthenticatedLayout({ style }: { style: Record<string, string> }) {
+// This component is inside the Router context and can use useLocation
+function LayoutRouter({ style }: { style: Record<string, string> }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+  
+  // Check if current route is an admin route
+  const isAdminRoute = location.startsWith('/admin');
 
-  // Show Landing page without sidebar for unauthenticated users
+  // Show loading or unauthenticated routes
   if (isLoading || !isAuthenticated) {
     return <Router />;
   }
 
-  // Show full app with sidebar for authenticated users - wrapped in LeadSheetProvider
+  // Show admin area for admin routes
+  if (isAdminRoute) {
+    return <AdminRouter />;
+  }
+
+  // Show full app with sidebar for authenticated users
   return (
     <LeadSheetProvider>
       <AuthenticatedApp style={style} />

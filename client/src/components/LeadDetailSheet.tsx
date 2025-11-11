@@ -484,7 +484,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-name" className="text-xs">Name</Label>
+                  <Label htmlFor="edit-name" className="text-xs text-white">Name</Label>
                   <Input
                     id="edit-name"
                     value={editForm.name}
@@ -494,7 +494,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-status" className="text-xs">Status</Label>
+                  <Label htmlFor="edit-status" className="text-xs text-white">Status</Label>
                   <Select
                     value={editForm.status}
                     onValueChange={(value) => setEditForm({ ...editForm, status: value as LeadStatus })}
@@ -514,7 +514,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-email" className="text-xs">Email</Label>
+                  <Label htmlFor="edit-email" className="text-xs text-white">Email</Label>
                   <Input
                     id="edit-email"
                     type="email"
@@ -525,7 +525,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-phone" className="text-xs">Phone</Label>
+                  <Label htmlFor="edit-phone" className="text-xs text-white">Phone</Label>
                   <Input
                     id="edit-phone"
                     value={editForm.phone}
@@ -537,7 +537,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="edit-income" className="text-xs">Income</Label>
+                  <Label htmlFor="edit-income" className="text-xs text-white">Income</Label>
                   <Input
                     id="edit-income"
                     value={editForm.income}
@@ -547,7 +547,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="edit-moveInDate" className="text-xs">Move-in Date</Label>
+                  <Label htmlFor="edit-moveInDate" className="text-xs text-white">Move-in Date</Label>
                   <Input
                     id="edit-moveInDate"
                     value={editForm.moveInDate}

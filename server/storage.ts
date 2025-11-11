@@ -2,7 +2,8 @@ import { db } from "./db";
 import { 
   users, properties, leads, conversations, notes, aiSettings, integrationConfig, pendingReplies,
   calendarConnections, calendarEvents, schedulePreferences, memberships, organizations, notifications,
-  zillowIntegrations, zillowListings, deletedLeads,
+  zillowIntegrations, zillowListings, deletedLeads, demoRequests, appointments, onboardingIntakes,
+  salesProspects, prospectSources,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type Lead, type InsertLead,
@@ -17,7 +18,12 @@ import {
   type Notification, type InsertNotification,
   type ZillowIntegration, type InsertZillowIntegration,
   type ZillowListing, type InsertZillowListing,
-  type DeletedLead, type InsertDeletedLead
+  type DeletedLead, type InsertDeletedLead,
+  type DemoRequest, type InsertDemoRequest,
+  type Appointment, type InsertAppointment,
+  type OnboardingIntake, type InsertOnboardingIntake,
+  type SalesProspect, type InsertSalesProspect,
+  type ProspectSource, type InsertProspectSource
 } from "@shared/schema";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 
@@ -144,6 +150,51 @@ export interface IStorage {
   createZillowListing(listing: InsertZillowListing & { orgId: string }): Promise<ZillowListing>;
   updateZillowListing(id: string, listing: Partial<InsertZillowListing>, orgId: string): Promise<ZillowListing | undefined>;
   deleteZillowListing(id: string, orgId: string): Promise<boolean>;
+
+  // Demo Request operations
+  getAllDemoRequests(): Promise<DemoRequest[]>;
+  createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest>;
+
+  // Appointment operations
+  getAllAppointments(): Promise<Appointment[]>;
+  getAppointmentsByDate(date: string): Promise<Appointment[]>;
+  getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]>;
+  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  updateAppointmentStatus(id: string, status: string): Promise<Appointment | undefined>;
+
+  // Onboarding Intake operations
+  getOnboardingIntake(sessionToken: string): Promise<OnboardingIntake | undefined>;
+  getAllOnboardingIntakes(): Promise<OnboardingIntake[]>;
+  getCompletedOnboardingIntakes(): Promise<OnboardingIntake[]>;
+  createOnboardingIntake(intake: InsertOnboardingIntake): Promise<OnboardingIntake>;
+  updateOnboardingIntake(sessionToken: string, intake: Partial<InsertOnboardingIntake>): Promise<OnboardingIntake | undefined>;
+  linkOnboardingIntakeToUser(sessionToken: string, userId: string): Promise<OnboardingIntake | undefined>;
+
+  // Sales Prospect operations
+  getAllSalesProspects(): Promise<Array<SalesProspect & { sources: ProspectSource[] }>>;
+  getSalesProspect(id: string): Promise<SalesProspect | undefined>;
+  getSalesProspectByEmail(email: string): Promise<SalesProspect | undefined>;
+  createSalesProspect(prospect: InsertSalesProspect): Promise<SalesProspect>;
+  updateSalesProspect(id: string, prospect: Partial<InsertSalesProspect>): Promise<SalesProspect | undefined>;
+  updateProspectStage(id: string, stage: string): Promise<SalesProspect | undefined>;
+  upsertProspectFromDemo(demoRequest: DemoRequest): Promise<SalesProspect>;
+  upsertProspectFromOnboarding(intake: OnboardingIntake): Promise<SalesProspect | null>;
+  createProspectSource(source: InsertProspectSource): Promise<ProspectSource>;
+  getProspectSources(prospectId: string): Promise<ProspectSource[]>;
+  resyncAllProspects(): Promise<number>;
+  
+  // Admin analytics
+  getAdminAnalytics(): Promise<{
+    totalSignups: number;
+    totalDemoRequests: number;
+    totalOnboardingSubmissions: number;
+    totalOrganizations: number;
+    totalProspects: number;
+    conversionRate: string;
+    prospectsByStage: { stage: string; count: number }[];
+    signupTrend: { month: string; signups: number }[];
+    demoRequestTrend: { month: string; requests: number }[];
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1002,6 +1053,482 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(zillowListings.id, id), eq(zillowListings.orgId, orgId)))
       .returning();
     return result.length > 0;
+  }
+
+  // Demo Request operations
+  async getAllDemoRequests(): Promise<DemoRequest[]> {
+    return await db.select().from(demoRequests).orderBy(desc(demoRequests.createdAt));
+  }
+
+  async createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest> {
+    const result = await db.insert(demoRequests).values(request).returning();
+    return result[0];
+  }
+
+  // Appointment operations
+  async getAllAppointments(): Promise<Appointment[]> {
+    return await db.select().from(appointments).orderBy(desc(appointments.createdAt));
+  }
+
+  async getAppointmentsByDate(date: string): Promise<Appointment[]> {
+    return await db.select().from(appointments)
+      .where(eq(appointments.appointmentDate, date))
+      .orderBy(appointments.appointmentTime);
+  }
+
+  async getAppointmentsByDateRange(startDate: string, endDate: string): Promise<Appointment[]> {
+    return await db.select().from(appointments)
+      .where(and(
+        gte(appointments.appointmentDate, startDate),
+        lte(appointments.appointmentDate, endDate)
+      ))
+      .orderBy(appointments.appointmentDate, appointments.appointmentTime);
+  }
+
+  async createAppointment(appointment: InsertAppointment): Promise<Appointment> {
+    const result = await db.insert(appointments).values(appointment).returning();
+    return result[0];
+  }
+
+  async updateAppointmentStatus(id: string, status: string): Promise<Appointment | undefined> {
+    const result = await db.update(appointments)
+      .set({ status })
+      .where(eq(appointments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Onboarding Intake operations
+  async getOnboardingIntake(sessionToken: string): Promise<OnboardingIntake | undefined> {
+    const result = await db.select().from(onboardingIntakes)
+      .where(eq(onboardingIntakes.sessionToken, sessionToken))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAllOnboardingIntakes(): Promise<OnboardingIntake[]> {
+    // Join with users table to get email for linked intakes
+    const result = await db.execute(sql`
+      SELECT 
+        oi.*,
+        u.email as user_email
+      FROM onboarding_intakes oi
+      LEFT JOIN users u ON oi.linked_user_id = u.id
+      ORDER BY oi.created_at DESC
+    `);
+    
+    // Map snake_case to camelCase
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      sessionToken: row.session_token,
+      status: row.status,
+      unitsOwned: row.units_owned,
+      currentLeaseHandling: row.current_lease_handling,
+      leaseHandlingToolName: row.lease_handling_tool_name,
+      portfolioLocation: row.portfolio_location,
+      teamSize: row.team_size,
+      phoneNumber: row.phone_number,
+      fullName: row.full_name,
+      wantsDemo: row.wants_demo,
+      linkedUserId: row.linked_user_id,
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+      linkedAt: row.linked_at,
+      userEmail: row.user_email,
+    })) as OnboardingIntake[];
+  }
+
+  async getCompletedOnboardingIntakes(): Promise<OnboardingIntake[]> {
+    return await db.select().from(onboardingIntakes)
+      .where(eq(onboardingIntakes.status, 'completed'))
+      .orderBy(desc(onboardingIntakes.completedAt));
+  }
+
+  async createOnboardingIntake(intake: InsertOnboardingIntake): Promise<OnboardingIntake> {
+    const result = await db.insert(onboardingIntakes).values(intake).returning();
+    return result[0];
+  }
+
+  async updateOnboardingIntake(sessionToken: string, intakeData: Partial<InsertOnboardingIntake>): Promise<OnboardingIntake | undefined> {
+    const result = await db.update(onboardingIntakes)
+      .set(intakeData)
+      .where(eq(onboardingIntakes.sessionToken, sessionToken))
+      .returning();
+    return result[0];
+  }
+
+  async linkOnboardingIntakeToUser(sessionToken: string, userId: string): Promise<OnboardingIntake | undefined> {
+    // Get the onboarding intake data first
+    const intake = await this.getOnboardingIntake(sessionToken);
+    if (!intake) {
+      return undefined;
+    }
+
+    // Link the intake to the user
+    const result = await db.update(onboardingIntakes)
+      .set({
+        linkedUserId: userId,
+        status: 'linked',
+        linkedAt: new Date(),
+      })
+      .where(eq(onboardingIntakes.sessionToken, sessionToken))
+      .returning();
+    
+    // If user wants a demo, create a demo request automatically
+    if (intake.wantsDemo && intake.fullName && intake.unitsOwned && intake.portfolioLocation) {
+      try {
+        const user = await this.getUser(userId);
+        if (user?.email) {
+          // Split full name into first and last name
+          const nameParts = intake.fullName.trim().split(' ');
+          const firstName = nameParts[0] || 'Unknown';
+          const lastName = nameParts.slice(1).join(' ') || 'Unknown';
+
+          await this.createDemoRequest({
+            firstName,
+            lastName,
+            email: user.email,
+            phone: intake.phoneNumber || "Not provided", // Use placeholder if phone not collected
+            countryCode: "+1", // Default to US, could be enhanced
+            unitsUnderManagement: intake.unitsOwned,
+            managedOrOwned: "owned", // Based on onboarding question "How many units do you own?"
+            hqLocation: intake.portfolioLocation,
+            agreeTerms: true,
+            agreeMarketing: false,
+            isCurrentCustomer: false,
+          });
+          console.log(`[Onboarding] Auto-created demo request for user ${user.email} from onboarding`);
+        }
+      } catch (error) {
+        console.error("[Onboarding] Failed to create demo request:", error);
+        // Don't fail the linking if demo request creation fails
+      }
+    }
+
+    return result[0];
+  }
+
+  // Sales Prospect operations
+  async getAllSalesProspects(): Promise<Array<SalesProspect & { sources: ProspectSource[] }>> {
+    const prospects = await db.select().from(salesProspects).orderBy(desc(salesProspects.lastInteractionAt));
+    
+    // For each prospect, fetch their sources
+    const prospectsWithSources = await Promise.all(
+      prospects.map(async (prospect) => {
+        const sources = await this.getProspectSources(prospect.id);
+        return { ...prospect, sources };
+      })
+    );
+    
+    return prospectsWithSources;
+  }
+
+  async getSalesProspect(id: string): Promise<SalesProspect | undefined> {
+    const result = await db.select().from(salesProspects).where(eq(salesProspects.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getSalesProspectByEmail(email: string): Promise<SalesProspect | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const result = await db.select().from(salesProspects)
+      .where(eq(salesProspects.email, normalizedEmail))
+      .limit(1);
+    return result[0];
+  }
+
+  async createSalesProspect(prospect: InsertSalesProspect): Promise<SalesProspect> {
+    const result = await db.insert(salesProspects).values({
+      ...prospect,
+      email: prospect.email.trim().toLowerCase(), // Normalize email
+    }).returning();
+    return result[0];
+  }
+
+  async updateSalesProspect(id: string, prospectData: Partial<InsertSalesProspect>): Promise<SalesProspect | undefined> {
+    const result = await db.update(salesProspects)
+      .set({ ...prospectData, updatedAt: new Date() })
+      .where(eq(salesProspects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async updateProspectStage(id: string, stage: string): Promise<SalesProspect | undefined> {
+    const result = await db.update(salesProspects)
+      .set({ pipelineStage: stage, updatedAt: new Date() })
+      .where(eq(salesProspects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async upsertProspectFromDemo(demoRequest: DemoRequest): Promise<SalesProspect> {
+    const normalizedEmail = demoRequest.email.trim().toLowerCase();
+    
+    // Check if prospect already exists
+    let prospect = await this.getSalesProspectByEmail(normalizedEmail);
+    
+    if (prospect) {
+      // Update existing prospect with latest data
+      const updates: Partial<InsertSalesProspect> = {
+        lastInteractionAt: new Date(),
+      };
+      
+      // Update fields if they weren't set before
+      if (!prospect.primaryName && demoRequest.firstName && demoRequest.lastName) {
+        updates.primaryName = `${demoRequest.firstName} ${demoRequest.lastName}`;
+      }
+      if (!prospect.phone && demoRequest.phone) {
+        updates.phone = demoRequest.phone;
+      }
+      if (!prospect.units && demoRequest.unitsUnderManagement) {
+        updates.units = demoRequest.unitsUnderManagement;
+      }
+      
+      // Update source summary
+      const sources = await this.getProspectSources(prospect.id);
+      const hasDemo = sources.some(s => s.sourceType === 'demo');
+      if (!hasDemo) {
+        updates.sourceSummary = sources.length > 0 ? `Demo + Onboarding` : 'Demo';
+      }
+      
+      prospect = await this.updateSalesProspect(prospect.id, updates) || prospect;
+      
+      // Create source link if it doesn't exist
+      const existingSource = sources.find(s => s.sourceId === demoRequest.id);
+      if (!existingSource) {
+        await this.createProspectSource({
+          prospectId: prospect.id,
+          sourceType: 'demo',
+          sourceId: demoRequest.id,
+        });
+      }
+    } else {
+      // Create new prospect
+      prospect = await this.createSalesProspect({
+        email: normalizedEmail,
+        primaryName: `${demoRequest.firstName} ${demoRequest.lastName}`,
+        phone: demoRequest.phone,
+        units: demoRequest.unitsUnderManagement,
+        sourceSummary: 'Demo',
+        pipelineStage: 'discovery', // Discovery stage for demo requests
+        lastInteractionAt: new Date(),
+      });
+      
+      // Create source link
+      await this.createProspectSource({
+        prospectId: prospect.id,
+        sourceType: 'demo',
+        sourceId: demoRequest.id,
+      });
+    }
+    
+    return prospect;
+  }
+
+  async upsertProspectFromOnboarding(intake: OnboardingIntake): Promise<SalesProspect | null> {
+    // Get email from linked user
+    let email: string | null = null;
+    if (intake.linkedUserId) {
+      const user = await this.getUser(intake.linkedUserId);
+      if (user?.email) {
+        email = user.email;
+      }
+    }
+    
+    // Skip if no email available (intake not linked to a user yet)
+    if (!email) {
+      console.log('[Sales] Skipping onboarding intake', intake.id, '- no email available');
+      return null;
+    }
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Check if prospect already exists
+    let prospect = await this.getSalesProspectByEmail(normalizedEmail);
+    
+    if (prospect) {
+      // Update existing prospect with latest data
+      const updates: Partial<InsertSalesProspect> = {
+        lastInteractionAt: new Date(),
+      };
+      
+      // Update fields if they weren't set before
+      if (!prospect.primaryName && intake.fullName) {
+        updates.primaryName = intake.fullName;
+      }
+      if (!prospect.phone && intake.phoneNumber) {
+        updates.phone = intake.phoneNumber;
+      }
+      if (!prospect.units && intake.unitsOwned) {
+        updates.units = intake.unitsOwned;
+      }
+      
+      // Update source summary
+      const sources = await this.getProspectSources(prospect.id);
+      const hasOnboarding = sources.some(s => s.sourceType === 'onboarding');
+      if (!hasOnboarding) {
+        updates.sourceSummary = sources.length > 0 ? `Demo + Onboarding` : 'Onboarding';
+      }
+      
+      prospect = await this.updateSalesProspect(prospect.id, updates) || prospect;
+      
+      // Create source link if it doesn't exist
+      const existingSource = sources.find(s => s.sourceId === intake.id);
+      if (!existingSource) {
+        await this.createProspectSource({
+          prospectId: prospect.id,
+          sourceType: 'onboarding',
+          sourceId: intake.id,
+        });
+      }
+    } else {
+      // Create new prospect
+      prospect = await this.createSalesProspect({
+        email: normalizedEmail,
+        primaryName: intake.fullName || 'Unknown',
+        phone: intake.phoneNumber || undefined,
+        units: intake.unitsOwned || undefined,
+        sourceSummary: 'Onboarding',
+        pipelineStage: intake.wantsDemo ? 'discovery' : 'evaluation', // Discovery if wants demo, otherwise evaluation
+        lastInteractionAt: new Date(),
+      });
+      
+      // Create source link
+      await this.createProspectSource({
+        prospectId: prospect.id,
+        sourceType: 'onboarding',
+        sourceId: intake.id,
+      });
+    }
+    
+    return prospect;
+  }
+
+  async createProspectSource(source: InsertProspectSource): Promise<ProspectSource> {
+    const result = await db.insert(prospectSources).values(source).returning();
+    return result[0];
+  }
+
+  async getProspectSources(prospectId: string): Promise<ProspectSource[]> {
+    return await db.select().from(prospectSources)
+      .where(eq(prospectSources.prospectId, prospectId))
+      .orderBy(desc(prospectSources.createdAt));
+  }
+
+  async resyncAllProspects(): Promise<number> {
+    let count = 0;
+    
+    console.log('[Sales] Starting resync of all prospects...');
+    
+    // Sync all demo requests
+    const demos = await this.getAllDemoRequests();
+    console.log(`[Sales] Found ${demos.length} demo requests to sync`);
+    
+    for (const demo of demos) {
+      try {
+        await this.upsertProspectFromDemo(demo);
+        count++;
+        console.log(`[Sales] Synced demo request: ${demo.email}`);
+      } catch (error: any) {
+        console.error(`[Sales] Failed to sync demo request ${demo.id}:`, error.message);
+        throw error; // Re-throw to fail the entire operation
+      }
+    }
+    
+    // Sync all onboarding intakes (only completed or linked)
+    const intakes = await this.getAllOnboardingIntakes();
+    console.log(`[Sales] Found ${intakes.length} onboarding intakes (filtering for completed/linked)`);
+    
+    for (const intake of intakes) {
+      if (intake.status === 'completed' || intake.status === 'linked') {
+        try {
+          const result = await this.upsertProspectFromOnboarding(intake);
+          if (result) {
+            count++;
+            console.log(`[Sales] Synced onboarding intake: ${intake.id}`);
+          } else {
+            console.log(`[Sales] Skipped onboarding intake ${intake.id} (no email available)`);
+          }
+        } catch (error: any) {
+          console.error(`[Sales] Failed to sync onboarding intake ${intake.id}:`, error.message);
+          throw error; // Re-throw to fail the entire operation
+        }
+      }
+    }
+    
+    console.log(`[Sales] Resync complete: ${count} prospects created/updated`);
+    return count;
+  }
+
+  async getAdminAnalytics() {
+    // Get total counts
+    const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+    const [demoCount] = await db.select({ count: sql<number>`count(*)::int` }).from(demoRequests);
+    const [onboardingCount] = await db.select({ count: sql<number>`count(*)::int` }).from(onboardingIntakes);
+    const [orgCount] = await db.select({ count: sql<number>`count(*)::int` }).from(organizations);
+    const [prospectCount] = await db.select({ count: sql<number>`count(*)::int` }).from(salesProspects);
+
+    // Get prospects by stage
+    const prospectsByStage = await db
+      .select({
+        stage: salesProspects.pipelineStage,
+        count: sql<number>`count(*)::int`
+      })
+      .from(salesProspects)
+      .groupBy(salesProspects.pipelineStage)
+      .orderBy(salesProspects.pipelineStage);
+
+    // Calculate conversion rate (prospects in "sale" or "onboard" stage / total prospects)
+    const [convertedCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(salesProspects)
+      .where(sql`${salesProspects.pipelineStage} IN ('sale', 'onboard')`);
+
+    const totalProspects = prospectCount.count || 1; // Avoid division by zero
+    const converted = convertedCount.count || 0;
+    const conversionRate = `${Math.round((converted / totalProspects) * 100)}%`;
+
+    // Get signup trend for last 6 months
+    const signupTrend = await db
+      .select({
+        month: sql<string>`TO_CHAR(${users.createdAt}, 'Mon')`,
+        signups: sql<number>`count(*)::int`
+      })
+      .from(users)
+      .where(sql`${users.createdAt} >= NOW() - INTERVAL '6 months'`)
+      .groupBy(sql`TO_CHAR(${users.createdAt}, 'Mon'), DATE_TRUNC('month', ${users.createdAt})`)
+      .orderBy(sql`DATE_TRUNC('month', ${users.createdAt})`);
+
+    // Get demo request trend for last 6 months
+    const demoRequestTrend = await db
+      .select({
+        month: sql<string>`TO_CHAR(${demoRequests.createdAt}, 'Mon')`,
+        requests: sql<number>`count(*)::int`
+      })
+      .from(demoRequests)
+      .where(sql`${demoRequests.createdAt} >= NOW() - INTERVAL '6 months'`)
+      .groupBy(sql`TO_CHAR(${demoRequests.createdAt}, 'Mon'), DATE_TRUNC('month', ${demoRequests.createdAt})`)
+      .orderBy(sql`DATE_TRUNC('month', ${demoRequests.createdAt})`);
+
+    return {
+      totalSignups: userCount.count || 0,
+      totalDemoRequests: demoCount.count || 0,
+      totalOnboardingSubmissions: onboardingCount.count || 0,
+      totalOrganizations: orgCount.count || 0,
+      totalProspects: prospectCount.count || 0,
+      conversionRate,
+      prospectsByStage: prospectsByStage.map(p => ({
+        stage: p.stage || 'unknown',
+        count: p.count || 0
+      })),
+      signupTrend: signupTrend.map(s => ({
+        month: s.month || '',
+        signups: s.signups || 0
+      })),
+      demoRequestTrend: demoRequestTrend.map(d => ({
+        month: d.month || '',
+        requests: d.requests || 0
+      }))
+    };
   }
 }
 

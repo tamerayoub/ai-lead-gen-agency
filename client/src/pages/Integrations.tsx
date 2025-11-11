@@ -1083,7 +1083,7 @@ export default function Integrations() {
           <AlertDialogHeader>
             <AlertDialogTitle>Configure Facebook Messenger</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
-              <p>Follow these steps to connect your Facebook Page to LeaseLoopAI:</p>
+              <p>Follow these steps to connect your Facebook Page to Lead2Lease:</p>
               <ol className="list-decimal list-inside space-y-2 text-sm">
                 <li>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Facebook Developers</a> and create/select your app</li>
                 <li>Add the Messenger product and get your Page Access Token</li>

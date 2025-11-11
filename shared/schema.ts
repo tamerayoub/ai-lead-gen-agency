@@ -37,6 +37,8 @@ export const users = pgTable("users", {
   provider: text("provider").notNull().default("email"), // 'google', 'facebook', 'microsoft', 'apple', 'email'
   providerId: text("provider_id"), // OAuth provider's user ID (null for email/password)
   passwordHash: text("password_hash"), // Only for email/password auth (null for OAuth)
+  // Platform admin flag (for accessing admin panel)
+  isAdmin: boolean("is_admin").default(false).notNull(),
   // Multi-tenant: Current active organization
   currentOrgId: varchar("current_org_id").references(() => organizations.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -386,6 +388,140 @@ export type Notification = typeof notifications.$inferSelect;
 
 export type InsertDeletedLead = z.infer<typeof insertDeletedLeadSchema>;
 export type DeletedLead = typeof deletedLeads.$inferSelect;
+
+// Demo Requests table - for capturing demo booking leads
+export const demoRequests = pgTable("demo_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isCurrentCustomer: boolean("is_current_customer").default(false),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
+  countryCode: text("country_code").notNull().default("+962"),
+  company: text("company"),
+  unitsUnderManagement: text("units_under_management").notNull(),
+  managedOrOwned: text("managed_or_owned").notNull(),
+  hqLocation: text("hq_location").notNull(),
+  currentTools: text("current_tools"),
+  agreeTerms: boolean("agree_terms").notNull().default(true),
+  agreeMarketing: boolean("agree_marketing").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDemoRequestSchema = createInsertSchema(demoRequests).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  currentTools: z.string().max(200, "Please limit to 200 characters").optional(),
+});
+
+export type InsertDemoRequest = z.infer<typeof insertDemoRequestSchema>;
+export type DemoRequest = typeof demoRequests.$inferSelect;
+
+// Appointments table - for calendar bookings
+export const appointments = pgTable("appointments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  appointmentDate: text("appointment_date").notNull(), // YYYY-MM-DD format
+  appointmentTime: text("appointment_time").notNull(), // HH:MM format (e.g., "14:00")
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  company: text("company"),
+  unitsUnderManagement: text("units_under_management"),
+  teamSize: text("team_size"),
+  currentTools: text("current_tools"),
+  notes: text("notes"), // Optional notes from the prospect
+  status: text("status").notNull().default("scheduled"), // 'scheduled', 'completed', 'cancelled', 'no-show'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAppointmentSchema = createInsertSchema(appointments).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  currentTools: z.string().max(200, "Please limit to 200 characters").optional(),
+});
+
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+export type Appointment = typeof appointments.$inferSelect;
+
+// Onboarding Intakes table - for capturing pre-signup questionnaire responses
+export const onboardingIntakes = pgTable("onboarding_intakes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionToken: text("session_token").notNull().unique(),
+  status: text("status").notNull().default("draft"), // 'draft', 'completed', 'linked'
+  
+  // Questionnaire fields
+  unitsOwned: text("units_owned"), // "How many units do you own?"
+  currentLeaseHandling: text("current_lease_handling"), // "How are you handling leases right now?"
+  leaseHandlingToolName: text("lease_handling_tool_name"), // Name of the specific tool they're using
+  portfolioLocation: text("portfolio_location"), // "Where is your portfolio?"
+  teamSize: text("team_size"), // "What's your team size?"
+  phoneNumber: text("phone_number"), // "What is your phone number for verification?"
+  fullName: text("full_name"), // "What is your name?"
+  wantsDemo: boolean("wants_demo").default(false), // "Would you like to book a demo?"
+  
+  // Linking to user account after signup
+  linkedUserId: varchar("linked_user_id").references(() => users.id, { onDelete: 'set null' }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  linkedAt: timestamp("linked_at"),
+});
+
+export const insertOnboardingIntakeSchema = createInsertSchema(onboardingIntakes).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+  linkedAt: true,
+});
+
+export type InsertOnboardingIntake = z.infer<typeof insertOnboardingIntakeSchema>;
+export type OnboardingIntake = typeof onboardingIntakes.$inferSelect & {
+  userEmail?: string; // Joined from users table
+};
+
+// Sales Prospects table - unified view of leads from demo requests and onboarding
+export const salesProspects = pgTable("sales_prospects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(), // Normalized email (lowercase, trimmed)
+  primaryName: text("primary_name"), // Best available name from sources
+  phone: text("phone"), // Best available phone from sources
+  units: text("units"), // Units under management
+  sourceSummary: text("source_summary"), // Brief description of sources (e.g., "Demo + Onboarding")
+  pipelineStage: text("pipeline_stage").notNull().default("discovery"), // discovery, evaluation, probing, offer, sale, onboard
+  notes: text("notes"), // Internal notes about the prospect
+  lastInteractionAt: timestamp("last_interaction_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Prospect Sources - links demo requests and onboarding intakes to prospects
+export const prospectSources = pgTable("prospect_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  prospectId: varchar("prospect_id").notNull().references(() => salesProspects.id, { onDelete: 'cascade' }),
+  sourceType: text("source_type").notNull(), // 'demo' or 'onboarding'
+  sourceId: varchar("source_id").notNull(), // ID from demo_requests or onboarding_intakes
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertSalesProspectSchema = createInsertSchema(salesProspects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProspectSourceSchema = createInsertSchema(prospectSources).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSalesProspect = z.infer<typeof insertSalesProspectSchema>;
+export type SalesProspect = typeof salesProspects.$inferSelect;
+
+export type InsertProspectSource = z.infer<typeof insertProspectSourceSchema>;
+export type ProspectSource = typeof prospectSources.$inferSelect;
 
 export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
