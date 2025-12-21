@@ -1,184 +1,148 @@
-import { StatCard } from "@/components/StatCard";
-import { LeadCard } from "@/components/LeadCard";
-import { PropertyCard } from "@/components/PropertyCard";
-import { AIActivityFeed } from "@/components/AIActivityFeed";
-import { LeadDetailSheet } from "@/components/LeadDetailSheet";
-import { PendingRepliesQueue } from "@/components/PendingRepliesQueue";
-import { UnreadMessagesWidget } from "@/components/UnreadMessagesWidget";
-import { Users, TrendingUp, Clock, Building2 } from "lucide-react";
-import { useState } from "react";
+import { Rocket, Lock, Crown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, isToday, differenceInDays, parseISO } from "date-fns";
-
-const formatTimestamp = (timestamp: string) => {
-  try {
-    let date: Date;
-    if (timestamp.includes('T') || timestamp.includes('Z')) {
-      date = parseISO(timestamp);
-    } else {
-      date = new Date(timestamp);
-    }
-    
-    if (isNaN(date.getTime())) {
-      return timestamp;
-    }
-
-    const now = new Date();
-    const daysDiff = differenceInDays(now, date);
-
-    if (isToday(date)) {
-      return format(date, "h:mm a");
-    } else if (daysDiff <= 7) {
-      return format(date, "EEEE h:mm a");
-    } else {
-      return format(date, "MMM d, h:mm a");
-    }
-  } catch (error) {
-    return timestamp;
-  }
-};
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useMembership } from "@/hooks/useMembership";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "wouter";
 
 export default function Dashboard() {
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-
-  const { data: leads = [] } = useQuery<any[]>({ 
-    queryKey: ["/api/leads"],
-    refetchInterval: 30000,
-    refetchIntervalInBackground: true,
-  });
-  const { data: properties = [] } = useQuery<any[]>({ queryKey: ["/api/properties"] });
-  const { data: stats } = useQuery<any>({ queryKey: ["/api/analytics/stats"] });
-  const { data: activities = [] } = useQuery<any[]>({ queryKey: ["/api/ai-activity"] });
-  const { data: selectedLeadData } = useQuery({
-    queryKey: ["/api/leads", selectedLeadId],
-    enabled: !!selectedLeadId,
+  const { status } = useMembership();
+  const { user } = useAuth();
+  const [timeRemaining, setTimeRemaining] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0,
   });
 
-  const recentLeads = leads.slice(0, 4);
-  const topProperties = properties.slice(0, 2);
+  // Check if organization has a membership (active, cancelled but not expired, or past_due)
+  const hasMembership = status === 'active' || status === 'cancelled' || status === 'past_due';
+  
+  // Get current organization to check if user is owner
+  const { data: currentOrg } = useQuery<{ orgId: string; role: string }>({
+    queryKey: ["/api/organizations/current"],
+    enabled: !!user,
+  });
+  
+  const isOwner = currentOrg?.role === 'owner';
+
+  // Fetch launch date from database (same as landing page)
+  const { data: launchDateData } = useQuery<{ launchDate: string }>({
+    queryKey: ["/api/launch-date"],
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const launchDate = useMemo(() => {
+    if (launchDateData?.launchDate) {
+      return new Date(launchDateData.launchDate).getTime();
+    }
+    // Fallback to 1 month from now if not loaded yet
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.getTime();
+  }, [launchDateData]);
+
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date().getTime();
+      const difference = launchDate - now;
+
+      if (difference > 0) {
+        setTimeRemaining({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((difference % (1000 * 60)) / 1000),
+        });
+      } else {
+        setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeRemaining();
+    const interval = setInterval(calculateTimeRemaining, 1000);
+
+    return () => clearInterval(interval);
+  }, [launchDate]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Welcome back! Here's your lead activity overview.</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Leads"
-          value={stats?.totalLeads || 0}
-          change="+12% from last month"
-          changeType="positive"
-          icon={Users}
-        />
-        <StatCard
-          title="Conversion Rate"
-          value={stats?.conversionRate || "0%"}
-          change="+5% from last month"
-          changeType="positive"
-          icon={TrendingUp}
-        />
-        <StatCard
-          title="Avg Response Time"
-          value={stats?.avgResponseTime || "N/A"}
-          change="-15% from last month"
-          changeType="positive"
-          icon={Clock}
-        />
-        <StatCard
-          title="Active Properties"
-          value={stats?.activeProperties || 0}
-          change="2 new this month"
-          changeType="neutral"
-          icon={Building2}
-        />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-4">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Recent Leads</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {recentLeads.map((lead) => {
-                // Map backend source values to LeadCard source types
-                const sourceMap: Record<string, "email" | "phone" | "sms" | "listing"> = {
-                  gmail: "email",
-                  outlook: "email",
-                  email: "email",
-                  phone: "phone",
-                  sms: "sms",
-                  twilio: "sms",
-                  messenger: "sms",
-                  facebook: "listing",
-                  zillow: "listing",
-                  listing: "listing",
-                };
-                const mappedSource = sourceMap[lead.source.toLowerCase()] || "email";
-                
-                return (
-                  <LeadCard
-                    key={lead.id}
-                    name={lead.name}
-                    email={lead.email}
-                    phone={lead.phone}
-                    property={lead.propertyName}
-                    status={lead.status}
-                    source={mappedSource}
-                    aiHandled={lead.aiHandled}
-                    lastContact={formatTimestamp(lead.lastContactAt)}
-                    onClick={() => setSelectedLeadId(lead.id)}
-                  />
-                );
-              })}
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+      <Card className="max-w-xl w-full mx-4 shadow-xl border-2 bg-background dark:bg-gray-900" style={{ borderColor: 'rgba(255, 223, 0, 0.3)' }}>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(255, 223, 0, 0.1)' }}>
+            <Lock className="h-6 w-6" style={{ color: '#FFDF00' }} />
+          </div>
+          <CardTitle>Features Coming Soon</CardTitle>
+          <CardDescription>
+            We're building something amazing 🚀🔥 Features are coming soon — you'll be the first to get them!
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Countdown Timer */}
+          <div className="p-4 rounded-lg border" style={{ background: 'linear-gradient(to right, rgba(255, 223, 0, 0.1), rgba(255, 223, 0, 0.15))', borderColor: 'rgba(255, 223, 0, 0.3)' }}>
+            <div className="text-center mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3" style={{ backgroundColor: 'rgba(255, 223, 0, 0.2)', color: '#CCB300' }}>
+                <Rocket className="h-4 w-4" />
+                <span className="text-xs font-semibold">Launch Countdown</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center">
+                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                  {String(timeRemaining.days).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Days</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                  {String(timeRemaining.hours).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Hours</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                  {String(timeRemaining.minutes).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Minutes</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                  {String(timeRemaining.seconds).padStart(2, '0')}
+                </div>
+                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Seconds</div>
+              </div>
             </div>
           </div>
 
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Top Properties</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {topProperties.map((property) => (
-                <PropertyCard
-                  key={property.id}
-                  name={property.name}
-                  address={property.address}
-                  units={property.units}
-                  occupancy={property.occupancy}
-                  monthlyRevenue={property.monthlyRevenue}
-                  activeLeads={property.activeLeads}
-                  conversionRate={property.conversionRate}
-                  onClick={() => console.log("Property clicked")}
-                />
-              ))}
+          {/* Subscribe button or contact owner message - only show if no membership */}
+          {!hasMembership && (
+            <div className="flex flex-col gap-2">
+              {isOwner ? (
+                <Link href="/founding-partner-checkout">
+                  <Button 
+                    className="w-full text-white hover:opacity-90"
+                    style={{ background: '#FFDF00' }}
+                  >
+                    <Crown className="mr-2 h-4 w-4" />
+                    Start Your Membership
+                  </Button>
+                </Link>
+              ) : (
+                <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                    To unlock all features, your organization needs a Founding Partner membership.
+                  </p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Please contact your organization owner to start a membership.
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <UnreadMessagesWidget onLeadClick={setSelectedLeadId} />
-          <AIActivityFeed activities={activities} />
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <PendingRepliesQueue />
-      </div>
-
-      <LeadDetailSheet
-        open={!!selectedLeadId}
-        onOpenChange={(open) => !open && setSelectedLeadId(null)}
-        lead={selectedLeadData ? {
-          ...selectedLeadData,
-          conversations: (selectedLeadData as any).conversations?.map((c: any) => ({
-            ...c,
-            timestamp: c.createdAt,
-          })) || [],
-          notes: (selectedLeadData as any).notes?.map((n: any) => ({
-            ...n,
-            timestamp: n.createdAt,
-          })) || [],
-        } : null}
-      />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

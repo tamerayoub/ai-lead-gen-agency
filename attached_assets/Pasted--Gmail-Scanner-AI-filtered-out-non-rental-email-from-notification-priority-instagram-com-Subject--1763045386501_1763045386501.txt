@@ -1,0 +1,242 @@
+[Gmail Scanner] AI filtered out non-rental email from notification@priority.instagram.com - Subject: "lead2lease, catch up on moments you've missed"
+2:46:08 PM [express] GET /api/notifications/unread-count 304 in 176ms :: {"count":"2"}
+2:46:08 PM [express] GET /api/notifications 304 in 177ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from mailer-daemon@googlemail.com - Subject: "Delivery Status Notification (Failure)"
+[Gmail Scanner] Linking new thread 19a69d2487b79312 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a68f9396f444cd to existing lead no-reply@accounts.google.com
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "tamerayoub_ accepted your follow request"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Unrecognized device signed in to your Stripe account"
+[Gmail Scanner] Linking new thread 19a659cf865916d3 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@account.tiktok.com - Subject: "313772 is your verification code"
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "940572 is your Instagram code"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Verify your email"
+[Gmail Scanner] Linking new thread 19a56a55f7f8be7c to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a513a064af6d63 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Gmail Scanner] Scanning org a963dc65-4ebd-4691-8c5b-4f25ea3ff37d... (last scan: 2025-11-13T14:45:16.759Z)
+[Gmail Scanner] Found 50 messages
+[Gmail Scanner] Linking new thread 19a7daab2d4fcf6d to existing lead membersupport@mnreia.com
+[Gmail Scanner] AI filtered out non-rental email from dealdesk@flippa.com - Subject: "Just Sold: Saas business for $70K"
+[Gmail Scanner] Linking new thread 19a7d9209af30a1e to existing lead info@m.biggerpockets.com
+[Gmail Scanner] Linking new thread 19a7d8c938b805e3 to existing lead info@theshadestore.com
+[Gmail Scanner] Linking new thread 19a7d8900cee2af9 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] AI filtered out non-rental email from hello@m.leonardo.ai - Subject: "Make The Most Of Your Free Account"
+[Gmail Scanner] Linking new thread 19a7d8347a271580 to existing lead info@notifications.realtor.com
+2:46:18 PM [express] GET /api/notifications/unread-count 304 in 175ms :: {"count":"2"}
+[Gmail Scanner] AI filtered out non-rental email from noreply@em.mycoverageinfo.com - Subject: "MyCoverageInfo Information Processed"
+2:46:19 PM [express] GET /api/notifications 304 in 181ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from microcenter@email.microcenter.com - Subject: "Nelko Portable Bluetooth Label Printer $19! 64GB Flash Drive 5-Pack $23"
+[Gmail Scanner] Linking new thread 19a7d65f1d114052 to existing lead info@notifications.realtor.com
+[Gmail Scanner] Linking new thread 19a7d55880f65489 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7d2289ebffb03 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7d18213bd15e0 to existing lead hello@udacity.com
+[Gmail Scanner] Linking new thread 19a7d0c64807a448 to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7cfd259051755 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7cebab221c7e1 to existing lead news@daily.therundown.ai
+[Gmail Scanner] Linking new thread 19a7cbc29ceabe13 to existing lead customercare@email.movoto.com
+[Gmail Scanner] Linking new thread 19a7cb0a03cfa10e to existing lead no-reply@todoist.com
+[Gmail Scanner] Linking new thread 19a7bb82c9e0ed77 to existing lead jobnotification@delta.avature.net
+[Gmail Scanner] AI filtered out non-rental email from close_friend_updates@facebookmail.com - Subject: "💬 Dina Ayoub-Gutierrez commented on her post"
+[Gmail Scanner] Linking new thread 19a7ab0fd7d8b1ea to existing lead recommended-pads@alerts.hotpads.com
+[Gmail Scanner] Linking new thread 19a7aaa4513fa2a9 to existing lead info@trabajo.org
+[Gmail Scanner] Linking new thread 19a7a8c5083b027b to existing lead hello@talkpal.ai
+[Gmail Scanner] AI filtered out non-rental email from info@email.blazecu.com - Subject: "Blaze Foundation Annual Fundraising Event"
+[Gmail Scanner] Linking new thread 19a7a7c8411a1107 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] Linking new thread 19a7a764fdb0a2f2 to existing lead hdjq.fa.sender@workflow.mail.us2.cloud.oracle.com
+[Gmail Scanner] Linking new thread 19a7a6d75f4d5d3e to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7a4da021ad89d to existing lead brad@e.stessa.com
+[Gmail Scanner] Linking new thread 19a7a352159fcd5e to existing lead events@seatgeek.com
+[Gmail Scanner] Linking new thread 19a79e0aa6aac0f6 to existing lead marketing@flippa.com
+[Gmail Scanner] AI filtered out non-rental email from reminder@chilipiper.com - Subject: "A reminder for our upcoming meeting"
+[Gmail Scanner] Linking new thread 19a79c016b034934 to existing lead listings@redfin.com
+[Gmail Scanner] Linking new thread 19a79ab147454812 to existing lead newsletter@mail.milkroad.com
+[Gmail Scanner] AI filtered out non-rental email from notifications@calendly.com - Subject: "Reminder: Leasey.AI Inbound Demo with Briana Liau Kent at 02:00pm (Central Time - US & Canada) on Thursday, November 13, 2025"
+[Gmail Scanner] AI filtered out non-rental email from michael.jacobs@marcusmillichap.com - Subject: "Call For Offers | Shoreline Drive on Lake Minnetonka | Mixed Use | A+ Location"
+[Gmail Scanner] AI filtered out non-rental email from ryan4guevarainsulation@gmail.com - Subject: "Blank Center point rebate application"
+[Gmail Scanner] Linking new thread 19a796756c95d504 to existing lead email@email.menards.com
+[Gmail Scanner] Linking new thread 19a7958f40887ef4 to existing lead alex@rentengine.io
+2:46:29 PM [express] GET /api/notifications/unread-count 304 in 176ms :: {"count":"2"}
+[Gmail Scanner] AI filtered out non-rental email from info@ridgelendinggroup.com - Subject: "Starting soon! Live Co-Living webinar + Tiny Challenge giveaway"
+[Gmail Scanner] Linking new thread 19a7942a4129fd7c to existing lead teamzoom@e.zoom.us
+2:46:29 PM [express] GET /api/notifications 304 in 176ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] Linking new thread 19a793ffce3626db to existing lead info@fundhustle.com
+[Gmail Scanner] Linking new thread 19a792d71fa7f89d to existing lead noreply@marketing.webull.com
+[Gmail Scanner] Linking new thread 19a7927ce17f1a80 to existing lead MNREC-announce@email.meetup.com
+[Gmail Scanner] Linking new thread 19a791e07f2ea942 to existing lead support@e.usa.experian.com
+[Gmail Scanner] Linking new thread 19a79197f06e43ad to existing lead email@mail.btn.com
+[Gmail Scanner] Linking new thread 19a79110153eef63 to existing lead no-reply@mail.ring.com
+[Gmail Scanner] Linking new thread 19a79099484c77a7 to existing lead info@propwire.com
+[Gmail Scanner] AI filtered out non-rental email from tpg@thepointsguy.com - Subject: "🚨 Earn a Whopping 100,000 Bonus Miles With This Top Travel Card"
+[Gmail Scanner] AI filtered out non-rental email from info@make.com - Subject: "Updates to our sub-processors list"
+[Gmail Scanner] AI filtered out non-rental email from delivery@reggora.com - Subject: "View Your Completed Appraisal!"
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+2:46:39 PM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"2"}
+2:46:39 PM [express] GET /api/notifications 304 in 178ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+2:46:49 PM [express] GET /api/notifications/unread-count 304 in 176ms :: {"count":"2"}
+2:46:50 PM [express] GET /api/notifications 304 in 180ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+2:47:00 PM [express] GET /api/notifications/unread-count 304 in 177ms :: {"count":"2"}
+2:47:00 PM [express] GET /api/notifications 304 in 180ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] Scanning 2 organizations
+[Gmail Scanner] Scanning org 325a081e-3b7b-4305-a81e-b7345f7a1759... (last scan: 2025-11-13T14:46:05.890Z)
+[Gmail Scanner] Found 34 messages
+[Gmail Scanner] AI filtered out non-rental email from notification@priority.instagram.com - Subject: "lead2lease, catch up on moments you've missed"
+2:47:08 PM [vite] hmr update /src/components/ShowingCreateDialog.tsx, /src/index.css?v=YFp6GkJuLM7XzB4j4rOk8 (x2)
+[Gmail Scanner] AI filtered out non-rental email from mailer-daemon@googlemail.com - Subject: "Delivery Status Notification (Failure)"
+[Gmail Scanner] Linking new thread 19a69d2487b79312 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a68f9396f444cd to existing lead no-reply@accounts.google.com
+2:47:10 PM [express] GET /api/notifications/unread-count 304 in 181ms :: {"count":"2"}
+2:47:10 PM [express] GET /api/notifications 304 in 182ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "tamerayoub_ accepted your follow request"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Unrecognized device signed in to your Stripe account"
+[Gmail Scanner] Linking new thread 19a659cf865916d3 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@account.tiktok.com - Subject: "313772 is your verification code"
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "940572 is your Instagram code"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Verify your email"
+[Gmail Scanner] Linking new thread 19a56a55f7f8be7c to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a513a064af6d63 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Gmail Scanner] Scanning org a963dc65-4ebd-4691-8c5b-4f25ea3ff37d... (last scan: 2025-11-13T14:46:15.747Z)
+[Gmail Scanner] Found 50 messages
+[Gmail Scanner] Linking new thread 19a7daab2d4fcf6d to existing lead membersupport@mnreia.com
+[Gmail Scanner] AI filtered out non-rental email from dealdesk@flippa.com - Subject: "Just Sold: Saas business for $70K"
+[Gmail Scanner] Linking new thread 19a7d9209af30a1e to existing lead info@m.biggerpockets.com
+[Gmail Scanner] Linking new thread 19a7d8c938b805e3 to existing lead info@theshadestore.com
+[Gmail Scanner] Linking new thread 19a7d8900cee2af9 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] AI filtered out non-rental email from hello@m.leonardo.ai - Subject: "Make The Most Of Your Free Account"
+[Gmail Scanner] Linking new thread 19a7d8347a271580 to existing lead info@notifications.realtor.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@em.mycoverageinfo.com - Subject: "MyCoverageInfo Information Processed"
+[Gmail Scanner] AI filtered out non-rental email from microcenter@email.microcenter.com - Subject: "Nelko Portable Bluetooth Label Printer $19! 64GB Flash Drive 5-Pack $23"
+[Gmail Scanner] Linking new thread 19a7d65f1d114052 to existing lead info@notifications.realtor.com
+[Gmail Scanner] Linking new thread 19a7d55880f65489 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7d2289ebffb03 to existing lead dan@tldrnewsletter.com
+2:47:21 PM [express] GET /api/notifications/unread-count 304 in 194ms :: {"count":"2"}
+2:47:21 PM [express] GET /api/notifications 304 in 182ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] Linking new thread 19a7d18213bd15e0 to existing lead hello@udacity.com
+[Gmail Scanner] Linking new thread 19a7d0c64807a448 to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7cfd259051755 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7cebab221c7e1 to existing lead news@daily.therundown.ai
+[Gmail Scanner] Linking new thread 19a7cbc29ceabe13 to existing lead customercare@email.movoto.com
+[Gmail Scanner] Linking new thread 19a7cb0a03cfa10e to existing lead no-reply@todoist.com
+[Gmail Scanner] Linking new thread 19a7bb82c9e0ed77 to existing lead jobnotification@delta.avature.net
+[Gmail Scanner] AI filtered out non-rental email from close_friend_updates@facebookmail.com - Subject: "💬 Dina Ayoub-Gutierrez commented on her post"
+[Gmail Scanner] Linking new thread 19a7ab0fd7d8b1ea to existing lead recommended-pads@alerts.hotpads.com
+[Gmail Scanner] Linking new thread 19a7aaa4513fa2a9 to existing lead info@trabajo.org
+[Gmail Scanner] Linking new thread 19a7a8c5083b027b to existing lead hello@talkpal.ai
+[Gmail Scanner] AI filtered out non-rental email from info@email.blazecu.com - Subject: "Blaze Foundation Annual Fundraising Event"
+[Gmail Scanner] Linking new thread 19a7a7c8411a1107 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] Linking new thread 19a7a764fdb0a2f2 to existing lead hdjq.fa.sender@workflow.mail.us2.cloud.oracle.com
+[Gmail Scanner] Linking new thread 19a7a6d75f4d5d3e to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7a4da021ad89d to existing lead brad@e.stessa.com
+[Gmail Scanner] Linking new thread 19a7a352159fcd5e to existing lead events@seatgeek.com
+[Gmail Scanner] Linking new thread 19a79e0aa6aac0f6 to existing lead marketing@flippa.com
+[Gmail Scanner] AI filtered out non-rental email from reminder@chilipiper.com - Subject: "A reminder for our upcoming meeting"
+[Gmail Scanner] Linking new thread 19a79c016b034934 to existing lead listings@redfin.com
+[Gmail Scanner] Linking new thread 19a79ab147454812 to existing lead newsletter@mail.milkroad.com
+[Gmail Scanner] AI filtered out non-rental email from notifications@calendly.com - Subject: "Reminder: Leasey.AI Inbound Demo with Briana Liau Kent at 02:00pm (Central Time - US & Canada) on Thursday, November 13, 2025"
+[Gmail Scanner] AI filtered out non-rental email from michael.jacobs@marcusmillichap.com - Subject: "Call For Offers | Shoreline Drive on Lake Minnetonka | Mixed Use | A+ Location"
+[Gmail Scanner] AI filtered out non-rental email from ryan4guevarainsulation@gmail.com - Subject: "Blank Center point rebate application"
+[Gmail Scanner] Linking new thread 19a796756c95d504 to existing lead email@email.menards.com
+[Gmail Scanner] Linking new thread 19a7958f40887ef4 to existing lead alex@rentengine.io
+[Gmail Scanner] AI filtered out non-rental email from info@ridgelendinggroup.com - Subject: "Starting soon! Live Co-Living webinar + Tiny Challenge giveaway"
+[Gmail Scanner] Linking new thread 19a7942a4129fd7c to existing lead teamzoom@e.zoom.us
+[Gmail Scanner] Linking new thread 19a793ffce3626db to existing lead info@fundhustle.com
+[Gmail Scanner] Linking new thread 19a792d71fa7f89d to existing lead noreply@marketing.webull.com
+2:47:31 PM [express] GET /api/notifications/unread-count 304 in 184ms :: {"count":"2"}
+2:47:31 PM [express] GET /api/notifications 304 in 181ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] Linking new thread 19a7927ce17f1a80 to existing lead MNREC-announce@email.meetup.com
+[Gmail Scanner] Linking new thread 19a791e07f2ea942 to existing lead support@e.usa.experian.com
+[Gmail Scanner] Linking new thread 19a79197f06e43ad to existing lead email@mail.btn.com
+[Gmail Scanner] Linking new thread 19a79110153eef63 to existing lead no-reply@mail.ring.com
+[Gmail Scanner] Linking new thread 19a79099484c77a7 to existing lead info@propwire.com
+[Gmail Scanner] AI filtered out non-rental email from tpg@thepointsguy.com - Subject: "🚨 Earn a Whopping 100,000 Bonus Miles With This Top Travel Card"
+[Gmail Scanner] AI filtered out non-rental email from info@make.com - Subject: "Updates to our sub-processors list"
+[Gmail Scanner] AI filtered out non-rental email from delivery@reggora.com - Subject: "View Your Completed Appraisal!"
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+2:47:41 PM [express] GET /api/notifications/unread-count 304 in 182ms :: {"count":"2"}
+2:47:42 PM [express] GET /api/notifications 304 in 178ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+2:47:52 PM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"2"}
+2:47:52 PM [express] GET /api/notifications 304 in 189ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+2:48:02 PM [express] GET /api/notifications/unread-count 304 in 182ms :: {"count":"2"}
+2:48:02 PM [express] GET /api/notifications 304 in 179ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] Scanning 2 organizations
+[Gmail Scanner] Scanning org 325a081e-3b7b-4305-a81e-b7345f7a1759... (last scan: 2025-11-13T14:47:05.890Z)
+[Gmail Scanner] Found 34 messages
+[Gmail Scanner] AI filtered out non-rental email from notification@priority.instagram.com - Subject: "lead2lease, catch up on moments you've missed"
+[Gmail Scanner] AI filtered out non-rental email from mailer-daemon@googlemail.com - Subject: "Delivery Status Notification (Failure)"
+[Gmail Scanner] Linking new thread 19a69d2487b79312 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a68f9396f444cd to existing lead no-reply@accounts.google.com
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "tamerayoub_ accepted your follow request"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Unrecognized device signed in to your Stripe account"
+[Gmail Scanner] Linking new thread 19a659cf865916d3 to existing lead no-reply@accounts.google.com
+2:48:13 PM [express] GET /api/notifications/unread-count 304 in 178ms :: {"count":"2"}
+2:48:13 PM [express] GET /api/notifications 304 in 179ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from noreply@account.tiktok.com - Subject: "313772 is your verification code"
+[Gmail Scanner] AI filtered out non-rental email from no-reply@mail.instagram.com - Subject: "940572 is your Instagram code"
+[Gmail Scanner] AI filtered out non-rental email from notifications@stripe.com - Subject: "Verify your email"
+[Gmail Scanner] Linking new thread 19a56a55f7f8be7c to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Linking new thread 19a513a064af6d63 to existing lead no-reply@accounts.google.com
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+[Gmail Scanner] Scanning org a963dc65-4ebd-4691-8c5b-4f25ea3ff37d... (last scan: 2025-11-13T14:47:16.154Z)
+[Gmail Scanner] Found 50 messages
+[Gmail Scanner] Linking new thread 19a7daab2d4fcf6d to existing lead membersupport@mnreia.com
+[Gmail Scanner] AI filtered out non-rental email from dealdesk@flippa.com - Subject: "Just Sold: Saas business for $70K"
+[Gmail Scanner] Linking new thread 19a7d9209af30a1e to existing lead info@m.biggerpockets.com
+[Gmail Scanner] Linking new thread 19a7d8c938b805e3 to existing lead info@theshadestore.com
+[Gmail Scanner] Linking new thread 19a7d8900cee2af9 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] AI filtered out non-rental email from hello@m.leonardo.ai - Subject: "Make The Most Of Your Free Account"
+[Gmail Scanner] Linking new thread 19a7d8347a271580 to existing lead info@notifications.realtor.com
+[Gmail Scanner] AI filtered out non-rental email from noreply@em.mycoverageinfo.com - Subject: "MyCoverageInfo Information Processed"
+[Gmail Scanner] AI filtered out non-rental email from microcenter@email.microcenter.com - Subject: "Nelko Portable Bluetooth Label Printer $19! 64GB Flash Drive 5-Pack $23"
+[Gmail Scanner] Linking new thread 19a7d65f1d114052 to existing lead info@notifications.realtor.com
+[Gmail Scanner] Linking new thread 19a7d55880f65489 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7d2289ebffb03 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7d18213bd15e0 to existing lead hello@udacity.com
+[Gmail Scanner] Linking new thread 19a7d0c64807a448 to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7cfd259051755 to existing lead dan@tldrnewsletter.com
+[Gmail Scanner] Linking new thread 19a7cebab221c7e1 to existing lead news@daily.therundown.ai
+[Gmail Scanner] Linking new thread 19a7cbc29ceabe13 to existing lead customercare@email.movoto.com
+[Gmail Scanner] Linking new thread 19a7cb0a03cfa10e to existing lead no-reply@todoist.com
+[Gmail Scanner] Linking new thread 19a7bb82c9e0ed77 to existing lead jobnotification@delta.avature.net
+2:48:23 PM [express] GET /api/notifications/unread-count 304 in 179ms :: {"count":"2"}
+2:48:23 PM [express] GET /api/notifications 304 in 182ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from close_friend_updates@facebookmail.com - Subject: "💬 Dina Ayoub-Gutierrez commented on her post"
+[Gmail Scanner] Linking new thread 19a7ab0fd7d8b1ea to existing lead recommended-pads@alerts.hotpads.com
+[Gmail Scanner] Linking new thread 19a7aaa4513fa2a9 to existing lead info@trabajo.org
+[Gmail Scanner] Linking new thread 19a7a8c5083b027b to existing lead hello@talkpal.ai
+[Gmail Scanner] AI filtered out non-rental email from info@email.blazecu.com - Subject: "Blaze Foundation Annual Fundraising Event"
+[Gmail Scanner] Linking new thread 19a7a7c8411a1107 to existing lead noreply@tenantcloud.com
+[Gmail Scanner] Linking new thread 19a7a764fdb0a2f2 to existing lead hdjq.fa.sender@workflow.mail.us2.cloud.oracle.com
+[Gmail Scanner] Linking new thread 19a7a6d75f4d5d3e to existing lead notifications@acquire.com
+[Gmail Scanner] Linking new thread 19a7a4da021ad89d to existing lead brad@e.stessa.com
+[Gmail Scanner] Linking new thread 19a7a352159fcd5e to existing lead events@seatgeek.com
+[Gmail Scanner] Linking new thread 19a79e0aa6aac0f6 to existing lead marketing@flippa.com
+[Gmail Scanner] AI filtered out non-rental email from reminder@chilipiper.com - Subject: "A reminder for our upcoming meeting"
+[Gmail Scanner] Linking new thread 19a79c016b034934 to existing lead listings@redfin.com
+[Gmail Scanner] Linking new thread 19a79ab147454812 to existing lead newsletter@mail.milkroad.com
+[Gmail Scanner] AI filtered out non-rental email from notifications@calendly.com - Subject: "Reminder: Leasey.AI Inbound Demo with Briana Liau Kent at 02:00pm (Central Time - US & Canada) on Thursday, November 13, 2025"
+[Gmail Scanner] AI filtered out non-rental email from michael.jacobs@marcusmillichap.com - Subject: "Call For Offers | Shoreline Drive on Lake Minnetonka | Mixed Use | A+ Location"
+[Gmail Scanner] AI filtered out non-rental email from ryan4guevarainsulation@gmail.com - Subject: "Blank Center point rebate application"
+[Gmail Scanner] Linking new thread 19a796756c95d504 to existing lead email@email.menards.com
+[Gmail Scanner] Linking new thread 19a7958f40887ef4 to existing lead alex@rentengine.io
+[Gmail Scanner] AI filtered out non-rental email from info@ridgelendinggroup.com - Subject: "Starting soon! Live Co-Living webinar + Tiny Challenge giveaway"
+[Gmail Scanner] Linking new thread 19a7942a4129fd7c to existing lead teamzoom@e.zoom.us
+[Gmail Scanner] Linking new thread 19a793ffce3626db to existing lead info@fundhustle.com
+[Gmail Scanner] Linking new thread 19a792d71fa7f89d to existing lead noreply@marketing.webull.com
+[Gmail Scanner] Linking new thread 19a7927ce17f1a80 to existing lead MNREC-announce@email.meetup.com
+[Gmail Scanner] Linking new thread 19a791e07f2ea942 to existing lead support@e.usa.experian.com
+[Gmail Scanner] Linking new thread 19a79197f06e43ad to existing lead email@mail.btn.com
+[Gmail Scanner] Linking new thread 19a79110153eef63 to existing lead no-reply@mail.ring.com
+[Gmail Scanner] Linking new thread 19a79099484c77a7 to existing lead info@propwire.com
+2:48:33 PM [express] GET /api/notifications/unread-count 304 in 180ms :: {"count":"2"}
+2:48:33 PM [express] GET /api/notifications 304 in 182ms :: [{"id":"51cf50c5-7a73-4349-859a-9504c167…
+[Gmail Scanner] AI filtered out non-rental email from tpg@thepointsguy.com - Subject: "🚨 Earn a Whopping 100,000 Bonus Miles With This Top Travel Card"
+[Gmail Scanner] AI filtered out non-rental email from info@make.com - Subject: "Updates to our sub-processors list"
+[Gmail Scanner] AI filtered out non-rental email from delivery@reggora.com - Subject: "View Your Completed Appraisal!"
+[Gmail Scanner] Imported 0 new messages from existing threads
+[Gmail Scanner] Created 0 new leads from new threads
+2:48:44 PM [express] GET /api/notifications/unread-count 304 in 179m

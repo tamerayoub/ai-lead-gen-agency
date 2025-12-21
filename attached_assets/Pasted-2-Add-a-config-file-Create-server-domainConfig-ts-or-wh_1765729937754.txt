@@ -1,0 +1,212 @@
+2) Add a config file
+
+Create: server/domainConfig.ts (or wherever your server code lives)
+
+// server/domainConfig.ts
+const splitCsv = (v?: string) =>
+  (v ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+export const domainConfig = {
+  appHosts: new Set(splitCsv(process.env.APP_HOSTS)),
+  marketingHosts: new Set(splitCsv(process.env.MARKETING_HOSTS)),
+  localDevHosts: new Set(splitCsv(process.env.LOCAL_DEV_HOSTS)),
+  canonicalAppUrl: process.env.CANONICAL_APP_URL || "",
+  canonicalMarketingUrl: process.env.CANONICAL_MARKETING_URL || "",
+  appPath: process.env.APP_PATH || "/app",
+};
+
+export function getHostname(req: any) {
+  // Handles "host:port" and proxies.
+  const raw =
+    (req.headers["x-forwarded-host"] as string) ||
+    (req.headers["host"] as string) ||
+    "";
+  return raw.split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
+}
+
+export function isLocalHost(hostname: string) {
+  return domainConfig.localDevHosts.has(hostname);
+}
+
+export function isAppHost(hostname: string) {
+  return domainConfig.appHosts.has(hostname);
+}
+
+3) Add Express middleware to route correctly
+
+Create: server/hostRoutingMiddleware.ts
+
+// server/hostRoutingMiddleware.ts
+import type { Request, Response, NextFunction } from "express";
+import { domainConfig, getHostname, isAppHost, isLocalHost } from "./domainConfig";
+
+function isAssetPath(pathname: string) {
+  // Allow static assets + API no matter what host
+  return (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/assets") ||
+    pathname.startsWith("/static") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/robots.txt") ||
+    pathname.startsWith("/sitemap") ||
+    pathname.startsWith("/manifest") ||
+    pathname.match(/\.(css|js|map|png|jpg|jpeg|webp|svg|ico|woff2?)$/i)
+  );
+}
+
+export function hostRoutingMiddleware(req: Request, res: Response, next: NextFunction) {
+  const hostname = getHostname(req);
+  const path = req.path;
+
+  // Never interfere with API / assets
+  if (isAssetPath(path)) return next();
+
+  const local = isLocalHost(hostname);
+  const appHost = isAppHost(hostname);
+
+  /**
+   * RULES:
+   * 1) Production:
+   *    - If request is on an APP host, serve the app (no /app prefix required)
+   *    - If request is on a MARKETING host, serve marketing and redirect /app -> canonical app domain
+   *
+   * 2) Local:
+   *    - Marketing at /
+   *    - App at /app
+   */
+  if (local) {
+    // Local dev uses path-based split.
+    // /app/* = app, everything else = marketing
+    return next();
+  }
+
+  // Production host-based behavior
+  if (appHost) {
+    // If you're on app domain, but someone hits "/" it's still app.
+    // Optionally: redirect marketing-ish paths back to marketing domain if you want.
+    return next();
+  }
+
+  // Not an app host => marketing host (or unknown)
+  // If user tries to access app path on marketing host, redirect to canonical app url.
+  if (path === domainConfig.appPath || path.startsWith(domainConfig.appPath + "/")) {
+    if (domainConfig.canonicalAppUrl) {
+      const rest = path.slice(domainConfig.appPath.length) || "/";
+      return res.redirect(302, domainConfig.canonicalAppUrl + rest);
+    }
+  }
+
+  return next();
+}
+
+4) Wire it into your server entry
+
+In your Express server entry (commonly server/index.ts, server.ts, etc.), add this before static file serving:
+
+import express from "express";
+import { hostRoutingMiddleware } from "./hostRoutingMiddleware";
+import { domainConfig, getHostname, isAppHost, isLocalHost } from "./domainConfig";
+
+const app = express();
+
+// Put this near the top, before your static handler:
+app.use(hostRoutingMiddleware);
+
+// Example: serve two different SPAs (marketing + app) from different folders
+// Adjust paths to match YOUR build output.
+const path = await import("path");
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+// Example output folders:
+// - dist/marketing/index.html
+// - dist/app/index.html
+
+app.use("/api", /* your api router */);
+
+// Static assets (if shared)
+app.use("/assets", express.static(path.join(__dirname, "../dist/assets")));
+
+// App SPA under /app for local dev
+app.use(domainConfig.appPath, (req, res) => {
+  const hostname = getHostname(req);
+  const local = isLocalHost(hostname);
+
+  // Local only: /app loads the app SPA
+  if (!local) return res.status(404).send("Not Found");
+
+  return res.sendFile(path.join(__dirname, "../dist/app/index.html"));
+});
+
+// Default: host-based SPA selection
+app.get("*", (req, res) => {
+  const hostname = getHostname(req);
+  const local = isLocalHost(hostname);
+
+  if (local) {
+    // Local: "/" = marketing
+    return res.sendFile(path.join(__dirname, "../dist/marketing/index.html"));
+  }
+
+  if (isAppHost(hostname)) {
+    return res.sendFile(path.join(__dirname, "../dist/app/index.html"));
+  }
+
+  return res.sendFile(path.join(__dirname, "../dist/marketing/index.html"));
+});
+
+export default app;
+
+
+You will need two builds: one for marketing and one for app (or one build that contains both). If you already have only one frontend today, this still works — just point both to the same index.html until you split them.
+
+5) Frontend routing behavior (local + prod)
+Recommended approach
+
+In production:
+
+App domain loads app at /
+
+In local:
+
+App is at /app
+
+Marketing is at /
+
+So in your app frontend, set a basename that’s conditional:
+
+Example (React Router)
+const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const basename = isLocal ? "/app" : "/";
+
+If you’re using wouter
+
+wouter doesn’t have a full “basename” like react-router, but you can:
+
+either mount the app router at /app locally (server already does this)
+
+or use useLocation with a custom hook
+
+If you tell me whether your actual app is React Router or wouter (your snippet shows wouter), I’ll give you the exact “basename” pattern for that router.
+
+Local dev: how you’ll use it
+
+Marketing:
+
+http://localhost:5000/
+
+App:
+
+http://localhost:5000/app
+
+Production:
+
+Marketing:
+
+https://lead2lease.ai
+
+App:
+
+https://app.lead2lease.ai

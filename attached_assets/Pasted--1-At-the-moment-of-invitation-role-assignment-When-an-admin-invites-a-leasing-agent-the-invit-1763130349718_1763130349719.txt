@@ -1,0 +1,112 @@
+
+1. At the moment of invitation (role assignment)
+When an admin invites a leasing agent, the invitation flow should include:
+•	Select a role (e.g., Leasing Agent, Property Manager, Admin)
+•	Apply permissions tied to that role immediately
+•	Store the user with a pending status + role
+This ensures that the moment they accept the invite, the system already knows exactly what they are allowed to access.
+Why?
+You don't want invited users to default to high privileges or undefined access.
+________________________________________
+2. During the onboarding / account activation
+When the leasing agent clicks the invitation link:
+•	RBAC must determine which UI components, menu items, and dashboard items they can access.
+•	Enforce that they cannot perform actions beyond their assigned role (e.g., cannot manage properties unless allowed).
+This is front-end enforcement, but not enough on its own — continue below.
+________________________________________
+3. On every backend API request
+This is the MOST important enforcement point.
+Even if the UI hides restricted actions, a user could attempt calls directly.
+RBAC must evaluate permissions before allowing:
+•	Access to lead/tenant data
+•	Access to properties
+•	Messaging and follow-up actions
+•	Modifying leases, units, or pricing
+•	Viewing analytics or reporting
+Backend RBAC = the real security boundary.
+________________________________________
+4. Database-level access controls (optional but ideal)
+This includes:
+•	Row-level access (e.g., agent can only see leads for properties they’re assigned)
+•	Restrictions on sensitive tables (leases, tenants, financials)
+This prevents privilege escalation or accidental overexposure.
+________________________________________
+5. Audit logging
+Every RBAC-controlled action should be logged:
+•	Who did it
+•	What they tried to do
+•	Whether they were allowed or denied
+Helps with compliance, property owners, and debugging.
+________________________________________
+🎯 Summary: Where RBAC MUST be applied
+Stage	RBAC Needed?	Why
+Invitation	Yes	Assign role before account becomes active
+Account activation / login	Yes	Show only relevant UI
+Frontend UI rendering	Yes	Prevent accidental access
+Backend API endpoints	Absolutely yes	Real security; block unauthorized operations
+Database / row-level permissions	Optional but strongly recommended	Prevent cross-property exposure
+Audit logs	Yes	Compliance and traceability
+
+
+
+✅ RBAC Permission Model for Your 4 Roles
+1. Admin (Highest Level)
+Scope: Entire platform, all properties
+Use case: Internal company employees who manage configuration, onboarding, security, or high-level reporting.
+Permissions:
+•	Full CRUD on users, roles, and invitations
+•	Manage properties, units, floor plans
+•	View/modify all leads, tenants, applications, leases
+•	Access all financials and reports
+•	Configure automation rules, integrations, templates
+•	Full audit logs
+•	Override leasing decisions or workflows
+________________________________________
+2. Property Manager
+Scope: Properties they are assigned to
+Use case: On-site or regional managers who oversee operations.
+Permissions:
+•	Manage assigned properties and units
+•	View and assign leads to leasing agents
+•	Approve/deny applications
+•	Create and modify leases
+•	View payment status & financial info for their assigned properties
+•	Communicate with leads/tenants
+•	Generate property-level reports
+•	Invite Leasing Agents (if allowed by company policy)
+•	No access to global settings or system-wide users
+________________________________________
+3. Leasing Agent
+Scope: Leads + units for the properties to which they are assigned
+Use case: Agents responsible for follow-ups, tours, and converting leads.
+Permissions:
+•	View & manage leads (but only for assigned properties)
+•	Send/receive messages with prospects
+•	Schedule and track tours
+•	Update lead statuses
+•	Access unit availability for their properties
+•	Generate basic leasing reports (personal performance only)
+•	Cannot modify property settings
+•	Cannot access financial, admin, or sensitive tenant data
+•	Cannot invite users or edit roles
+________________________________________
+4. Owner Portal User (Externally facing)
+Scope: Read-only financial and property performance info
+Use case: Property owners who need transparency but not operational control.
+Permissions:
+•	View financial reports (income, expenses, occupancy)
+•	View property performance metrics
+•	View tenant summary (high level, anonymized if needed)
+•	Download statements
+•	No access to leads, applications, or internal communication
+•	No editing permissions at all
+•	No ability to view sensitive tenant PII (depending on compliance rules)
+________________________________________
+🎯 Where this ties into the invitation flow
+When inviting any user:
+1.	Admin selects the role (Admin / Property Manager / Leasing Agent / Owner Portal User).
+2.	The system stores the user as Pending with that role.
+3.	When they accept the invite:
+o	UI shows only what their role allows.
+o	Backend enforces access via RBAC.
+o	Property-scoping applies (for Property Manager & Leasing Agent).

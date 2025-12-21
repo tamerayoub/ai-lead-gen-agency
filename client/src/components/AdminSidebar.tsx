@@ -1,4 +1,5 @@
 import { ClipboardList, Settings, Users, LogOut, Bot, UserPlus, TrendingUp, BarChart3, Calendar } from "lucide-react";
+import logo from "@/assets/lead2lease-logo-white.svg";
 import {
   Sidebar,
   SidebarContent,
@@ -64,11 +65,12 @@ export function AdminSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-            <Bot className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img 
+            src={logo} 
+            alt="Logo" 
+            className="h-10 w-auto object-contain"
+          />
           <div>
-            <h2 className="text-base font-semibold">Lead2Lease</h2>
             <p className="text-xs text-muted-foreground">Admin Panel</p>
           </div>
         </div>

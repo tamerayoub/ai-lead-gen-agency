@@ -30,13 +30,29 @@ passport.deserializeUser(async (id: string, done) => {
 
 // Helper to get base URL
 const getBaseUrl = () => {
+  // Check for production domain first (for lead2lease.ai)
+  if (process.env.PRODUCTION_DOMAIN) {
+    const url = `https://${process.env.PRODUCTION_DOMAIN}`;
+    console.log('[OAuth] Base URL (production):', url);
+    return url;
+  }
+  
+  // Check for Replit domain
   const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
   if (replitDomain) {
     const url = `https://${replitDomain}`;
-    console.log('[OAuth] Base URL:', url);
+    console.log('[OAuth] Base URL (Replit):', url);
     return url;
   }
-  const fallback = process.env.BASE_URL || "http://localhost:5000";
+  
+  // Check for BASE_URL env var
+  if (process.env.BASE_URL) {
+    console.log('[OAuth] Base URL (BASE_URL env):', process.env.BASE_URL);
+    return process.env.BASE_URL;
+  }
+  
+  // Fallback to localhost
+  const fallback = "http://localhost:5000";
   console.log('[OAuth] Base URL (fallback):', fallback);
   return fallback;
 };
@@ -63,27 +79,40 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
           let user = await db.query.users.findFirst({
             where: sql`${users.provider} = 'google' AND ${users.providerId} = ${profile.id}`,
           });
-          console.log('[Google OAuth] Existing user found:', !!user);
+          console.log('[Google OAuth] Existing user found by providerId:', !!user);
 
+          // If not found by providerId, check by email (for users who linked OAuth to email/password account)
           if (!user) {
-            // Check if email exists (could be password or other OAuth)
             const existingEmailUser = await db.query.users.findFirst({
               where: eq(users.email, email),
             });
 
             if (existingEmailUser) {
-              // Email exists but with different provider - don't allow, inform user
-              console.log('[Google OAuth] Email exists with different provider:', existingEmailUser.provider);
-              const providerDisplay = existingEmailUser.provider === 'email' 
-                ? 'email/password' 
-                : existingEmailUser.provider;
-              return done(null, false, { 
-                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
-              });
-            }
-
+              // Email exists - link Google OAuth to existing account
+              console.log('[Google OAuth] Email exists with provider:', existingEmailUser.provider, '- linking Google OAuth to existing account');
+              
+              // If user has passwordHash, keep provider as "email" so they can use both methods
+              // Otherwise, switch to Google as the provider
+              const shouldKeepEmailProvider = existingEmailUser.provider === 'email' && existingEmailUser.passwordHash;
+              const updatedUser = await db.update(users)
+                .set({
+                  provider: shouldKeepEmailProvider ? "email" : "google", // Keep email provider if they have password
+                  providerId: profile.id, // Store Google providerId for OAuth login
+                  // Update profile image if not already set
+                  profileImageUrl: existingEmailUser.profileImageUrl || profile.photos?.[0]?.value,
+                  // Update name if not already set
+                  firstName: existingEmailUser.firstName || profile.name?.givenName,
+                  lastName: existingEmailUser.lastName || profile.name?.familyName,
+                })
+                .where(eq(users.id, existingEmailUser.id))
+                .returning();
+              
+              user = updatedUser[0];
+              console.log('[Google OAuth] Linked Google OAuth to existing account:', user.id, '- provider:', user.provider);
+            } else {
             // Create new user with Google
             console.log('[Google OAuth] Creating new user');
+            // Note: Consent will be set from session in the callback route handler
             const [newUser] = await db.insert(users).values({
               email,
               firstName: profile.name?.givenName,
@@ -91,9 +120,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
               profileImageUrl: profile.photos?.[0]?.value,
               provider: "google",
               providerId: profile.id,
+              termsAccepted: true, // Will be updated from session in callback if available
+              emailSubscription: false, // Will be updated from session in callback if available
             }).returning();
             user = newUser;
             console.log('[Google OAuth] New user created:', user.id);
+            }
           }
 
           console.log('[Google OAuth] Calling done with user:', user.id);
@@ -150,6 +182,8 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
               profileImageUrl: profile.photos?.[0]?.value,
               provider: "facebook",
               providerId: profile.id,
+              termsAccepted: true, // OAuth users implicitly accept terms by using OAuth
+              emailSubscription: false, // Default to false, can be updated later
             }).returning();
             user = newUser;
           }
@@ -181,32 +215,48 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
             return done(null, false, { message: "No email provided by Microsoft" });
           }
 
+          // First check if user exists with this Microsoft providerId
           let user = await db.query.users.findFirst({
             where: sql`${users.provider} = 'microsoft' AND ${users.providerId} = ${profile.id}`,
           });
 
+          // If not found by providerId, check by email (for users who linked OAuth to email/password account)
           if (!user) {
             const existingEmailUser = await db.query.users.findFirst({
               where: eq(users.email, email),
             });
 
             if (existingEmailUser) {
-              const providerDisplay = existingEmailUser.provider === 'email' 
-                ? 'email/password' 
-                : existingEmailUser.provider;
-              return done(null, false, { 
-                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
-              });
-            }
-
+              // Email exists but with different provider - link Microsoft OAuth to existing account
+              console.log('[Microsoft OAuth] Email exists with different provider:', existingEmailUser.provider, '- linking Microsoft OAuth to existing account');
+              
+              // If user has passwordHash, keep provider as "email" so they can use both methods
+              const shouldKeepEmailProvider = existingEmailUser.provider === 'email' && existingEmailUser.passwordHash;
+              const updatedUser = await db.update(users)
+                .set({
+                  provider: shouldKeepEmailProvider ? "email" : "microsoft",
+                  providerId: profile.id,
+                  profileImageUrl: existingEmailUser.profileImageUrl || undefined,
+                  firstName: existingEmailUser.firstName || profile.name?.givenName || profile._json.givenName,
+                  lastName: existingEmailUser.lastName || profile.name?.familyName || profile._json.surname,
+                })
+                .where(eq(users.id, existingEmailUser.id))
+                .returning();
+              
+              user = updatedUser[0];
+              console.log('[Microsoft OAuth] Linked Microsoft OAuth to existing account:', user.id, '- provider:', user.provider);
+            } else {
             const [newUser] = await db.insert(users).values({
               email,
               firstName: profile.name?.givenName || profile._json.givenName,
               lastName: profile.name?.familyName || profile._json.surname,
               provider: "microsoft",
               providerId: profile.id,
+              termsAccepted: true, // OAuth users implicitly accept terms by using OAuth
+              emailSubscription: false, // Default to false, can be updated later
             }).returning();
             user = newUser;
+            }
           }
 
           done(null, user);
@@ -245,27 +295,41 @@ if (process.env.APPLE_CLIENT_ID && process.env.APPLE_TEAM_ID && process.env.APPL
               });
             }
 
+            // If not found by providerId, check by email (for users who linked OAuth to email/password account)
             const existingEmailUser = await db.query.users.findFirst({
               where: eq(users.email, email),
             });
 
             if (existingEmailUser) {
-              const providerDisplay = existingEmailUser.provider === 'email' 
-                ? 'email/password' 
-                : existingEmailUser.provider;
-              return done(null, false, { 
-                message: `This email is already registered using ${providerDisplay}. Please sign in with ${providerDisplay} instead.` 
-              });
-            }
-
+              // Email exists but with different provider - link Apple OAuth to existing account
+              console.log('[Apple OAuth] Email exists with different provider:', existingEmailUser.provider, '- linking Apple OAuth to existing account');
+              
+              // If user has passwordHash, keep provider as "email" so they can use both methods
+              const shouldKeepEmailProvider = existingEmailUser.provider === 'email' && existingEmailUser.passwordHash;
+              const updatedUser = await db.update(users)
+                .set({
+                  provider: shouldKeepEmailProvider ? "email" : "apple",
+                  providerId: profile.id,
+                  firstName: existingEmailUser.firstName || profile.name?.firstName,
+                  lastName: existingEmailUser.lastName || profile.name?.lastName,
+                })
+                .where(eq(users.id, existingEmailUser.id))
+                .returning();
+              
+              user = updatedUser[0];
+              console.log('[Apple OAuth] Linked Apple OAuth to existing account:', user.id, '- provider:', user.provider);
+            } else {
             const [newUser] = await db.insert(users).values({
               email,
               firstName: profile.name?.firstName,
               lastName: profile.name?.lastName,
               provider: "apple",
               providerId: profile.id,
+              termsAccepted: true, // OAuth users implicitly accept terms by using OAuth
+              emailSubscription: false, // Default to false, can be updated later
             }).returning();
             user = newUser;
+            }
           }
 
           done(null, user);

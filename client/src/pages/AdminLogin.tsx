@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Lock, Mail, ArrowLeft, Shield } from "lucide-react";
+import { Building2, Lock, Mail, ArrowLeft, Shield, Home } from "lucide-react";
+import logo from "@/assets/lead2lease-logo-black.svg";
 import { SiGoogle, SiFacebook, SiApple } from "react-icons/si";
 import { useToast } from "@/hooks/use-toast";
 
@@ -78,7 +79,8 @@ export default function AdminLogin() {
 
   function handleOAuthLogin(provider: string) {
     // Redirect to OAuth provider with admin callback
-    window.location.href = `/api/auth/${provider}?redirect=/admin/demo-requests`;
+    // Add from=login parameter to skip consent check (admin login doesn't need terms acceptance)
+    window.location.href = `/api/auth/${provider}?from=login&redirect=/admin/demo-requests`;
   }
 
   return (
@@ -89,14 +91,17 @@ export default function AdminLogin() {
           <div className="flex items-center justify-between">
             <Link href="/">
               <a className="flex items-center gap-2 hover:opacity-80" data-testid="link-home">
-                <Building2 className="h-8 w-8 text-primary" />
-                <span className="text-xl font-bold">Lead2Lease</span>
+                <img 
+                  src={logo} 
+                  alt="Logo" 
+                  className="h-12 w-auto object-contain"
+                />
               </a>
             </Link>
             <Link href="/">
               <a data-testid="link-back-to-home">
                 <Button variant="secondary" className="gap-2 bg-gray-200 hover:bg-gray-300 text-gray-900">
-                  <ArrowLeft className="h-4 w-4" />
+                  <Home className="h-4 w-4" />
                   Back to Home
                 </Button>
               </a>

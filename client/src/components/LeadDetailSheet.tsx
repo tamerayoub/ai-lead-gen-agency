@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreVertical, Trash2, Plus, Sparkles } from "lucide-react";
+import { Phone, Mail, MapPin, DollarSign, Calendar, Send, Edit2, X, Check, MoreVertical, Trash2, Plus, Sparkles, Maximize2 } from "lucide-react";
 import { LeadStatus } from "./LeadCard";
 import { ConversationTimeline } from "./ConversationTimeline";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,7 @@ interface LeadDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: LeadDetails | null;
+  onExpand?: () => void; // Optional callback to open full profile view
 }
 
 const statusColors: Record<LeadStatus, string> = {
@@ -80,7 +81,7 @@ const statusColors: Record<LeadStatus, string> = {
   approved: "bg-status-approved text-white",
 };
 
-export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetProps) {
+export function LeadDetailSheet({ open, onOpenChange, lead, onExpand }: LeadDetailSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -422,6 +423,17 @@ export function LeadDetailSheet({ open, onOpenChange, lead }: LeadDetailSheetPro
             <div className="flex gap-2">
               {!isEditing ? (
                 <>
+                  {onExpand && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={onExpand}
+                      data-testid="button-expand-lead"
+                      title="Open full profile view"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="icon"

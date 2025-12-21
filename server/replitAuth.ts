@@ -103,6 +103,11 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
+    // Store return URL in session if provided
+    const returnTo = req.query.returnTo as string;
+    if (returnTo && (req.session as any)) {
+      (req.session as any).returnTo = returnTo;
+    }
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -110,8 +115,14 @@ export async function setupAuth(app: Express) {
   });
 
   app.get("/api/callback", (req, res, next) => {
+    // Get the stored return URL from session
+    const returnTo = (req.session as any)?.returnTo || "/";
+    // Clear it from session after reading
+    if ((req.session as any)?.returnTo) {
+      delete (req.session as any).returnTo;
+    }
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
+      successReturnToOrRedirect: returnTo,
       failureRedirect: "/api/login",
     })(req, res, next);
   });

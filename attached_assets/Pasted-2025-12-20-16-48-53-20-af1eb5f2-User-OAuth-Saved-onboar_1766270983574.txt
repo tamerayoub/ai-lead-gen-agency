@@ -1,0 +1,156 @@
+2025-12-20 16:48:53.20
+af1eb5f2
+User
+[OAuth] Saved onboarding token after reload: undefined
+2025-12-20 16:48:53.20
+af1eb5f2
+User
+[OAuth] Session ID after reload: 9zraOP0dLJQ0G1xqjM2LbrNLXtpUbHyr
+2025-12-20 16:48:53.20
+af1eb5f2
+User
+[OAuth] Saved consent after reload: undefined
+2025-12-20 16:48:53.24
+af1eb5f2
+User
+[OAuth] Session ID after login: 1vQV85FcG8Hl86eLQWvx6USTYzksqM1G
+2025-12-20 16:48:53.24
+af1eb5f2
+User
+[OAuth] User authenticated in session: true
+2025-12-20 16:48:53.27
+af1eb5f2
+User
+[OAuth] ✅ Session saved after login, sessionID: 1vQV85FcG8Hl86eLQWvx6USTYzksqM1G
+2025-12-20 16:48:53.27
+af1eb5f2
+User
+[OAuth] Session cookie name: connect.sid
+2025-12-20 16:48:53.29
+af1eb5f2
+User
+[OAuth] User still authenticated after reload: true
+2025-12-20 16:48:53.29
+af1eb5f2
+User
+[OAuth] ✅ Session reloaded after save, sessionID: 1vQV85FcG8Hl86eLQWvx6USTYzksqM1G
+2025-12-20 16:48:53.34
+af1eb5f2
+User
+[Link Subscription] Attempting to link subscription for user 90700764-5981-4fd7-9f6a-d92687d2e809 (lead2leaseai@gmail.com) to org 4a0600e6-a266-40ab-905e-434a69dd35e9
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] Request hostname: lead2lease.ai
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] User ID: 90700764-5981-4fd7-9f6a-d92687d2e809
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] ✅ Coming from login page - checking membership status
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[Link Subscription] ✅ Org 4a0600e6-a266-40ab-905e-434a69dd35e9 already has active subscription sub_1SgX0KCQNwFos2smFuvvqE6F
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] ===== STARTING REDIRECT LOGIC =====
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] Request origin: undefined
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] User email: lead2leaseai@gmail.com
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] savedRedirectPath: undefined
+2025-12-20 16:48:53.49
+af1eb5f2
+User
+[OAuth] savedFrom: login
+2025-12-20 16:48:53.52
+af1eb5f2
+User
+[OAuth] User refreshed, currentOrgId: 4a0600e6-a266-40ab-905e-434a69dd35e9
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+{
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+{
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+]
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+[OAuth] User has 2 organization(s): [
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+orgId: '23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98',
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+orgId: '4a0600e6-a266-40ab-905e-434a69dd35e9',
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+},
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+}
+2025-12-20 16:48:53.55
+af1eb5f2
+User
+[OAuth] Checking org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 (Lead2Lease MGMT) for active subscription...
+2025-12-20 16:48:53.58
+af1eb5f2
+User
+[OAuth] Org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 details: { foundingPartnerStatus: 'cancelled', stripeSubscriptionId: 'missing' }
+2025-12-20 16:48:53.58
+af1eb5f2
+User
+[OAuth] Checking for one-time payment for org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 (customer: cus_TdngxrHiJvvjDK)
+2025-12-20 16:48:53.68
+af1eb5f2
+User
+[OAuth] ⚠️ Org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 has no subscription ID and status is not active
+2025-12-20 16:48:53.68
+af1eb5f2
+User
+at generateV1Error (file:///home/runner/workspace/node_modules/stripe/esm/Error.js:8:20)
+2025-12-20 16:48:53.68
+af1eb5f2
+User
+doc_url: 'https://stripe.com/docs/error-codes/resource-missing',
+2025-12-20 16:48:53.68
+af1eb5f2
+User
+at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+2025-12-20 16:49:05.63
+af1eb5f2
+User
+[Reminder Scheduler] EMAIL_USER: lead2leaseai@gmail.com (default)
+2025-12-20 16:49:06.53
+af1eb5f2
+User
+[Reminder Scheduler] ===== Finished reminder check =====

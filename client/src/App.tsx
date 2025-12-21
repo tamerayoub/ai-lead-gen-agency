@@ -1,6 +1,8 @@
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, useRouter } from "wouter";
+import { useBrowserLocation } from "wouter/use-browser-location";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -10,8 +12,100 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useBackgroundGmailSync } from "@/hooks/useBackgroundGmailSync";
 import { useNotificationToasts } from "@/hooks/useNotificationToasts";
+import { useMembershipRevocationHandler } from "@/hooks/useMembershipRevocationHandler";
 import { LeadSheetProvider } from "@/contexts/LeadSheetContext";
 import { GlobalLeadDetailSheet } from "@/components/GlobalLeadDetailSheet";
+import ProfileSetupDialog from "@/components/ProfileSetupDialog";
+import { MembershipGuard } from "@/components/MembershipGuard";
+
+// Domain routing configuration
+const APP_HOSTS_RAW = import.meta.env.VITE_APP_HOSTS || "app.lead2lease.ai";
+const APP_HOSTS = APP_HOSTS_RAW.split(",").map((h: string) => h.trim().toLowerCase()).filter(Boolean);
+const LOCAL_DEV_HOSTS = ["localhost", "127.0.0.1"];
+const APP_PATH = "/app";
+
+// Log configuration at startup
+console.log('[App Routing] Configuration:', {
+  APP_HOSTS_RAW,
+  APP_HOSTS,
+  VITE_APP_HOSTS: import.meta.env.VITE_APP_HOSTS,
+  currentHostname: typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : 'server-side',
+});
+
+function isLocalDev(): boolean {
+  const hostname = window.location.hostname.toLowerCase();
+  // Check for localhost, 127.0.0.1, or Replit dev URLs
+  return LOCAL_DEV_HOSTS.includes(hostname) || 
+         hostname.endsWith('.replit.dev') || 
+         hostname.endsWith('.repl.co') ||
+         hostname.includes('.riker.replit.dev');
+}
+
+function isAppHost(): boolean {
+  // Get hostname without port
+  const fullHost = window.location.host.toLowerCase();
+  const hostname = window.location.hostname.toLowerCase();
+  
+  // Check if hostname matches any app host
+  const isApp = APP_HOSTS.some(appHost => {
+    // Exact match
+    if (hostname === appHost) return true;
+    // Match without port (in case hostname includes port)
+    if (hostname.split(':')[0] === appHost) return true;
+    // Match if hostname ends with app host (for subdomains)
+    if (hostname.endsWith('.' + appHost) || hostname === appHost) return true;
+    return false;
+  });
+  
+  // Debug logging
+  console.log('[App Routing] Hostname check:', {
+    fullHost,
+    hostname,
+    protocol: window.location.protocol,
+    href: window.location.href,
+    APP_HOSTS,
+    isApp,
+    VITE_APP_HOSTS: import.meta.env.VITE_APP_HOSTS,
+  });
+  
+  return isApp;
+}
+
+function isAppPath(): boolean {
+  return window.location.pathname.startsWith(APP_PATH);
+}
+
+function shouldShowApp(): boolean {
+  const isLocal = isLocalDev();
+  const isApp = isAppHost();
+  const isPath = isAppPath();
+  
+  let shouldShow = false;
+  if (isLocal) {
+    shouldShow = isPath;
+  } else {
+    shouldShow = isApp;
+  }
+  
+  // Debug logging
+  console.log('[App Routing] shouldShowApp:', {
+    isLocal,
+    isApp,
+    isPath,
+    shouldShow,
+    hostname: window.location.hostname.toLowerCase(),
+    pathname: window.location.pathname,
+  });
+  
+  return shouldShow;
+}
+
+function getBasename(): string {
+  if (isLocalDev() && isAppPath()) {
+    return APP_PATH;
+  }
+  return "";
+}
 // (blueprint:javascript_log_in_with_replit) Import useAuth hook
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
@@ -21,11 +115,18 @@ import BookDemo from "@/pages/BookDemo";
 import OnboardingFlow from "@/pages/OnboardingFlow";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
+import LeadProfile from "@/pages/LeadProfile";
 import Properties from "@/pages/Properties";
+import PropertyEdit from "@/pages/PropertyEdit";
+import UnitEdit from "@/pages/UnitEdit";
 import Analytics from "@/pages/Analytics";
 import AITraining from "@/pages/AITraining";
 import AIActivityCenter from "@/pages/AIActivityCenter";
 import Schedule from "@/pages/Schedule";
+import Scheduling from "@/pages/Scheduling";
+import Bookings from "@/pages/Bookings";
+import AISuggestions from "@/pages/AISuggestions";
+import {Schedules} from "@/pages/Schedules";
 import Integrations from "@/pages/Integrations";
 import DemoRequests from "@/pages/DemoRequests";
 import OnboardingIntakes from "@/pages/OnboardingIntakes";
@@ -34,6 +135,24 @@ import Settings from "@/pages/Settings";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminAnalytics from "@/pages/AdminAnalytics";
 import Appointments from "@/pages/Appointments";
+import PublicBooking from "@/pages/PublicBooking";
+import PublicShowing from "@/pages/PublicShowing";
+import TeamManagement from "@/pages/TeamManagement";
+import AcceptInvitation from "@/pages/AcceptInvitation";
+import Listings from "@/pages/Listings";
+import PreQualification from "@/pages/PreQualification";
+import Qualifications from "@/pages/Qualifications";
+import FoundingPartnerCheckout from "@/pages/FoundingPartnerCheckout";
+import FoundingPartnerSuccess from "@/pages/FoundingPartnerSuccess";
+import FoundingPartnerOnboarding from "@/pages/FoundingPartnerOnboarding";
+import ProductAIAgent from "@/pages/ProductAIAgent";
+import ProductScheduling from "@/pages/ProductScheduling";
+import ProductAICallingAgent from "@/pages/ProductAICallingAgent";
+import ProductApplicationLeasing from "@/pages/ProductApplicationLeasing";
+import Pricing from "@/pages/Pricing";
+import TermsOfService from "@/pages/TermsOfService";
+import PrivacyNotice from "@/pages/PrivacyNotice";
+import CookiesPolicy from "@/pages/CookiesPolicy";
 import { AdminLayout } from "@/components/AdminLayout";
 import NotFound from "@/pages/not-found";
 
@@ -45,6 +164,29 @@ function BackgroundSyncWrapper() {
 function Router() {
   // (blueprint:javascript_log_in_with_replit) Conditional routing based on auth status
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  // Check if we're on the app domain (app.lead2lease.ai or /app path in dev)
+  // On app domain, unauthenticated users should see Login, not Landing
+  const onAppDomain = shouldShowApp();
+
+  // Public standalone pages that should be accessible even when authenticated (no sidebar)
+  const publicStandaloneRoutes = [
+    '/founding-partner-checkout',
+    '/founding-partner-success',
+    '/founding-partner-onboarding',
+    '/onboarding',
+    '/book-showing',
+    '/showing',
+    '/accept-invitation',
+    '/product',
+    '/login',
+    '/register',
+    '/terms-of-service',
+    '/privacy-notice',
+    '/cookies-policy',
+  ];
+  const isPublicStandaloneRoute = publicStandaloneRoutes.some(route => location.startsWith(route));
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -58,15 +200,52 @@ function Router() {
     );
   }
 
-  // Show public routes for unauthenticated users
-  if (!isAuthenticated) {
+  // Show public routes for unauthenticated users OR public standalone routes (even when authenticated)
+  if (!isAuthenticated || isPublicStandaloneRoute) {
+    // On app domain (app.lead2lease.ai), show Login/Register pages for unauthenticated users
+    // On marketing domain (lead2lease.ai or dev), show Landing page
+    if (onAppDomain && !isAuthenticated && !isPublicStandaloneRoute) {
+      console.log('[Router] On app domain, unauthenticated user - showing Login/Register');
+      return (
+        <Switch>
+          <Route path="/login" component={Login} />
+          <Route path="/register" component={Register} />
+          <Route path="/book-showing/unit/:unitId" component={PublicBooking} />
+          <Route path="/book-showing/property/:propertyId" component={PublicBooking} />
+          <Route path="/showing/:showingId" component={PublicShowing} />
+          <Route path="/accept-invitation/:token" component={AcceptInvitation} />
+          <Route path="/founding-partner-checkout" component={FoundingPartnerCheckout} />
+          <Route path="/founding-partner-success" component={FoundingPartnerSuccess} />
+          <Route path="/founding-partner-onboarding" component={FoundingPartnerOnboarding} />
+          <Route component={Login} /> {/* Catch-all: redirect to login on app domain */}
+        </Switch>
+      );
+    }
+    
+    // Marketing domain - show full marketing routes
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/landing" component={Landing} />
         <Route path="/login" component={Login} />
+        <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
+        <Route path="/product/scheduling" component={ProductScheduling} />
+        <Route path="/product/ai-calling-agent" component={ProductAICallingAgent} />
+        <Route path="/product/application-leasing" component={ProductApplicationLeasing} />
+        <Route path="/pricing" component={Pricing} />
         <Route path="/register" component={Register} />
         <Route path="/book-demo" component={BookDemo} />
+        <Route path="/terms-of-service" component={TermsOfService} />
+        <Route path="/privacy-notice" component={PrivacyNotice} />
+        <Route path="/cookies-policy" component={CookiesPolicy} />
         <Route path="/onboarding" component={OnboardingFlow} />
+        <Route path="/book-showing/unit/:unitId" component={PublicBooking} />
+        <Route path="/book-showing/property/:propertyId" component={PublicBooking} /> {/* Legacy support */}
+        <Route path="/showing/:showingId" component={PublicShowing} />
+        <Route path="/accept-invitation/:token" component={AcceptInvitation} />
+        <Route path="/founding-partner-checkout" component={FoundingPartnerCheckout} />
+        <Route path="/founding-partner-success" component={FoundingPartnerSuccess} />
+        <Route path="/founding-partner-onboarding" component={FoundingPartnerOnboarding} />
         <Route path="/admin" component={AdminLogin} />
         <Route component={Landing} /> {/* Catch-all: redirect to landing */}
       </Switch>
@@ -76,15 +255,39 @@ function Router() {
   // Show authenticated routes for main app
   return (
     <Switch>
+      <Route path="/landing" component={Landing} />
+      <Route path="/terms-of-service" component={TermsOfService} />
+      <Route path="/privacy-notice" component={PrivacyNotice} />
+      <Route path="/cookies-policy" component={CookiesPolicy} />
       <Route path="/" component={Dashboard} />
       <Route path="/leads" component={Leads} />
+      <Route path="/leads/:leadId" component={LeadProfile} />
       <Route path="/properties" component={Properties} />
+      <Route path="/properties/new" component={PropertyEdit} />
+      {/* Unit routes - must come before /properties/:id routes to avoid route conflicts */}
+      <Route path="/properties/:propertyId/units/new" component={UnitEdit} />
+      <Route path="/units/:id/edit" component={UnitEdit} />
+      {/* Property detail view - must come after unit routes */}
+      <Route path="/properties/:id" component={Properties} />
+      <Route path="/properties/:id/edit" component={PropertyEdit} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/ai-training" component={AITraining} />
       <Route path="/ai-activity" component={AIActivityCenter} />
+      <Route path="/leasing/listings" component={Listings} />
+      <Route path="/leasing/pre-qualification" component={PreQualification} />
+      <Route path="/leasing/qualifications" component={Qualifications} />
+      <Route path="/schedule/scheduling" component={Scheduling} />
+      <Route path="/schedule/bookings" component={Bookings} />
       <Route path="/schedule" component={Schedule} />
+      <Route path="/ai-suggestions" component={AISuggestions} />
+      <Route path="/schedules" component={Schedules} />
       <Route path="/integrations" component={Integrations} />
       <Route path="/settings" component={Settings} />
+      <Route path="/team" component={TeamManagement} />
+      <Route path="/accept-invitation/:token" component={AcceptInvitation} />
+      <Route path="/book-showing/unit/:unitId" component={PublicBooking} />
+      <Route path="/book-showing/property/:propertyId" component={PublicBooking} /> {/* Legacy support */}
+      <Route path="/showing/:showingId" component={PublicShowing} /> {/* Public showing management page */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -112,24 +315,104 @@ function AdminRouter() {
   );
 }
 
+function useHashLocation(): [string, (to: string) => void] {
+  const [location, setLocation] = useBrowserLocation();
+  const basename = getBasename();
+  
+  const locationWithoutBase = basename && location.startsWith(basename) 
+    ? location.slice(basename.length) || "/" 
+    : location;
+  
+  const navigate = (to: string) => {
+    setLocation(basename + to);
+  };
+  
+  return [locationWithoutBase, navigate];
+}
+
+function MarketingRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={Landing} />
+      <Route path="/landing" component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
+      <Route path="/product/scheduling" component={ProductScheduling} />
+      <Route path="/product/ai-calling-agent" component={ProductAICallingAgent} />
+      <Route path="/product/application-leasing" component={ProductApplicationLeasing} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/register" component={Register} />
+      <Route path="/book-demo" component={BookDemo} />
+      <Route path="/terms-of-service" component={TermsOfService} />
+      <Route path="/privacy-notice" component={PrivacyNotice} />
+      <Route path="/cookies-policy" component={CookiesPolicy} />
+      <Route path="/onboarding" component={OnboardingFlow} />
+      <Route path="/book-showing/unit/:unitId" component={PublicBooking} />
+      <Route path="/book-showing/property/:propertyId" component={PublicBooking} />
+      <Route path="/showing/:showingId" component={PublicShowing} />
+      <Route path="/accept-invitation/:token" component={AcceptInvitation} />
+      <Route path="/founding-partner-checkout" component={FoundingPartnerCheckout} />
+      <Route path="/founding-partner-success" component={FoundingPartnerSuccess} />
+      <Route path="/founding-partner-onboarding" component={FoundingPartnerOnboarding} />
+      <Route path="/admin" component={AdminLogin} />
+      <Route component={Landing} />
+    </Switch>
+  );
+}
+
 function App() {
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
+  const showAppByHost = shouldShowApp();
+  
+  // Marketing pages (landing, login, register, etc.) should always be light mode
+  // App pages (/app or app.lead2lease.ai) can use user's theme preference
+  const themeConfig = showAppByHost 
+    ? { defaultTheme: "dark" as const } 
+    : { forcedTheme: "light" as const };
+
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider {...themeConfig}>
         <TooltipProvider>
           <BackgroundSyncWrapper />
-          <WouterRouter>
-            <LayoutRouter style={style} />
-          </WouterRouter>
+          <AppRouter style={style} showAppByHost={showAppByHost} />
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+// Inner component that can use QueryClient hooks (like useAuth)
+function AppRouter({ style, showAppByHost }: { style: Record<string, string>; showAppByHost: boolean }) {
+  const { isAuthenticated } = useAuth();
+  
+  // Fallback: If user is authenticated and hostname looks like app domain, show app
+  const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const looksLikeAppDomain = hostname.includes('app.lead2lease.ai') || hostname.startsWith('app.');
+  const showApp = showAppByHost || (isAuthenticated && looksLikeAppDomain);
+  
+  // Debug logging
+  console.log('[App Routing] AppRouter render:', {
+    showAppByHost,
+    isAuthenticated,
+    looksLikeAppDomain,
+    hostname,
+    finalShowApp: showApp,
+  });
+
+  return (
+    <WouterRouter hook={useHashLocation}>
+      {showApp ? (
+        <LayoutRouter style={style} />
+      ) : (
+        <MarketingRouter />
+      )}
+    </WouterRouter>
   );
 }
 
@@ -140,9 +423,27 @@ function LayoutRouter({ style }: { style: Record<string, string> }) {
   
   // Check if current route is an admin route
   const isAdminRoute = location.startsWith('/admin');
+  
+  // Public standalone pages that should not have sidebar even when authenticated
+  const publicStandaloneRoutes = [
+    '/founding-partner-checkout',
+    '/founding-partner-success',
+    '/founding-partner-onboarding',
+    '/onboarding',
+    '/book-showing',
+    '/showing',
+    '/accept-invitation',
+    '/pricing',
+    '/login',
+    '/register',
+    '/terms-of-service',
+    '/privacy-notice',
+    '/cookies-policy',
+  ];
+  const isPublicStandaloneRoute = publicStandaloneRoutes.some(route => location.startsWith(route));
 
-  // Show loading or unauthenticated routes
-  if (isLoading || !isAuthenticated) {
+  // Show loading, unauthenticated routes, or public standalone routes (no sidebar)
+  if (isLoading || !isAuthenticated || isPublicStandaloneRoute) {
     return <Router />;
   }
 
@@ -162,6 +463,84 @@ function LayoutRouter({ style }: { style: Record<string, string> }) {
 function AuthenticatedApp({ style }: { style: Record<string, string> }) {
   // Show toast notifications for new unreplied messages
   useNotificationToasts();
+  
+  // Handle membership revocation detection
+  useMembershipRevocationHandler();
+
+  // Fetch current user to check profile completion
+  const { data: user } = useQuery({
+    queryKey: ["/api/auth/user"],
+  });
+
+  // Fetch all organizations to check if user has any
+  const { data: organizations = [], isLoading: orgsLoading } = useQuery<Array<{ orgId: string; orgName: string; role: string; deletedAt?: string | null }>>({
+    queryKey: ["/api/organizations"],
+    enabled: !!user,
+  });
+
+  // Fetch current organization
+  const { data: currentOrg, isLoading: currentOrgLoading, error: currentOrgError } = useQuery<{ orgId: string; role: string }>({
+    queryKey: ["/api/organizations/current"],
+    enabled: !!user,
+    retry: false, // Don't retry on 404
+  });
+
+  // Filter out deleted organizations
+  const activeOrganizations = organizations.filter(org => !org.deletedAt);
+
+  // Auto-select organization or redirect to checkout
+  useEffect(() => {
+    if (!user || orgsLoading || currentOrgLoading) return;
+
+    // If user has no active organizations, redirect to checkout
+    if (activeOrganizations.length === 0) {
+      console.log('[AuthenticatedApp] User has no organizations, redirecting to checkout');
+      window.location.href = '/founding-partner-checkout';
+      return;
+    }
+
+    // If user has organizations but no currentOrg selected, auto-select the first one
+    if (!currentOrg && activeOrganizations.length > 0) {
+      const firstOrg = activeOrganizations[0];
+      console.log('[AuthenticatedApp] Auto-selecting first organization:', firstOrg.orgId);
+      
+      // Switch to the first organization
+      fetch("/api/organizations/switch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orgId: firstOrg.orgId }),
+      })
+        .then(res => res.json())
+        .then(() => {
+          // Reload to refresh with new org context
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('[AuthenticatedApp] Error switching organization:', error);
+        });
+    }
+  }, [user, organizations, activeOrganizations.length, currentOrg, orgsLoading, currentOrgLoading]);
+
+  // Profile setup dialog disabled - all users must complete onboarding questions before accessing the app
+  const showProfileSetup = false;
+
+  // Show loading state while checking organizations
+  if (orgsLoading || currentOrgLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render app if redirecting (user has no orgs)
+  if (activeOrganizations.length === 0) {
+    return null;
+  }
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -176,11 +555,21 @@ function AuthenticatedApp({ style }: { style: Record<string, string> }) {
             </div>
           </header>
           <main className="flex-1 overflow-y-auto p-6">
-            <Router />
+            <MembershipGuard>
+              <Router />
+            </MembershipGuard>
           </main>
         </div>
         <GlobalLeadDetailSheet />
       </div>
+      
+      {/* Profile Setup Dialog - shown on first login */}
+      {showProfileSetup && (
+        <ProfileSetupDialog 
+          open={true} 
+          defaultEmail={user.email || ""} 
+        />
+      )}
     </SidebarProvider>
   );
 }

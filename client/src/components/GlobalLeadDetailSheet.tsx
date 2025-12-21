@@ -1,6 +1,7 @@
 import { useLeadSheet } from "@/contexts/LeadSheetContext";
 import { LeadDetailSheet } from "./LeadDetailSheet";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
 interface LeadDetails {
   id: string;
@@ -35,6 +36,7 @@ interface LeadDetails {
  */
 export function GlobalLeadDetailSheet() {
   const { selectedLeadId, closeLeadSheet } = useLeadSheet();
+  const [, setLocation] = useLocation();
 
   const { data: lead, isLoading } = useQuery<LeadDetails>({
     queryKey: ["/api/leads", selectedLeadId],
@@ -46,6 +48,12 @@ export function GlobalLeadDetailSheet() {
       open={!!selectedLeadId}
       onOpenChange={(open) => {
         if (!open) {
+          closeLeadSheet();
+        }
+      }}
+      onExpand={() => {
+        if (selectedLeadId) {
+          setLocation(`/leads/${selectedLeadId}`);
           closeLeadSheet();
         }
       }}

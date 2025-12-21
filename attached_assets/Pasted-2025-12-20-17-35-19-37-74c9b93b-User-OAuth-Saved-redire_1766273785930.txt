@@ -1,0 +1,156 @@
+2025-12-20 17:35:19.37
+74c9b93b
+User
+[OAuth] Saved redirect path after reload: undefined
+2025-12-20 17:35:19.37
+74c9b93b
+User
+[OAuth] Session cookie before login: GAESA=Cp4BMDAwN2UyNmQ2ODcyYjkxZTUxNWJiMzlmNGMxYzkyNTIyZDU3YzdmNGM4YTM4ODVmYjNmZjRmMjA1MmY2ZWM2NTk1ZWM0YzRmZmRiY2ZmYTQ4ODA3YWFiOWQ0ZDM1NTJkOWY1YzkwODQyZTU4ODkyMTVmODViMWI1YmQ0YTg3NDU5NzFkNTRiM2U0NGUyMTc4NDkwMWRiN2YxZjhkNjkQ95738LMz; connect.sid=s%3AJ-vpcWtJZosWEcTh_IZsGmOunLE1oeD1.pcibimLdQjvTQxsJSFKY9z9lrxJizG3AxIRz6kGD%2FiE
+2025-12-20 17:35:19.37
+74c9b93b
+User
+[OAuth] Saved consent after reload: undefined
+2025-12-20 17:35:19.37
+74c9b93b
+User
+[OAuth] ===== READING SESSION DATA AFTER RELOAD =====
+2025-12-20 17:35:19.41
+74c9b93b
+User
+[OAuth] User authenticated in session: true
+2025-12-20 17:35:19.41
+74c9b93b
+User
+[OAuth] Session ID after login: aT1Bq0JdZFGL5DNRqrAZgrIXhgv0PEwL
+2025-12-20 17:35:19.44
+74c9b93b
+User
+[OAuth] ✅ Session saved after login, sessionID: aT1Bq0JdZFGL5DNRqrAZgrIXhgv0PEwL
+2025-12-20 17:35:19.44
+74c9b93b
+User
+[OAuth] Session cookie name: connect.sid
+2025-12-20 17:35:19.46
+74c9b93b
+User
+[OAuth] ✅ Session reloaded after save, sessionID: aT1Bq0JdZFGL5DNRqrAZgrIXhgv0PEwL
+2025-12-20 17:35:19.46
+74c9b93b
+User
+[OAuth] User still authenticated after reload: true
+2025-12-20 17:35:19.50
+74c9b93b
+User
+[Link Subscription] Attempting to link subscription for user 90700764-5981-4fd7-9f6a-d92687d2e809 (lead2leaseai@gmail.com) to org 4a0600e6-a266-40ab-905e-434a69dd35e9
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[Link Subscription] ✅ Org 4a0600e6-a266-40ab-905e-434a69dd35e9 already has active subscription sub_1SgX0KCQNwFos2smFuvvqE6F
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] Request hostname: lead2lease.ai
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] ⚠️ savedFrom is undefined but no consent/redirectPath - likely from login page, checking membership anyway
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] User email: lead2leaseai@gmail.com
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] ===== STARTING REDIRECT LOGIC =====
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] savedFrom: undefined
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] User ID: 90700764-5981-4fd7-9f6a-d92687d2e809
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] ✅ Coming from login page - checking membership status
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] Request origin: undefined
+2025-12-20 17:35:19.65
+74c9b93b
+User
+[OAuth] savedRedirectPath: undefined
+2025-12-20 17:35:19.68
+74c9b93b
+User
+[OAuth] User refreshed, currentOrgId: 4a0600e6-a266-40ab-905e-434a69dd35e9
+2025-12-20 17:35:19.70
+74c9b93b
+User
+},
+2025-12-20 17:35:19.70
+74c9b93b
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 17:35:19.70
+74c9b93b
+User
+}
+2025-12-20 17:35:19.70
+74c9b93b
+User
+orgId: '23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98',
+2025-12-20 17:35:19.70
+74c9b93b
+User
+]
+2025-12-20 17:35:19.70
+74c9b93b
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 17:35:19.70
+74c9b93b
+User
+orgId: '4a0600e6-a266-40ab-905e-434a69dd35e9',
+2025-12-20 17:35:19.70
+74c9b93b
+User
+{
+2025-12-20 17:35:19.70
+74c9b93b
+User
+[OAuth] User has 2 organization(s): [
+2025-12-20 17:35:19.70
+74c9b93b
+User
+[OAuth] Checking org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 (Lead2Lease MGMT) for active subscription...
+2025-12-20 17:35:19.70
+74c9b93b
+User
+{
+2025-12-20 17:35:19.72
+74c9b93b
+User
+[OAuth] Checking for one-time payment for org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 (customer: cus_TdngxrHiJvvjDK)
+2025-12-20 17:35:19.81
+74c9b93b
+User
+[Storage] updateOrganization: Updating with keys: [ 'updatedAt' ]
+2025-12-20 17:35:19.86
+74c9b93b
+User
+[OAuth] ===== DETERMINING APP REDIRECT PATH =====
+2025-12-20 17:35:19.86
+74c9b93b
+User
+[OAuth] Final redirect validation - requestHost: lead2lease.ai isLocalhost: false
+2025-12-20 17:35:27.10
+74c9b93b
+User
+11:35:27 PM [express] GET /api/auth/user 401 in 23ms :: {"message":"Not authenticated"}
+2025-12-20 17:35:27.11
+74c9b93b
+User
+11:35:27 PM [express] GET /api/integrations/gmail 401 in 22ms :: {"message":"Unauthorized"}

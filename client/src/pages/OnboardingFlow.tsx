@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
   CardContent,
@@ -70,13 +72,14 @@ const steps = [
 ];
 
 const onboardingSchema = z.object({
-  unitsOwned: z.string().min(1, "Please select how many units you own"),
+  unitsOwned: z.string().min(1, "Please select how many units you manage or own"),
   portfolioLocation: z.string().min(1, "Please enter your portfolio location"),
   currentLeaseHandling: z.string().min(1, "Please tell us how you handle leases"),
   leaseHandlingToolName: z.string().optional(),
   teamSize: z.string().min(1, "Please select your team size"),
   fullName: z.string().min(2, "Please enter your full name"),
-  phoneNumber: z.string().optional(),
+  organizationName: z.string().optional(), // Optional - will be collected during founding partner setup
+  phoneNumber: z.string().min(1, "Please enter your phone number"),
   wantsDemo: z.boolean(),
 }).refine((data) => {
   // If they selected property-management-software or other, require tool name
@@ -91,10 +94,11 @@ const onboardingSchema = z.object({
 
 type OnboardingFormData = z.infer<typeof onboardingSchema>;
 
-export default function OnboardingFlow() {
+function OnboardingFlowContent() {
   const [, setLocation] = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
   const [sessionToken] = useState(getSessionToken());
+  const { isAuthenticated } = useAuth();
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingSchema),
@@ -105,6 +109,7 @@ export default function OnboardingFlow() {
       leaseHandlingToolName: "",
       teamSize: "",
       fullName: "",
+      organizationName: undefined,
       phoneNumber: "",
       wantsDemo: false,
     },
@@ -133,6 +138,7 @@ export default function OnboardingFlow() {
           if (data.leaseHandlingToolName) form.setValue("leaseHandlingToolName", data.leaseHandlingToolName);
           if (data.teamSize) form.setValue("teamSize", data.teamSize);
           if (data.fullName) form.setValue("fullName", data.fullName);
+          // organizationName removed from onboarding - collected during founding partner setup
           if (data.phoneNumber) form.setValue("phoneNumber", data.phoneNumber);
           if (data.wantsDemo !== null) form.setValue("wantsDemo", data.wantsDemo);
         }
@@ -157,8 +163,31 @@ export default function OnboardingFlow() {
       return await apiRequest("PATCH", `/api/onboarding/${sessionToken}/complete`);
     },
     onSuccess: () => {
-      // Redirect to signup page with onboarding token
-      setLocation(`/login?onboardingToken=${sessionToken}`);
+      // If user is authenticated, redirect to app (intake will be auto-linked)
+      // Otherwise, redirect to login with onboarding token
+      if (isAuthenticated) {
+        // Check if on marketing domain - if so, redirect to app subdomain
+        const hostname = window.location.hostname.toLowerCase();
+        const isMarketingDomain = hostname === 'lead2lease.ai' || hostname === 'www.lead2lease.ai';
+        
+        if (isMarketingDomain) {
+          console.log('[Onboarding] On marketing domain, redirecting to app subdomain');
+          window.location.href = 'https://app.lead2lease.ai';
+        } else {
+          // On app domain or local dev - use relative path
+          window.location.href = '/app';
+        }
+      } else {
+        // If on marketing domain, redirect to app subdomain for login
+        const hostname = window.location.hostname.toLowerCase();
+        const isMarketingDomain = hostname === 'lead2lease.ai' || hostname === 'www.lead2lease.ai';
+        
+        if (isMarketingDomain) {
+          window.location.href = `https://app.lead2lease.ai/login?onboardingToken=${sessionToken}`;
+        } else {
+          setLocation(`/login?onboardingToken=${sessionToken}`);
+        }
+      }
     },
   });
 
@@ -235,7 +264,7 @@ export default function OnboardingFlow() {
                     name="unitsOwned"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>How many units do you own?*</FormLabel>
+                        <FormLabel>How many units do you manage or own?*</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-units-owned" className="bg-gray-50 border-gray-300 text-gray-900">
@@ -382,7 +411,7 @@ export default function OnboardingFlow() {
                     name="phoneNumber"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone number (optional)</FormLabel>
+                        <FormLabel>Phone number*</FormLabel>
                         <FormControl>
                           <Input
                             type="tel"
@@ -404,19 +433,20 @@ export default function OnboardingFlow() {
 
               {currentStep === 4 && (
                 <div className="space-y-6">
-                  <div className="flex items-start gap-3 p-4 rounded-lg border bg-card">
-                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
+                  <div className="flex items-start gap-3 p-4 rounded-lg border bg-card overflow-hidden">
+                    <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-medium mb-1">Would you like to book a demo?</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
+                      <p className="text-sm text-muted-foreground mb-4 break-words">
                         See how Lead2Lease can automate your rental property management with AI-powered lead qualification, email automation, and intelligent scheduling.
                       </p>
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <Button
                           type="button"
                           variant={form.watch("wantsDemo") === true ? "default" : "outline"}
                           onClick={() => form.setValue("wantsDemo", true)}
                           data-testid="button-yes-demo"
+                          className="flex-1 sm:flex-initial"
                         >
                           Yes, I'd like a demo
                         </Button>
@@ -425,6 +455,7 @@ export default function OnboardingFlow() {
                           variant={form.watch("wantsDemo") === false ? "default" : "outline"}
                           onClick={() => form.setValue("wantsDemo", false)}
                           data-testid="button-no-demo"
+                          className="flex-1 sm:flex-initial"
                         >
                           No, skip for now
                         </Button>
@@ -471,5 +502,14 @@ export default function OnboardingFlow() {
       </Card>
       </div>
     </div>
+  );
+}
+
+// Wrap the entire page in ThemeProvider forcing light mode for consistent branding
+export default function OnboardingFlow() {
+  return (
+    <ThemeProvider forcedTheme="light">
+      <OnboardingFlowContent />
+    </ThemeProvider>
   );
 }

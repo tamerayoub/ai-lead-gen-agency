@@ -1,0 +1,382 @@
+Here’s a clean architecture + rendering spec you can literally paste to Replit as “how our calendar should work (like Google/iCloud).”
+I’ll break it into:
+
+
+Core concepts (how Google/iCloud think about time)
+
+
+Data model for events
+
+
+Backend/API shape
+
+
+Frontend layout (week/day view)
+
+
+Exact algorithm to put events on the right visual slot
+
+
+Handling overlaps (side-by-side like Google Calendar)
+
+
+All-day & multi-day events
+
+
+
+1. Core Principles (like Google / iCloud)
+Google Calendar / iCloud all follow these rules:
+
+
+All times stored in UTC
+
+
+All rendering done in the user’s local timezone
+
+
+The day/week view is a time grid:
+
+
+Y-axis = time of day (00:00–24:00)
+
+
+X-axis = columns (one per day)
+
+
+
+
+Position of an event = pure math based on:
+
+
+“Minutes from local midnight” → vertical top
+
+
+“Duration in minutes” → vertical height
+
+
+
+
+All-day events are separate: shown in a strip above the time grid.
+
+
+You want to replicate exactly that.
+
+2. Event Data Model (what to store)
+Minimal structure:
+{
+  "id": "evt_123",
+  "title": "Tour w/ Sarah",
+  "startUtc": "2025-11-25T15:00:00Z",
+  "endUtc": "2025-11-25T16:00:00Z",
+  "timeZone": "America/Chicago",      // optional, but useful for origin
+  "allDay": false,
+  "meta": {
+    "location": "123 Main St",
+    "notes": "",
+    "color": "#4285F4"                // optional
+  }
+}
+
+For future / full parity with Google/iCloud:
+
+
+recurrenceRule (RRULE style string)
+
+
+seriesId and occurrenceId
+
+
+But for now, focusing on single events is enough to fix the visual placement problem.
+
+3. Backend / API shape
+A simple API contract the frontend can rely on:
+GET /api/events?start=2025-11-24T00:00:00Z&end=2025-11-30T23:59:59Z
+
+// Response: array of events with startUtc/endUtc
+[
+  {
+    id: "evt_1",
+    title: "Tour",
+    startUtc: "2025-11-25T15:00:00Z",
+    endUtc: "2025-11-25T16:00:00Z",
+    allDay: false,
+    timeZone: "America/Chicago"
+  },
+  ...
+]
+
+
+Key rule: Backend never does time-of-day math for rendering.
+It only returns UTC timestamps and event metadata.
+Frontend handles the calendar math.
+
+
+4. Frontend Layout (day/week view)
+Overall component tree
+Calendar
+ ├── CalendarHeader        (month/week/day controls, date picker)
+ ├── WeekView | DayView
+ │    ├── AllDayRow        (all-day & multi-day events)
+ │    └── TimeGrid         (for timed events)
+ │         ├── TimeAxis    (00:00, 1am, 2am, ...)
+ │         └── DayColumn[] (one per day in view)
+ │              └── EventLayer (absolute-positioned events)
+ └── MonthView (optional, separate layout)
+
+Each DayColumn is essentially a position: relative container with height equal to total minutes in the day × pixel scale.
+Example:
+.day-column {
+  position: relative;
+  height: 24 * 60 * 1px;   /* 1px per minute → 1440px tall */
+}
+
+(You can compress this visually with scroll, but conceptually it’s like this.)
+
+5. Algorithm to position events on the correct time slot
+Inputs:
+
+
+startUtc, endUtc from the backend
+
+
+userTimeZone (detected from browser or user settings)
+
+
+PIXELS_PER_MINUTE (e.g., 1 or 0.8)
+
+
+Step 1: Convert UTC to local time
+In JS (using built-in Date in the user’s local timezone):
+const startLocal = new Date(event.startUtc); 
+const endLocal   = new Date(event.endUtc);
+
+
+(Optionally use date-fns-tz or Luxon for explicit timezones, but local Date works fine if UTC is consistent.)
+
+Step 2: Determine which day column it belongs to
+For a week view, each column corresponds to a specific local date.
+const eventDateKey = `${startLocal.getFullYear()}-${startLocal.getMonth()}-${startLocal.getDate()}`;
+// Use this key to bucket events into the correct day column.
+
+Important: this grouping is based on local date, not UTC, to avoid off-by-one-day issues.
+Step 3: Compute minutes from local midnight
+const minutesFromMidnight =
+  startLocal.getHours() * 60 + startLocal.getMinutes();
+
+// Duration in minutes
+const durationMinutes = (endLocal.getTime() - startLocal.getTime()) / (1000 * 60);
+
+Step 4: Compute visual top & height
+const PIXELS_PER_MINUTE = 1; // or 0.7, etc.
+
+const top    = minutesFromMidnight * PIXELS_PER_MINUTE;
+const height = Math.max(durationMinutes * PIXELS_PER_MINUTE, MIN_EVENT_HEIGHT);
+
+Step 5: Render in the DayColumn
+<div className="day-column">
+  {eventsForThisDay.map(ev => {
+    const { top, height, left, width } = layoutForEvent(ev, eventsForThisDay);
+    return (
+      <div
+        key={ev.id}
+        className="event-card"
+        style={{
+          position: 'absolute',
+          top,
+          height,
+          left,
+          width
+        }}
+      >
+        {ev.title}
+      </div>
+    );
+  })}
+</div>
+
+At this point, as long as:
+
+
+startUtc is correct,
+
+
+conversion to local is correct,
+
+
+and you’re using getHours() / getMinutes() (not the UTC versions),
+
+
+events will visually appear at their correct time.
+
+6. Handling overlapping events (side-by-side like Google Calendar)
+To get the Google-style multi-column splits for overlapping events in the same day:
+Step 1: For each day, sort events by start time
+const eventsForThisDay = [...rawEvents].sort(
+  (a,b) => new Date(a.startUtc).getTime() - new Date(b.startUtc).getTime()
+);
+
+Step 2: Build “conflict groups”
+A conflict group = set of events where each overlaps at least one other.
+A simple greedy approach:
+type LocalEvent = {
+  id: string;
+  start: Date;
+  end: Date;
+};
+
+function groupOverlapping(events: LocalEvent[]): LocalEvent[][] {
+  const groups: LocalEvent[][] = [];
+
+  for (const ev of events) {
+    let placed = false;
+    for (const group of groups) {
+      const hasConflict = group.some(g =>
+        ev.start < g.end && ev.end > g.start  // basic overlap check
+      );
+      if (hasConflict) {
+        group.push(ev);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      groups.push([ev]);
+    }
+  }
+  return groups;
+}
+
+Step 3: Within each group, assign lanes
+For each conflict group, you want to assign a laneIndex like:
+type PositionedEvent = LocalEvent & { laneIndex: number; laneCount: number };
+
+function assignLanes(group: LocalEvent[]): PositionedEvent[] {
+  const lanes: LocalEvent[][] = [];      // each lane = array of events
+
+  const positioned: PositionedEvent[] = [];
+
+  for (const ev of group) {
+    let laneIndex = 0;
+    // find a lane that doesn't conflict
+    for (; laneIndex < lanes.length; laneIndex++) {
+      const lane = lanes[laneIndex];
+      const overlaps = lane.some(l =>
+        ev.start < l.end && ev.end > l.start
+      );
+      if (!overlaps) {
+        lane.push(ev);
+        break;
+      }
+    }
+    if (laneIndex === lanes.length) {
+      lanes.push([ev]);
+    }
+    positioned.push({
+      ...ev,
+      laneIndex,
+      laneCount: 0 // fill later
+    });
+  }
+
+  const totalLanes = lanes.length;
+  return positioned.map(ev => ({ ...ev, laneCount: totalLanes }));
+}
+
+Step 4: Convert laneIndex to left / width
+In the layoutForEvent function:
+function layoutForEvent(ev: PositionedEvent) {
+  const columnWidth = 100; // or percentage-based
+  const laneWidth   = columnWidth / ev.laneCount;
+
+  const left  = ev.laneIndex * laneWidth;
+  const width = laneWidth;
+
+  const minutesFromMidnight =
+    ev.start.getHours() * 60 + ev.start.getMinutes();
+  const durationMinutes =
+    (ev.end.getTime() - ev.start.getTime()) / (1000 * 60);
+
+  const top    = minutesFromMidnight * PIXELS_PER_MINUTE;
+  const height = Math.max(durationMinutes * PIXELS_PER_MINUTE, MIN_EVENT_HEIGHT);
+
+  return { top, height, left, width };
+}
+
+That gives you Google-style side-by-side overlapping events, automatically.
+
+7. All-day and Multi-day Events
+Google / iCloud treat these separately:
+
+
+allDay: true → never put inside time grid.
+
+
+Multi-day event (with times):
+
+
+show a bar across multiple days at the top row in week view
+
+
+still respect times in day view if you drill into a specific day.
+
+
+
+
+Implementation:
+
+
+When you load events, split them into two buckets:
+
+
+allDayEvents (or start/end spanning full days)
+
+
+timedEvents
+
+
+
+
+All-day events get rendered in a small grid above the main time grid (like a mini week view).
+
+
+
+TL;DR to send to Replit
+You can give your Replit agent this summary:
+
+
+
+Store all event times as startUtc / endUtc in UTC.
+
+
+On the frontend, convert to local time and:
+
+
+Compute minutes from local midnight → top = minutes × pixelsPerMinute
+
+
+Compute duration → height = durationMinutes × pixelsPerMinute
+
+
+
+
+Group events by local date (not UTC date) to decide which day column they go into.
+
+
+For overlapping events in a day, build conflict groups and assign each event a laneIndex and laneCount so they can be rendered side-by-side.
+
+
+All-day events are rendered in a separate strip above the time grid.
+
+
+Use getHours() / getMinutes() for local math, not the UTC versions, to avoid time shifts.
+
+
+
+If you want, next step I can:
+
+
+Turn this into actual React components + TS interfaces, or
+
+
+Write a short “dev spec” in markdown you can paste directly into a GitHub issue for your dev/agent.
+

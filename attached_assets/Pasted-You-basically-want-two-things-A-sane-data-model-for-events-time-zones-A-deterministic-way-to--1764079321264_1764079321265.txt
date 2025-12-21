@@ -1,0 +1,260 @@
+You basically want two things:
+
+
+A sane data model for events + time zones
+
+
+A deterministic way to turn “start/end time” → “pixels on the calendar grid”
+
+
+If either is off, you get exactly what you’re seeing: events shifted up/down or on the wrong day.
+I’ll walk through how I’d architect it (in React/JS on Replit, but it applies anywhere) and then a checklist for “why is this showing at the wrong time?”
+
+1️⃣ Store time in a consistent format (UTC is your friend)
+Rule #1: Store all event times in UTC in your database:
+{
+  "id": "event-123",
+  "title": "Tour with Sarah",
+  "startUtc": "2025-11-25T15:00:00Z",
+  "endUtc": "2025-11-25T16:00:00Z",
+  "timezone": "America/Chicago"  // optional but useful
+}
+
+When you render the calendar:
+
+
+Take startUtc / endUtc
+
+
+Convert to the user’s local timezone
+
+
+Use those localized times to:
+
+
+decide which day
+
+
+compute vertical position
+
+
+
+
+JS example (with date-fns-tz or luxon):
+import { utcToZonedTime } from 'date-fns-tz';
+
+const startLocal = utcToZonedTime(event.startUtc, userTimeZone);
+const endLocal   = utcToZonedTime(event.endUtc, userTimeZone);
+
+Common bug: storing “local” strings like "2025-11-25 10:00" and then the browser quietly shifts them to UTC or vice versa.
+
+2️⃣ Day/Week view = just math on minutes
+For a day or week view like iCloud / Google:
+
+
+Choose a pixels-per-minute value:
+const PIXELS_PER_MINUTE = 1; // 1px per minute → 60px per hour
+
+
+
+For each event, after converting to local time:
+
+
+const minutesFromMidnight =
+  startLocal.getHours() * 60 +
+  startLocal.getMinutes();
+
+const durationMinutes = (endLocal.getTime() - startLocal.getTime()) / (1000 * 60);
+
+const top    = minutesFromMidnight * PIXELS_PER_MINUTE;
+const height = durationMinutes * PIXELS_PER_MINUTE;
+
+Then render:
+<div
+  className="event"
+  style={{
+    position: 'absolute',
+    top: `${top}px`,
+    height: `${height}px`,
+    left: `${columnLeft}px`,
+    width: `${columnWidth}px`,
+  }}
+>
+  {event.title}
+</div>
+
+If each day is a column, just adjust left based on the weekday.
+
+3️⃣ Separate all-day / multi-day events from timed events
+Like iCloud / Google:
+
+
+All-day / multi-day events → row at the top
+
+
+Timed events → inside the time grid
+
+
+Data flag:
+{
+  "allDay": true
+}
+
+If allDay is true, don’t put it in the vertical time grid at all.
+
+4️⃣ Component structure (React-ish)
+A clean architecture:
+Calendar
+ ├── CalendarHeader (month/week/day selector)
+ ├── CalendarWeekView
+ │    ├── TimeColumn (labels 0:00–23:00)
+ │    └── DayColumn (for each day)
+ │         ├── Background grid
+ │         └── EventLayer (absolute-positioned events)
+ └── (or CalendarMonthView)
+
+High-level flow:
+
+
+Calendar holds currentDate, viewMode, events[].
+
+
+CalendarWeekView filters events to the current week and passes events for each day into DayColumn.
+
+
+DayColumn:
+
+
+converts event times → local
+
+
+calculates top/height
+
+
+renders absolute-positioned <EventCard /> components.
+
+
+
+
+
+5️⃣ The “wrong time” bug checklist ✔
+If your events are shifted, 99% of the time it’s one of these:
+
+
+Mixing UTC and local accessors
+
+
+Using getUTCHours() and getUTCMinutes() when your source is already local
+
+
+Or vice versa: using getHours() on something you think is local but is actually in UTC
+
+
+
+
+Parsing ambiguous date strings
+
+
+new Date('2025-11-25 10:00') is dangerous (no timezone)
+
+
+Prefer ISO with Z or explicit offset:
+
+
+"2025-11-25T10:00:00-06:00"
+
+
+"2025-11-25T16:00:00Z"
+
+
+
+
+
+
+Using midnight in UTC instead of local as your “start of day”
+
+
+If you do:
+const startOfDay = new Date(startLocal);
+startOfDay.setUTCHours(0,0,0,0);
+
+you just anchored the grid to UTC midnight, not local midnight → shift.
+
+
+Instead:
+const startOfDay = new Date(startLocal);
+startOfDay.setHours(0,0,0,0); // local
+
+
+
+
+
+DST changes
+
+
+If an event is on the day DST flips, and you use naive math or ignore the timezone, you’ll get 1-hour offsets.
+
+
+Using a timezone-aware library (Luxon, date-fns-tz) helps a lot here.
+
+
+
+
+Off-by-one-day issues when grouping events
+
+
+If you group events by:
+eventDate.toISOString().slice(0,10)
+
+but eventDate is in UTC, a late-night local event (e.g., 23:30) might become next-day UTC and jump columns.
+
+
+
+
+
+6️⃣ One concrete “good pattern” you can copy
+Data (DB / API):
+
+
+Always store startUtc, endUtc with Z.
+
+
+Optionally store sourceTimezone for the property/agent.
+
+
+Front-end (Replit app):
+const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+// or a setting in your app
+
+function toLocal(dateUtcString: string) {
+  return new Date(dateUtcString); // JS Date internally knows your local tz
+}
+
+function eventToLayout(event) {
+  const localStart = toLocal(event.startUtc);
+  const localEnd   = toLocal(event.endUtc);
+
+  const minutesFromMidnight =
+    localStart.getHours() * 60 + localStart.getMinutes();
+
+  const durationMinutes =
+    (localEnd.getTime() - localStart.getTime()) / (1000 * 60);
+
+  return {
+    top: minutesFromMidnight * PIXELS_PER_MINUTE,
+    height: durationMinutes * PIXELS_PER_MINUTE
+  };
+}
+
+Then your UI is just:
+{eventsForThisDay.map(event => {
+  const { top, height } = eventToLayout(event);
+  return (
+    <div key={event.id} style={{ position: 'absolute', top, height }}>
+      {event.title}
+    </div>
+  );
+})}
+
+
+If you paste a small snippet of how you’re storing event times and how you’re calculating positions, I can point straight at the bug and rewrite that part for you.

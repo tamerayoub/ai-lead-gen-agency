@@ -1,0 +1,27 @@
+Create a pre qualify feature as part of the property/unit level event booking settings, that when prop mgmt turn on, it will ensure leads are pre-qualified before they are able to book a showing and see the booking page.
+
+When leads fill out the form, keep their answers attached to their profile. We want to build the leads profile over time. Also, just because a lead doesnt qualify today, doesnt mean they wont in the future. So we need to time stamp their qualifications. For example income, criminal record e.g.
+
+When they click the public booking link to book a tour, if prop mgmt has pre qualify on that property level booking, or unit level , ensure to show the pre qualify form view kindly asking lead to easily answer the following questions before proceeding to book a tour. Also if user gets denied the first time, it doesnt mean they cant try again, sometimes they make mistakes filling our their qualifications. If denied, they do not move forward to book a showing
+
+Create a 'Leasing' section and under add a subsection 'Listing' section in the app side bar, this is where currently listed listings will appear. Here it will display units that are currently listed. There will be a 'create listing' button on this page, when creating the listing, it will ask for what unit and property that is mentioned in the portfolio they want create a listing for, and if they want to enable the 'pre-qualify' booking feature when creating the feature
+
+Add a feature prop mgmt can add a list of qualifications to the organization level that are set as the default qualifications. Add a list of qualifications to the property level they can edit in portfolio section. Add a qualification section to the listing that users set in the listing of the unit. Automatically, listing (unit) this will inherit from the property level (in portfolio), and the property level will inherit from the global level settings.
+
+There will be 4 toggles for pre-qualify booking option
+
+1 global level that will be in the organization settings next to the qualifications, this will be default setting aborbsed by the other toggles
+2. one at the property level portfolio section (absorb qualifications from org global default settings)
+3. one at the property level booking event settings (will absorb from property level portfolio section) (this is linked to the portfolio property, whatever is on for the at the property portfolio and set as qualifications, is set for the property level booking setting
+4. one at the unit level booking event settings (will absorb automatically from unit listing - if there is no listing for booking, inherit from property level) (this is linked to the listed unit, whatever is on for the listing and set as qualifications, is set for the unit level booking setting)
+
+The toggles will have a toggle showing on or off, also add a preview/edit link to each toggle where they can get sent to edit the pre qualify right now, and it will edit it for that unit/property/organization particularly
+
+Then, make that view so prop mgmt can edit the pre qualifiy questions, and what qualifications are a deal breaker or if all of them are if lead doesnt match. It can also remove asking questions about some of the set qualifications. This edit pre qualify question view will absorb the set qualifcations the prop mgmt company set, if view was selected from org, property portfolio or listing level 
+
+Where ever user decides to turn on the pre qualify booking feature from the toggle locations locations, there will be a link and it will take them to a consistent pre qualify view page where they will see the saved pre qualify questions that exist for that property, unit, listing, or if not customized, inherited from the global settings.
+
+Ensure to make the view form aswell for the lead to fill out
+
+Note: ensure to display if booking setting is linked to listing or not
+ 

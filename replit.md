@@ -1,80 +1,59 @@
 # Lead2Lease - AI-Powered Property Management CRM
 
 ## Overview
-
-Lead2Lease is an AI-powered CRM system for property management, designed to automate lead generation and qualification across multiple communication channels (email, SMS, phone, listing platforms). It provides automated responses, pre-qualifies leads based on customizable criteria, and manages the entire rental pipeline from initial contact to application approval. Property managers use a dashboard to monitor AI interactions, track lead status, manage properties, and analyze conversion metrics, aiming to streamline operations, enhance lead conversion, and gain a competitive edge.
+Lead2Lease is an AI-powered CRM system designed for property management. Its primary purpose is to automate lead generation, qualification, and the entire rental pipeline from initial contact to application approval across multiple channels (email, SMS, phone, listings). The system provides automated responses, pre-qualifies leads based on customizable criteria, and offers a comprehensive dashboard for property managers to monitor AI interactions, track lead status, manage properties, and analyze conversion metrics. The business vision is to streamline operations, enhance lead conversion rates, and provide property managers with a competitive advantage through intelligent automation.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+### December 9, 2025
+- **Stripe Checkout Flow Security Improvements:** Fixed three critical issues with membership checkout:
+  1. **Authentication Required:** Checkout page now requires login before showing the checkout form. Unauthenticated users see a sign-in prompt with return URL.
+  2. **Duplicate Subscription Prevention:** Backend validates both organization-level (via stripeSubscriptionId/stripeCustomerId) and email-level (via Stripe API) before creating checkout sessions. Blocks any existing Founding Partner subscription.
+  3. **Orphaned Subscription Linking:** When a subscription lacks orgId metadata, the system automatically links it to the user's current organization and updates both Stripe metadata and database.
+  4. **Optimized Membership Status:** Removed heavy per-request Stripe API calls; relies on existing `linkSubscriptionToUser` function for subscription syncing.
+- **Membership-Based Feature Gating:** Implemented subscription-based access control via Founding Partner membership. Non-subscribed organizations can only access Settings and Team pages, with all other features greyed out and locked until they upgrade.
+- **FoundingMemberBadge Component:** Created a reusable badge component (`client/src/components/FoundingMemberBadge.tsx`) displaying a golden crown icon with "Founding Partner" text. Badge appears next to the organization name in the sidebar org switcher for subscribed members.
+- **AppSidebar Membership Integration:** Updated sidebar to show an upgrade banner for non-members, grey out locked menu items with Lock icons, and display the Founding Member badge next to the org name.
+- **MembershipGuard Component:** Created route guard (`client/src/components/MembershipGuard.tsx`) that wraps authenticated routes and blocks non-members from accessing protected pages (except Settings, Team, public routes). Shows a locked feature card with upgrade CTA.
+- **useMembership Hook:** Frontend hook (`client/src/hooks/useMembership.ts`) that queries `/api/membership/status` endpoint to check organization membership status with caching.
+
+### December 1, 2025
+- **Showing Reminder Email Scheduler:** Implemented a background service (`server/reminderScheduler.ts`) that automatically sends reminder emails to leads before their scheduled showings. Supports multiple configurable reminders per showing (e.g., 1 hour, 30 minutes, 15 minutes before). Reminder settings are configured at the property level (via PropertySchedulingDialog) or overridden at the unit level. Added `remindersSent` JSONB column to showings table to track which specific reminders have been sent. The scheduler runs every 60 seconds and sends professional HTML/text emails via Gmail SMTP (lead2leaseai@gmail.com).
+
+### November 30, 2025
+- **Calendar/Schedule Multi-Select Filters:** Converted the Calendar/Schedule page from single-select filters to multi-select cascading filters, matching the Bookings page pattern. Now supports Team Members, Properties, Units, and Leads filters with checkbox-based multi-selection. Cascading logic ensures each filter's options reflect valid combinations based on other selected filters. Added "Clear" button when filters are active.
+- **Bookings Page Unit Filter Fix:** Fixed critical bug where unit filter was showing "View all units" instead of allowing selection for some properties. The issue was that `availableUnitOptions` was filtering against `allUnits` (from listed units API), but some showings have units not in that list (legacy/unlisted units). Refactored to derive unit options directly from filtered booked showings, ensuring all units with bookings appear in the filter. Also sorts by property name, then unit number, and shows "Property Name - Unit #" format when multiple properties are selected.
+- **Unit Number Display in Emails & Calendar Invites:** Enhanced all notification emails and calendar invites to include unit/apartment numbers. Calendar invite locations now display "Property Address" with "Apartment {x}" on a separate line. Email templates (new bookings, cancellations, reschedules) show address with apartment number below property name. Updated CalendarEvent interface, notifications.ts, and email.ts to accept and display unitNumber parameter.
+- **WeekView Event Title Display Fix:** Fixed 15-30 minute events in WeekView to display full event names instead of being truncated. Used inline webkit line-clamp styles to allow event titles to wrap across two lines for short-duration events, improving readability.
+
+### November 27, 2025
+- **Drag-and-Drop Display Order Fix:** Fixed critical bug where drag-and-drop reordering of properties and units in the Scheduling page was not persisting. The PATCH endpoints `/api/properties/display-orders` and `/api/units/display-orders` were returning 400/404 errors due to complex Promise.allSettled logic with storage layer lookups failing silently. Simplified the routes to use direct Drizzle ORM database updates with sequential processing and proper orgId scoping, eliminating the persistence failures.
+
+### November 24, 2025
+- **Calendar Event Positioning Fix:** Fixed critical bug in DayView and WeekView where calendar events were misaligned with time markers. The first event displayed correctly, but subsequent events showed cumulative offset (e.g., second event 1px off, third event 2px off, etc.). Root cause: Each hour grid cell had a 1px `border-top`, but the height was set to 80px without accounting for the border, making each row effectively 81px tall. This created cumulative drift where later events appeared progressively further from their markers. Even after adding `boxSizing: 'border-box'`, the time labels column still had borders without border-box, causing visual marker drift. Final fix: Removed ALL borders from layout and replaced with CSS `repeating-linear-gradient` backgrounds to draw hour lines. This ensures both visual markers and event positioning use exactly 80px per hour, eliminating cumulative drift completely.
+- **Dual Environment Support:** Added separate npm scripts for Replit (`npm run dev`) and Cursor (`npm run dev:cursor`) development environments. Created comprehensive DEVELOPMENT.md documentation for setup and troubleshooting.
 
 ## System Architecture
 
 ### UI/UX Decisions
-
-The frontend uses React, TypeScript, and Vite with Wouter for routing. It features a modern SaaS design, inspired by Linear and Notion, implemented with Shadcn/ui (Radix UI-based) and Tailwind CSS, supporting dark and light themes. State management utilizes TanStack Query for server data and local React state for UI. Key interfaces include Dashboard, Leads, Properties, Analytics, AI Training, and an AI Activity Center for real-time communication monitoring. The brand color palette uses Slate Blue for primary actions, Deep Navy for backgrounds, and Soft White Smoke for CRM interface bases.
-
-**Landing Page Animations:**
-- Framer Motion scroll-triggered fade-in animations with viewport triggers for all major sections
-- Staggered card animations using motion variants for feature grids and benefit cards
-- Custom Tailwind CSS blob animations with gradient backgrounds and staggered delays (2s, 4s)
-- Advanced hover effects with scale transforms, lift shadows, and glow effects on interactive cards
-- Animated Counter component for ROI metrics displaying "3x", "50%", "2x", "40%" with smooth number transitions
-- Smooth scroll behavior enabled site-wide for anchor navigation
-- Glassmorphism effects on sticky header with backdrop-blur-md and semi-transparent backgrounds
-- Subtle pulse animations on key icons (Bot icon) with 3-second cycles
+The frontend is built with React, TypeScript, and Vite, using Wouter for routing. It features a modern SaaS design inspired by Linear and Notion, implemented with Shadcn/ui (Radix UI-based) and Tailwind CSS, supporting both dark and light themes. The brand color palette uses Slate Blue for primary actions, Deep Navy for backgrounds, and Soft White Smoke for CRM interface bases. Key interfaces include Dashboard, Leads, Properties, Analytics, AI Training, and an AI Activity Center. The landing page incorporates Framer Motion for animations and glassmorphism. The application sidebar features hover-based navigation with keyboard accessibility for nested subsections.
 
 ### Technical Implementations
+The backend is an Express.js and TypeScript REST API, utilizing PostgreSQL with Neon serverless driver and Drizzle ORM. Authentication is handled by Replit Auth, supporting various OAuth providers and email/password. AI integration points include configurable, template-based responses, customizable lead qualification, and automation settings for multi-channel communication.
 
-The backend is an Express.js and TypeScript REST API, utilizing PostgreSQL with Neon serverless driver and Drizzle ORM. Database schemas cover users, sessions, properties, leads, conversations, AI settings, and integration configurations. Authentication is handled by Replit Auth, supporting various OAuth providers and email/password, with session management in PostgreSQL.
-
-### Feature Specifications
-
-**AI Integration Points:**
-- **Configurable AI:** Template-based responses, customizable lead qualification rules, and automation settings (auto-respond, follow-up, auto-pilot).
-- **AI Email Reply Approval:** "Pending Replies Queue" for review/approval/editing, "Auto-Pilot Mode" for automatic sending, and "Scan for Unanswered" for past inquiries.
-- **Multi-Channel Communication:** Integrates email (Gmail, Outlook), SMS, and phone with a unified "AI Activity Center".
-- **Lead Pre-qualification:** Assigns qualification scores and manages the lead pipeline.
-- **Lead Capture:** Real-time capture from Facebook Messenger webhooks and email integrations with AI parsing.
-
-**Demo Booking System:**
-- A public `/book-demo` page with dual booking options via tabbed interface:
-  - **Schedule Now**: Calendly inline calendar widget for direct appointment booking
-  - **Request Callback**: Contact form capturing prospect information
-- Form submissions stored in `demo_requests` table with success confirmation flow.
-- Calendly integration uses dynamic script loading with proper cleanup on unmount.
-- API endpoints exist for public submissions (`/api/demo-requests` POST) and authenticated admin viewing (`/api/demo-requests` GET).
-- Responsive design with mobile-friendly tabs and 320px minimum width for calendar widget.
-
-**Pre-Signup Onboarding Flow:**
-- A multi-step questionnaire at `/onboarding` captures prospect data before authentication.
-- A session token system links onboarding responses to user accounts post-signup, integrating with all Replit Auth methods (Email/Password, Google, Facebook, Microsoft, Apple OAuth).
-- Onboarding responses are stored in the `onboarding_intakes` table, viewable by admins at `/admin/onboarding`.
-
-**Admin Area:**
-- A separate, isolated admin portal at `/admin` with dedicated login and layout.
-- Admin authentication supports OAuth and email/password, enforcing `isAdmin=true` access.
-- Admin features include "Demo Requests Management" for viewing and managing demo submissions.
-
-**Sales Pipeline System:**
-- A drag-and-drop kanban board at `/admin/sales-pipeline` for managing prospects through 6 pipeline stages: Discovery, Evaluation, Probing, Offer, Sale, and Onboard.
-- Automatic prospect creation and email-based deduplication merging demo requests and onboarding intakes into unified sales prospects.
-- Pipeline stage badges display on Demo Requests and Onboarding Intakes pages, providing cross-view status visibility.
-- "Resync Prospects" feature backfills existing data from demo requests and onboarding submissions.
-- Database tables: `sales_prospects` (prospect records with pipeline stages) and `prospect_sources` (tracking source attribution from demo/onboarding).
-- Uses @dnd-kit library for drag-and-drop functionality with proper droppable targets and collision detection.
-
-**Admin Analytics Dashboard:**
-- Comprehensive analytics page at `/admin/analytics` displaying platform-wide KPIs and trends.
-- Real-time metrics include: total signups, demo requests, onboarding submissions, paying customers (organizations), sales prospects, and conversion rate.
-- Conversion rate calculated as percentage of prospects in "sale" or "onboard" stages relative to total prospects.
-- Visual data representations using Recharts: line charts for 6-month signup and demo request trends, pie chart for pipeline stage distribution.
-- Backend API endpoint `/api/admin/analytics` with SQL aggregation queries for efficient data retrieval.
-- Error handling and loading states for robust user experience.
+Key features include:
+- **Lead & Property Management:** Automated lead capture, pre-qualification, lead deduplication, and a sales pipeline kanban board. Comprehensive property portfolio management with CRUD operations for properties and individual units.
+- **Scheduling & Showings:** Full CRUD for showings, AI-powered scheduling with conflict detection, and real-time calendar sync with Google Calendar. A dedicated bookings page displays showings chronologically. Public booking links are unit-specific, allowing leads to book specific units directly, with property and unit-level scheduling settings (event duration, buffer times, minimum lead time). Booking types support configurable modes ("1-to-1" for individual appointments or "Group" for multiple attendees), configured during booking type creation and displayed on unit cards.
+- **AI-Powered Communication:** AI detects showing requests in emails, generates smart replies, and provides a self-service public booking page with AI-optimized time slots.
+- **Onboarding & Admin:** A pre-signup onboarding flow and a separate admin area for managing demo requests, sales pipelines, and analytics.
+- **Multi-Tenant RBAC:** A comprehensive Role-Based Access Control system with roles (Admin, Property Manager, Leasing Agent, Owner Portal User) and granular permissions, including organization ID scoping and team management.
+- **User Profile Management:** Mandatory profile completion on first login and editable user profiles.
 
 ### System Design Choices
-
-The frontend uses a component-based architecture. The backend API is RESTful, organized by resource, with Zod validation. Data storage uses a schema-first approach with an `IStorage` interface. Lead deduplication is implemented at the conversation thread level for emails and by normalized email/phone for multi-channel communications. Email threading uses RFC 822 headers and Gmail's `threadId` to ensure all conversations for a given lead are from the same thread. An email body cleaning utility removes quoted/forwarded content from incoming messages while preserving original formatting. Multi-tenant organization management stores the active organization in `users.currentOrgId`. Sync sessions track lead IDs to prevent accidental deletion of established leads during disconnect actions. An automatic Gmail scanner runs every 60 seconds to import new messages from existing threads and create new leads for new threads, using `externalId` for deduplication. Session-level email deduplication prevents duplicate lead creation within a single sync batch across different threads from the same email address.
+The frontend uses a component-based architecture. The backend API is RESTful with Zod validation. Data storage follows a schema-first approach with an `IStorage` interface. Lead deduplication occurs at the conversation thread level. Email threading uses RFC 822 headers, and an email body cleaning utility removes quoted/forwarded content. Multi-tenant organization management stores the active organization in `users.currentOrgId`. An automatic Gmail scanner imports new messages and creates leads. Public booking endpoints are cross-tenant accessible for listed units, exposing only marketing-safe data while protecting internal organizational data.
 
 ## External Dependencies
 
@@ -83,18 +62,46 @@ The frontend uses a component-based architecture. The backend API is RESTful, or
 - **ORM & Validation:** Drizzle ORM, Drizzle-Zod, Zod.
 
 ### UI Framework
-- **Component Libraries:** Radix UI primitives, Shadcn/ui, React Hook Form.
-- **Styling:** Tailwind CSS, PostCSS, Class Variance Authority (CVA), Inter and JetBrains Mono fonts.
+- **Component Libraries:** Radix UI primitives, Shadcn/ui, React Hook Form, react-day-picker.
+- **Styling:** Tailwind CSS.
 
 ### Data Visualization
 - **Charts:** Recharts library.
 
 ### Utility Libraries
-- **State & Data:** TanStack Query, date-fns, clsx, tailwind-merge.
-- **Development:** Replit-specific dev tools, TypeScript, ESBuild.
+- **State & Data:** TanStack Query, date-fns.
 
 ### Third-Party Integrations
 - **Communication Services:** Twilio (SMS/voice), Gmail (OAuth 2.0), Microsoft Outlook (OAuth 2.0), Facebook Messenger (Webhook).
 - **Calendar Integration:** Google Calendar (OAuth 2.0).
 - **Property Management Systems (PMS):** Buildium, AppFolio, Yardi, Rent Manager.
 - **Authentication & Session Management:** Replit Auth (Google, GitHub, X, Apple OAuth, email/password).
+- **Payments:** Stripe (subscription billing for Founding Partner membership).
+
+## Environment Variables
+
+### Stripe Configuration
+The Stripe integration supports both environment variables and Replit's connector system. Environment variables take priority over the connector.
+
+**Mode Selection:**
+- `STRIPE_MODE` - Set to `test` or `live` (defaults to `test` in development, `live` in production)
+
+**Pricing Configuration:**
+- `STRIPE_LOOKUP_KEY` - Stripe price lookup key for Founding Partner membership. This allows controlling which price/product is used via environment variable. The lookup key should match a price's `lookup_key` in your Stripe dashboard. If set, the app will use this price instead of searching by product name/metadata. Supports both one-time payments and recurring subscriptions.
+
+**Test Mode Keys** (for development/testing):
+- `STRIPE_TEST_SECRET_KEY` - Test secret key (starts with `sk_test_`)
+- `STRIPE_TEST_PUBLISHABLE_KEY` - Test publishable key (starts with `pk_test_`)
+- `STRIPE_TEST_WEBHOOK_SECRET` - Test webhook signing secret
+
+**Live Mode Keys** (for production):
+- `STRIPE_SECRET_KEY` - Live secret key (starts with `sk_live_`)
+- `STRIPE_PUBLISHABLE_KEY` - Live publishable key (starts with `pk_live_`)
+- `STRIPE_WEBHOOK_SECRET` - Live webhook signing secret
+
+**Getting Your Keys:**
+- Test keys: https://dashboard.stripe.com/test/apikeys
+- Live keys: https://dashboard.stripe.com/apikeys
+
+**For Replit Users:**
+If no environment variables are set, the system automatically uses Replit's Stripe connector. Connect your Stripe account via the Integrations panel in Replit.

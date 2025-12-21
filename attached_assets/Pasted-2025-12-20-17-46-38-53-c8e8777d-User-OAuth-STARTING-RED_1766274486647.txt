@@ -1,0 +1,136 @@
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] ===== STARTING REDIRECT LOGIC =====
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] User email: lead2leaseai@gmail.com
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] Request origin: undefined
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] savedFrom: undefined
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] Request hostname: lead2lease.ai
+2025-12-20 17:46:38.53
+c8e8777d
+User
+[OAuth] ✅ Coming from login page - checking membership status
+2025-12-20 17:46:38.55
+c8e8777d
+User
+[OAuth] User refreshed, currentOrgId: 4a0600e6-a266-40ab-905e-434a69dd35e9
+2025-12-20 17:46:38.57
+c8e8777d
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 17:46:38.57
+c8e8777d
+User
+{
+2025-12-20 17:46:38.57
+c8e8777d
+User
+[OAuth] User has 2 organization(s): [
+2025-12-20 17:46:38.57
+c8e8777d
+User
+}
+2025-12-20 17:46:38.57
+c8e8777d
+User
+{
+2025-12-20 17:46:38.57
+c8e8777d
+User
+]
+2025-12-20 17:46:38.57
+c8e8777d
+User
+},
+2025-12-20 17:46:38.57
+c8e8777d
+User
+orgId: '23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98',
+2025-12-20 17:46:38.57
+c8e8777d
+User
+orgName: 'Lead2Lease MGMT'
+2025-12-20 17:46:38.57
+c8e8777d
+User
+orgId: '4a0600e6-a266-40ab-905e-434a69dd35e9',
+2025-12-20 17:46:38.59
+c8e8777d
+User
+[OAuth] Checking for one-time payment for org 23bef8f7-1a04-49e2-ae7d-57bc1ffa1a98 (customer: cus_TdngxrHiJvvjDK)
+2025-12-20 17:46:38.73
+c8e8777d
+User
+[OAuth] ✅ Found active org 4a0600e6-a266-40ab-905e-434a69dd35e9 (Lead2Lease MGMT) in database - STATUS: active
+2025-12-20 17:46:38.73
+c8e8777d
+User
+[OAuth] ✅ Organization has active membership, redirecting to app (production): https://app.lead2lease.ai
+2025-12-20 17:46:38.73
+c8e8777d
+User
+[OAuth] isProduction: true
+2025-12-20 17:46:38.73
+c8e8777d
+User
+[OAuth] hostname: lead2lease.ai
+2025-12-20 17:46:38.73
+c8e8777d
+User
+[OAuth] orgHasActiveSubscription: true
+2025-12-20 17:46:45.35
+c8e8777d
+User
+11:46:45 PM [express] GET /api/integrations/gmail 401 in 23ms :: {"message":"Unauthorized"}
+2025-12-20 17:46:45.36
+c8e8777d
+User
+11:46:45 PM [express] GET /api/auth/user 401 in 23ms :: {"message":"Not authenticated"}
+2025-12-20 17:46:47.32
+c8e8777d
+User
+11:46:47 PM [express] GET /api/integrations/gmail 401 in 23ms :: {"message":"Unauthorized"}
+2025-12-20 17:46:47.32
+c8e8777d
+User
+11:46:47 PM [express] GET /api/auth/user 401 in 25ms :: {"message":"Not authenticated"}
+2025-12-20 17:46:48.52
+74c9b93b
+User
+[Reminder Scheduler] EMAIL_PASSWORD configured: true
+2025-12-20 17:46:48.52
+74c9b93b
+User
+[Reminder Scheduler] ===== Starting reminder check at 2025-12-20T23:46:48.526Z =====
+2025-12-20 17:46:48.52
+74c9b93b
+User
+[Reminder Scheduler] EMAIL_USER: lead2leaseai@gmail.com (default)
+2025-12-20 17:46:49.06
+74c9b93b
+User
+[Reminder Scheduler] No upcoming showings found
+2025-12-20 17:46:49.06
+74c9b93b
+User
+[Reminder Scheduler] ===== Finished reminder check =====
+2025-12-20 17:46:49.38
+74c9b93b
+User
+[Gmail Scanner] No Gmail integrations found
+2025-12-20 17:46:57.27
+c8e8777d
+User
+[Reminder Scheduler] EMAIL_PASSWORD configured: true

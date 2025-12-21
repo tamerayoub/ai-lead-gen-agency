@@ -60,6 +60,11 @@ const formatTimestamp = (timestamp: string) => {
 export default function Leads() {
   const [location, setLocation] = useLocation();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  
+  // Navigate to full profile when clicking a lead
+  const handleLeadClick = (leadId: string) => {
+    setLocation(`/leads/${leadId}`);
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("pipeline");
   const { toast } = useToast();
@@ -187,7 +192,7 @@ export default function Leads() {
           <LeadPipeline 
             stages={pipelineStages} 
             onLeadStatusChange={handleLeadStatusChange}
-            onLeadClick={setSelectedLeadId}
+            onLeadClick={handleLeadClick}
           />
         </TabsContent>
         <TabsContent value="list" className="mt-6">
@@ -224,7 +229,7 @@ export default function Leads() {
                     source={mappedSource}
                     aiHandled={lead.aiHandled}
                     lastContact={formatTimestamp(lead.lastContactAt)}
-                    onClick={() => setSelectedLeadId(lead.id)}
+                    onClick={() => handleLeadClick(lead.id)}
                   />
                 );
               })
@@ -236,6 +241,12 @@ export default function Leads() {
       <LeadDetailSheet
         open={!!selectedLeadId}
         onOpenChange={(open) => !open && setSelectedLeadId(null)}
+        onExpand={() => {
+          if (selectedLeadId) {
+            setLocation(`/leads/${selectedLeadId}`);
+            setSelectedLeadId(null);
+          }
+        }}
         lead={selectedLeadData ? {
           id: (selectedLeadData as any).id,
           name: (selectedLeadData as any).name,

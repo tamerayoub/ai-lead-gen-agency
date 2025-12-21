@@ -2,6 +2,142 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Calendar Customization */
+.rdp-custom {
+  --rdp-cell-size: 48px;
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-background-color: hsl(var(--primary) / 0.1);
+  margin: 0;
+}
+
+.rdp-custom .rdp-months {
+  justify-content: center;
+}
+
+.rdp-custom .rdp-month {
+  margin: 0;
+}
+
+.rdp-custom .rdp-caption {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem 0;
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.rdp-custom .rdp-nav {
+  position: absolute;
+  top: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+.rdp-custom .rdp-nav_button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  color: hsl(var(--muted-foreground));
+  transition: all 0.2s;
+}
+
+.rdp-custom .rdp-nav_button:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.rdp-custom .rdp-head_cell {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+  font-size: 0.875rem;
+  padding: 0.5rem 0;
+}
+
+.rdp-custom .rdp-cell {
+  padding: 2px;
+}
+
+.rdp-custom .rdp-day {
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.rdp-custom .rdp-day:hover:not(.rdp-day_disabled) {
+  background-color: hsl(var(--accent));
+}
+
+.rdp-custom .rdp-day_selected:not(.rdp-day_disabled) {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+}
+
+.rdp-custom .rdp-day_disabled {
+  color: hsl(var(--muted-foreground) / 0.3);
+  cursor: not-allowed;
+}
+
+.rdp-custom .rdp-day_today:not(.rdp-day_disabled) {
+  border-color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+/* Public Booking Page Calendar - Uses theme tokens that adapt to forced light mode */
+.rdp {
+  color: hsl(var(--foreground));
+}
+
+.rdp-caption_label {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.rdp-nav_button {
+  color: hsl(var(--muted-foreground));
+}
+
+.rdp-nav_button:hover {
+  background-color: hsl(var(--accent));
+}
+
+.rdp-head_cell {
+  color: hsl(var(--muted-foreground));
+}
+
+.rdp-day {
+  color: hsl(var(--foreground));
+}
+
+.rdp-day_selected {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-weight: 600;
+}
+
+.rdp-day:hover:not(.rdp-day_disabled):not(.rdp-day_selected) {
+  background-color: hsl(var(--accent));
+}
+
+.rdp-day_disabled {
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
+.rdp-day_today:not(.rdp-day_disabled) {
+  border-color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.rdp-day-available {
+  background-color: hsl(var(--primary) / 0.1);
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
@@ -233,6 +369,12 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    touch-action: pan-y;
+    overscroll-behavior-x: none;
+  }
+  
+  html {
+    overscroll-behavior-x: none;
   }
 }
 
@@ -348,6 +490,9 @@
   }
 
   /* Animation delays for blob animations */
+  .animation-delay-1000 {
+    animation-delay: 1s;
+  }
   .animation-delay-2000 {
     animation-delay: 2s;
   }
@@ -393,5 +538,40 @@
   .rdp-month {
     border-collapse: separate;
     border-spacing: 2px;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Marquee animation for AI-powered badge */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+
+  /* Glassmorphism effect for header */
+  @supports (backdrop-filter: blur(12px)) {
+    .glass-header {
+      backdrop-filter: blur(12px) saturate(150%);
+      -webkit-backdrop-filter: blur(12px) saturate(150%);
+    }
   }
 }
