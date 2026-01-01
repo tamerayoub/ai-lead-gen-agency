@@ -355,7 +355,7 @@ passport.use(
         });
 
         if (!user) {
-          return done(null, false, { message: "Invalid email or password" });
+          return done(null, false, { message: "You do not have an account. Please contact support to create an account." });
         }
 
         // Only allow email/password auth for users registered with email

@@ -8580,10 +8580,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         // Don't fail the demo request if prospect creation fails
       }
       
-      // Send email notification to lead2leaseai@gmail.com
+      // Send email notification to support@lead2lease.ai with all lead information
       try {
-        await sendDemoRequestNotification(demoRequest.email);
-        console.log("[Demo Request] Email notification sent for:", demoRequest.email);
+        await sendDemoRequestNotification(demoRequest);
+        console.log("[Demo Request] Email notification sent to support@lead2lease.ai for:", demoRequest.email);
       } catch (emailError: any) {
         console.error("[Demo Request] Failed to send email notification:", emailError.message);
         // Don't fail the demo request if email sending fails

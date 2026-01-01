@@ -121,35 +121,32 @@ export default function Login() {
         isAdmin: response?.isAdmin
       });
       
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully logged in.",
-      });
-      
       // Refresh user data and wait for it to be refetched
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       // Wait a bit for session to be fully established and subscription linking to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // PRIORITY: If returnTo is explicitly set to checkout, always go there first
-      // This allows users to purchase additional memberships even if they already have one
+      // Check if returnTo is set to checkout - if so, show message instead of redirecting
       console.log('[Login] Checking returnTo before membership check:', returnTo);
       if (returnTo === '/founding-partner-checkout' || returnTo === '%2Ffounding-partner-checkout') {
-        console.log('[Login] returnTo is checkout page - redirecting to checkout immediately (before membership check)');
-        // If on app subdomain, redirect to marketing domain for checkout
-        const hostname = window.location.hostname.toLowerCase();
-        const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
+        console.log('[Login] returnTo is checkout page - showing message instead of redirecting');
         
-        if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
-          console.log('[Login] On app subdomain, redirecting to marketing domain for checkout');
-          setTimeout(() => {
-            window.location.replace('https://lead2lease.ai/founding-partner-checkout');
-          }, 50);
-        } else {
-          setTimeout(() => {
-            window.location.replace("/founding-partner-checkout");
-          }, 50);
+        // Logout the user since they don't have membership
+        try {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+          });
+          console.log('[Login] Logged out user without membership (returnTo checkout)');
+        } catch (logoutError) {
+          console.error('[Login] Error logging out user:', logoutError);
         }
+        
+        toast({
+          title: "Access Denied",
+          description: "You are not a member. Please contact support to create an account.",
+          variant: "destructive",
+        });
         return;
       }
       
@@ -279,13 +276,18 @@ export default function Login() {
         
         if (hasMembership) {
           // User's organization has ACTIVE membership - go to app (works for both owners and non-owners)
-          // But only if returnTo is not explicitly set to checkout
           console.log('[Login] ✅ User has membership - determining redirect path');
           console.log('[Login] Hostname:', hostname);
           console.log('[Login] isLocalhost:', isLocalhost);
           console.log('[Login] isProductionDomain:', isProductionDomain);
           console.log('[Login] isAlreadyOnAppSubdomain:', isAlreadyOnAppSubdomain);
           console.log('[Login] hasMembership:', hasMembership);
+          
+          // Show welcome message for users with membership
+          toast({
+            title: "Welcome back!",
+            description: "You have successfully logged in.",
+          });
           
           let redirectPath: string;
           if (isLocalhost) {
@@ -318,115 +320,27 @@ export default function Login() {
           }, 50);
           } else {
             // User doesn't have an organization with ACTIVE membership
-            // Check if returnTo is an accept-invitation link
-            // If so, check if the organization in that invitation has membership
-            if (returnTo && returnTo.includes('/accept-invitation/')) {
-              const tokenMatch = returnTo.match(/\/accept-invitation\/([^\/]+)/);
-              if (tokenMatch && tokenMatch[1]) {
-                const invitationToken = tokenMatch[1];
-                console.log('[Login] returnTo is accept-invitation, checking if org has membership for token:', invitationToken);
-                
-                try {
-                  // Verify the invitation to get org info
-                  const verifyRes = await fetch(`/api/team/invitations/verify/${invitationToken}`, {
-                    credentials: "include",
-                  });
-                  
-                  if (verifyRes.ok) {
-                    const invitationData = await verifyRes.json();
-                    console.log('[Login] Invitation data:', invitationData);
-                    
-                    // Check if the organization has membership (from verify response)
-                    const orgHasMembership = invitationData?.orgHasMembership === true;
-                    
-                    if (orgHasMembership) {
-                      console.log('[Login] ✅ Organization has membership, auto-accepting invitation and redirecting to app');
-                      // Auto-accept the invitation since org has membership, then redirect to app
-                      try {
-                        const acceptRes = await fetch(`/api/team/invitations/accept/${invitationToken}`, {
-                          method: 'POST',
-                          credentials: "include",
-                        });
-                        
-                        if (acceptRes.ok) {
-                          const acceptData = await acceptRes.json();
-                          console.log('[Login] ✅ Invitation accepted automatically');
-                          // Refetch user data to update organization switcher
-                          await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-                          // Redirect to app since org has membership
-                          // Use correct path based on current domain
-                          const appRedirectPath = isAlreadyOnAppSubdomain ? "/" : "/app";
-                          console.log('[Login] ✅ Redirecting to:', appRedirectPath);
-                          // Use window.location.replace to prevent browser password prompts from blocking navigation
-                          setTimeout(() => {
-                            window.location.replace(appRedirectPath);
-                          }, 50);
-                          return;
-                        } else {
-                          console.warn('[Login] Failed to auto-accept invitation, redirecting to accept-invitation page');
-                        }
-                      } catch (acceptError) {
-                        console.error('[Login] Error auto-accepting invitation:', acceptError);
-                        // Fall through to redirect to accept-invitation page
-                      }
-                    } else {
-                      console.log('[Login] Organization does not have membership, will redirect to accept-invitation page');
-                    }
-                  }
-                } catch (invitationError) {
-                  console.error('[Login] Error checking invitation org membership:', invitationError);
-                  // Fall through to redirect to accept-invitation page
-                }
-              }
-              
-              // If we get here, redirect to accept-invitation page (org doesn't have membership or check failed)
-              console.log('[Login] Redirecting to accept-invitation page');
-              // Use window.location.replace to prevent browser password prompts from blocking navigation
-              setTimeout(() => {
-                window.location.replace(returnTo);
-              }, 50);
-            } else if (returnTo) {
-              console.log('[Login] No membership, redirecting to returnTo:', returnTo);
-              // If on app subdomain, redirect to marketing domain for checkout flow
-              const hostname = window.location.hostname.toLowerCase();
-              const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
-              
-              if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
-                // Convert returnTo path to marketing domain URL
-                const returnToPath = returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
-                const marketingUrl = `https://lead2lease.ai${returnToPath}`;
-                console.log('[Login] Redirecting to marketing domain:', marketingUrl);
-                setTimeout(() => {
-                  window.location.replace(marketingUrl);
-                }, 50);
-              } else {
-                setTimeout(() => {
-                  window.location.replace(returnTo);
-                }, 50);
-              }
-            } else {
-              console.log('[Login] ❌ No organization with ACTIVE membership found after all checks');
-              console.log('[Login] Redirect destination will be: /founding-partner-checkout');
-              console.log('[Login] Current window.location.href before redirect:', window.location.href);
-              console.log('[Login] Current window.location.origin:', window.location.origin);
-              // If on app subdomain, redirect to marketing domain for checkout
-              const hostname = window.location.hostname.toLowerCase();
-              const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
-              
-              if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
-                console.log('[Login] On app subdomain, redirecting to marketing domain for checkout');
-                setTimeout(() => {
-                  window.location.replace('https://lead2lease.ai/founding-partner-checkout');
-                }, 50);
-              } else {
-                setTimeout(() => {
-                  const redirectPath = "/founding-partner-checkout";
-                  console.log('[Login] 🔄 Executing redirect to:', redirectPath);
-                  console.log('[Login] Final redirect URL will be:', window.location.origin + redirectPath);
-                  window.location.replace(redirectPath);
-                }, 50);
-              }
+            // Signing in should only work for those who have a membership
+            console.log('[Login] ❌ No organization with ACTIVE membership found after all checks');
+            console.log('[Login] User has account but does not have membership');
+            
+            // Logout the user since they don't have membership
+            try {
+              await fetch("/api/auth/logout", {
+                method: "POST",
+                credentials: "include",
+              });
+              console.log('[Login] Logged out user without membership');
+            } catch (logoutError) {
+              console.error('[Login] Error logging out user:', logoutError);
             }
+            
+            // Show error message - user cannot sign in without membership
+            toast({
+              title: "Access Denied",
+              description: "You are not a member. Please contact support to create an account.",
+              variant: "destructive",
+            });
           }
       }
     } catch (error: any) {
@@ -633,7 +547,7 @@ export default function Login() {
                 </form>
               </Form>
 
-              <div className="text-center text-sm text-muted-foreground">
+              {/* <div className="text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link 
                   href={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register"} 
@@ -642,7 +556,7 @@ export default function Login() {
                 >
                   Create account
                 </Link>
-              </div>
+              </div> */}
             </CardContent>
           </Card>
           </div>

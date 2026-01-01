@@ -495,13 +495,6 @@ function BookDemoContent() {
                             <FormLabel className="text-xs font-normal">
                               You accept our{" "}
                               <Link 
-                                href={`/terms-of-service?returnTo=${encodeURIComponent(window.location.pathname)}`} 
-                                className="text-primary hover:underline"
-                              >
-                                Terms of Service
-                              </Link>
-                              {" "}and{" "}
-                              <Link 
                                 href={`/privacy-notice?returnTo=${encodeURIComponent(window.location.pathname)}`} 
                                 className="text-primary hover:underline"
                               >

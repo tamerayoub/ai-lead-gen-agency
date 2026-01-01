@@ -446,11 +446,11 @@ function SuccessContent() {
                   >
                     Log In
                   </Button>
-                  <Link href="/register">
+                  {/* <Link href="/register">
                     <Button size="default" variant="outline" className="text-sm">
                       Create Account
                     </Button>
-                  </Link>
+                  </Link> */}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 justify-center">

@@ -471,7 +471,7 @@ function PricingContent() {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-8 px-2">Frequently Asked Questions</h2>
             <div className="space-y-4 md:space-y-6">
-              <Card>
+              {/* <Card>
                 <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
                   <CardTitle className="text-base md:text-lg">What's included in the Founding Partner membership?</CardTitle>
                 </CardHeader>
@@ -494,7 +494,7 @@ function PricingContent() {
                     You'll continue to have access until the end of your current billing period.
                   </p>
                 </CardContent>
-              </Card>
+              </Card> */}
               <Card>
                 <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
                   <CardTitle className="text-base md:text-lg">What payment methods do you accept?</CardTitle>
@@ -506,7 +506,7 @@ function PricingContent() {
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              {/* <Card>
                 <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
                   <CardTitle className="text-base md:text-lg">Is there a setup fee or hidden costs?</CardTitle>
                 </CardHeader>
@@ -514,6 +514,83 @@ function PricingContent() {
                   <p className="text-sm md:text-base text-gray-600">
                     No setup fees, no hidden costs. The ${displayPrice}/month is all you pay. All features, unlimited 
                     properties, unlimited team members, and all future updates are included.
+                  </p>
+                </CardContent>
+              </Card> */}
+              <Card>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                  <CardTitle className="text-base md:text-lg">How is pricing determined?</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <p className="text-sm md:text-base text-gray-600">
+                    Design partner pricing is based on:
+                  </p>
+                  <ul className="text-sm md:text-base text-gray-600 mt-2 list-disc list-inside space-y-1">
+                    <li>Portfolio size</li>
+                    <li>Operational complexity</li>
+                    <li>Required capabilities</li>
+                    <li>Level of collaboration</li>
+                  </ul>
+                  <p className="text-sm md:text-base text-gray-600 mt-2">
+                    For this reason, pricing is discussed individually rather than published publicly.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                  <CardTitle className="text-base md:text-lg">Will features configured for our business be exclusive to us?</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <p className="text-sm md:text-base text-gray-600">
+                    Lead2Lease does not sell permanent feature exclusivity.
+                  </p>
+                  <p className="text-sm md:text-base text-gray-600 mt-2">
+                    Capabilities configured or prioritized for your workflow become part of the core platform so they can be supported, improved, and maintained long-term.
+                  </p>
+                  <p className="text-sm md:text-base text-gray-600 mt-2">
+                    This ensures reliability, upgrades, and continued innovation for all customers.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                  <CardTitle className="text-base md:text-lg">Why not offer exclusivity?</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <p className="text-sm md:text-base text-gray-600">
+                    Permanent exclusivity usually requires fully custom development and long-term maintenance, which significantly increases cost and risk.
+                  </p>
+                  <p className="text-sm md:text-base text-gray-600 mt-2">
+                    Lead2Lease provides the benefits of tailored automation — without the overhead, lock-in, or fragility of custom-built systems.
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                  <CardTitle className="text-base md:text-lg">Who is Lead2Lease best suited for?</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <p className="text-sm md:text-base text-gray-600">
+                    Lead2Lease is ideal for property managers and operators who:
+                  </p>
+                  <ul className="text-sm md:text-base text-gray-600 mt-2 list-disc list-inside space-y-1">
+                    <li>Actively manage leasing workflows</li>
+                    <li>Handle consistent lead volume</li>
+                    <li>Want to reduce vacancy time</li>
+                    <li>Need automation without adding headcount</li>
+                  </ul>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
+                  <CardTitle className="text-base md:text-lg">What happens if Lead2Lease isn't a fit long-term?</CardTitle>
+                </CardHeader>
+                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+                  <p className="text-sm md:text-base text-gray-600">
+                    There is no obligation beyond agreed terms.
+                  </p>
+                  <p className="text-sm md:text-base text-gray-600 mt-2">
+                    Our goal is to deliver real operational value — if the platform is not a fit, customers are not locked into long-term commitments by default.
                   </p>
                 </CardContent>
               </Card>

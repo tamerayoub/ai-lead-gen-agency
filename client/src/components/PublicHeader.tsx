@@ -169,15 +169,6 @@ export function PublicHeader({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {/* Pricing */}
-                <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-start text-gray-700 hover:text-gray-900"
-                  >
-                    Pricing
-                  </Button>
-                </Link>
                 {/* Book a Demo */}
                 <Link href="/book-demo" onClick={() => setMobileMenuOpen(false)}>
                   <Button 
@@ -189,7 +180,7 @@ export function PublicHeader({
                   </Button>
                 </Link>
                 {/* Get Early Access */}
-                <Button 
+                {/* <Button 
                   onClick={() => {
                     setMobileMenuOpen(false);
                     handleGetEarlyAccess();
@@ -199,7 +190,7 @@ export function PublicHeader({
                 >
                   <Crown className="mr-2 h-4 w-4" />
                   Get Early Access
-                </Button>
+                </Button> */}
                 {/* Sign In */}
                 <Button 
                   onClick={() => {
@@ -308,15 +299,6 @@ export function PublicHeader({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Link href="/pricing">
-            <Button 
-              variant="ghost" 
-              data-testid="button-pricing-header"
-              className="text-gray-700 hover:text-gray-900"
-            >
-              Pricing
-            </Button>
-          </Link>
         </div>
         {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
@@ -330,7 +312,7 @@ export function PublicHeader({
               Book a Demo
             </Button>
           </Link>
-          <Button 
+          {/* <Button 
             onClick={handleGetEarlyAccess}
             data-testid="button-founding-member-header"
             className="text-white hover:opacity-90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
@@ -338,7 +320,7 @@ export function PublicHeader({
           >
             <Crown className="mr-2 h-4 w-4" />
             Get Early Access
-          </Button>
+          </Button> */}
           <Button 
             onClick={handleSignIn} 
             data-testid="button-signin-header"
@@ -349,14 +331,24 @@ export function PublicHeader({
         </div>
         {/* Mobile Buttons - on the right */}
         <div className="md:hidden flex items-center gap-2">
-          <Button 
+          <Link href="/book-demo">
+            <Button 
+              size="sm"
+              variant="outline"
+              className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-blue-600 rounded-lg text-xs px-3 py-1 h-8 font-semibold"
+            >
+              <Calendar className="mr-1 h-3 w-3" />
+              Book a Demo
+            </Button>
+          </Link>
+          {/* <Button 
             onClick={handleGetEarlyAccess}
             size="sm"
             className="text-white hover:opacity-90 rounded-lg shadow-md text-xs px-2 py-1 h-8 font-semibold"
             style={{ backgroundColor: '#FFDF00' }}
           >
             Get Early Access
-          </Button>
+          </Button> */}
         </div>
       </div>
     </header>

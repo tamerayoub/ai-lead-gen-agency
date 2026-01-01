@@ -647,7 +647,7 @@ router.get(
               const refreshedUser = await storage.getUser(user.id);
               if (!refreshedUser) {
                 console.log(`[OAuth] ❌ User ${user.id} not found after refresh`);
-                redirectPath = "/founding-partner-checkout";
+                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
               } else {
                 console.log('[OAuth] User refreshed, currentOrgId:', refreshedUser.currentOrgId);
                 // Get ALL of the user's organizations to check for active subscriptions
@@ -655,8 +655,8 @@ router.get(
                 console.log(`[OAuth] User has ${userOrgs.length} organization(s):`, userOrgs.map(o => ({ orgId: o.orgId, orgName: o.orgName })));
                 
                 if (userOrgs.length === 0) {
-                  console.log('[OAuth] ❌ User has no organizations, redirecting to checkout');
-                  redirectPath = "/founding-partner-checkout";
+                  console.log('[OAuth] ❌ User has no organizations, redirecting to login with error');
+                  redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
                 } else {
                   let orgHasActiveSubscription = false;
                   let activeOrgId: string | null = null;
@@ -921,16 +921,16 @@ router.get(
                     }
                   } else {
                     // No active subscription found in any org
-                    // Only redirect to checkout if user has no orgs OR orgs don't have membership
-                    redirectPath = "/founding-partner-checkout";
-                    console.log(`[OAuth] ❌ No active subscription found in any of user's ${userOrgs.length} organization(s), redirecting to checkout`);
+                    // Redirect to login with error message
+                    redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+                    console.log(`[OAuth] ❌ No active subscription found in any of user's ${userOrgs.length} organization(s), redirecting to login with error`);
                   }
                 }
               }
             } catch (error) {
               console.error("[OAuth] ❌ Error checking membership status:", error);
               console.error("[OAuth] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-              redirectPath = "/founding-partner-checkout";
+              redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
             }
           } else {
             console.log('[OAuth] ⚠️ Membership check not triggered (savedFrom:', savedFrom, ')');
@@ -1117,49 +1117,54 @@ router.get(
                       console.log('[OAuth] Fallback - ✅ User has membership, redirecting to /app');
                     }
                   } else {
-                    console.log('[OAuth] Fallback - ❌ No active membership found, will use default redirect');
+                    console.log('[OAuth] Fallback - ❌ No active membership found, redirecting to login with error');
                     if (!redirectPath) {
-                      redirectPath = "/founding-partner-checkout";
+                      redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
                     }
                   }
                 } else {
-                  console.log('[OAuth] Fallback - User has no organizations');
+                  console.log('[OAuth] Fallback - User has no organizations, redirecting to login with error');
                   if (!redirectPath) {
-                    redirectPath = "/founding-partner-checkout";
+                    redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
                   }
                 }
               } else {
-                console.log('[OAuth] Fallback - User not found');
+                console.log('[OAuth] Fallback - User not found, redirecting to login with error');
                 if (!redirectPath) {
-                  redirectPath = "/founding-partner-checkout";
+                  redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
                 }
               }
             } catch (error) {
               console.error('[OAuth] Fallback - Error checking membership:', error);
               if (!redirectPath) {
-                redirectPath = "/founding-partner-checkout";
+                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
               }
             }
           }
           
-          // If still no redirect path, use default
+          // If still no redirect path, redirect to login with error
           if (!redirectPath) {
-            redirectPath = "/founding-partner-checkout";
-            console.log('[OAuth] No redirect path determined, defaulting to checkout');
+            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+            console.log('[OAuth] No redirect path determined, redirecting to login with error');
           }
           }
         }
         
         // Handle other redirect scenarios
         if (!redirectPath) {
-          if (savedConsent) {
+          // If coming from login and no membership, redirect to login with error
+          if (savedFrom === 'login') {
+            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+            console.log('[OAuth] Coming from login without membership, redirecting to login with error');
+          } else if (savedConsent) {
             // Has consent in session = coming from register page (new registration)
-            redirectPath = savedRedirectPath || "/founding-partner-checkout";
-            console.log('[OAuth] New user registration (has consent), redirecting to checkout:', redirectPath);
+            // But since account creation is disabled, redirect to login with error
+            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+            console.log('[OAuth] New user registration attempted but account creation disabled, redirecting to login');
           } else {
-            // Default: if no saved redirect path, go to checkout (new registration)
-            redirectPath = savedRedirectPath || "/founding-partner-checkout";
-            console.log('[OAuth] Default redirect (likely new registration) to:', redirectPath);
+            // Default: redirect to login with error
+            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+            console.log('[OAuth] Default redirect to login with error');
           }
         }
         
@@ -1264,19 +1269,19 @@ router.get(
                 }
                 console.log('[OAuth] ✅ Organization has active membership, redirecting to:', redirectPath, '(production:', isProduction, ')');
               } else {
-                // Organization does not have active subscription - redirect to checkout
-                redirectPath = "/founding-partner-checkout";
-                console.log(`[OAuth] Organization does not have active subscription, redirecting to checkout`);
+                // Organization does not have active subscription - redirect to login with error
+                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+                console.log(`[OAuth] Organization does not have active subscription, redirecting to login with error`);
               }
             } else {
-              // User has no organization, redirect to checkout
-              redirectPath = "/founding-partner-checkout";
-              console.log('[OAuth] User has no organization, redirecting to checkout');
+              // User has no organization, redirect to login with error
+              redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+              console.log('[OAuth] User has no organization, redirecting to login with error');
             }
           } catch (error) {
             console.error("[OAuth] Error checking membership status:", error);
-            // On error, use saved redirect path or default to checkout
-            redirectPath = savedRedirectPath || "/founding-partner-checkout";
+            // On error, redirect to login with error message
+            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
           }
         }
         */

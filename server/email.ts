@@ -972,13 +972,30 @@ export async function sendShowingRescheduleEmail(data: {
 }
 
 // Send welcome email to new Founding Partner members
-export async function sendDemoRequestNotification(email: string) {
+export async function sendDemoRequestNotification(demoRequest: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  countryCode?: string;
+  company?: string | null;
+  unitsUnderManagement: string;
+  managedOrOwned: string;
+  hqLocation: string;
+  currentTools?: string | null;
+  createdAt?: Date | string;
+}) {
   try {
     const emailPassword = process.env.EMAIL_PASSWORD;
     if (!emailPassword) {
       console.error("[Email] EMAIL_PASSWORD not configured - cannot send demo request notification");
       throw new Error("EMAIL_PASSWORD environment variable is not set");
     }
+
+    const fullPhone = demoRequest.countryCode ? `${demoRequest.countryCode} ${demoRequest.phone}` : demoRequest.phone;
+    const submittedTime = demoRequest.createdAt 
+      ? new Date(demoRequest.createdAt).toLocaleString() 
+      : new Date().toLocaleString();
 
     const notificationHtml = `
       <!DOCTYPE html>
@@ -991,34 +1008,76 @@ export async function sendDemoRequestNotification(email: string) {
           .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
           .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }
           .info-row { margin: 8px 0; padding: 8px; }
-          .label { font-weight: bold; color: #64748b; display: inline-block; width: 120px; }
+          .label { font-weight: bold; color: #64748b; display: inline-block; width: 180px; }
           .value { color: #1e293b; }
+          .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h2>🔔 New Demo Request from Landing Page</h2>
+            <h2>🔔 New Demo Request - Lead Information</h2>
           </div>
           <div class="content">
             <div class="info-box">
-              <h3 style="margin-top: 0; color: #2563eb;">User Information</h3>
+              <h3 style="margin-top: 0; color: #2563eb;">Contact Information</h3>
+              <div class="info-row">
+                <span class="label">Name:</span> 
+                <span class="value">${demoRequest.firstName} ${demoRequest.lastName}</span>
+              </div>
               <div class="info-row">
                 <span class="label">Email:</span> 
-                <span class="value">${email}</span>
+                <span class="value">${demoRequest.email}</span>
               </div>
               <div class="info-row">
-                <span class="label">Source:</span> 
-                <span class="value">Landing Page Popup (after 1 minute)</span>
+                <span class="label">Phone:</span> 
+                <span class="value">${fullPhone}</span>
               </div>
               <div class="info-row">
-                <span class="label">Time:</span> 
-                <span class="value">${new Date().toLocaleString()}</span>
+                <span class="label">Organization:</span> 
+                <span class="value">${demoRequest.company || 'Not provided'}</span>
               </div>
             </div>
-            <p style="color: #64748b; font-size: 14px;">
-              A user has submitted their email address through the demo request popup on the landing page. 
-              Please follow up with them to schedule a demo.
+            
+            <div class="info-box">
+              <h3 style="margin-top: 0; color: #2563eb;">Business Details</h3>
+              <div class="info-row">
+                <span class="label">Units Under Management:</span> 
+                <span class="value">${demoRequest.unitsUnderManagement}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Type:</span> 
+                <span class="value">${demoRequest.managedOrOwned}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">HQ Location:</span> 
+                <span class="value">${demoRequest.hqLocation}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Current Tools:</span> 
+                <span class="value">${demoRequest.currentTools || 'Not specified'}</span>
+              </div>
+            </div>
+            
+            <div class="info-box">
+              <h3 style="margin-top: 0; color: #2563eb;">Request Details</h3>
+              <div class="info-row">
+                <span class="label">Form Submitted:</span> 
+                <span class="value">${submittedTime}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Booking Status:</span> 
+                <span class="value">Pending - User will select time via Calendly</span>
+              </div>
+            </div>
+            
+            <div class="note">
+              <strong>📅 Booking Time:</strong> The user will schedule their demo time through the Calendly calendar widget. 
+              Once they complete their booking, you will receive a separate notification from Calendly with the scheduled time.
+            </div>
+            
+            <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
+              A new lead has submitted a demo request form. Please review their information and prepare for the scheduled demo.
             </p>
           </div>
         </div>
@@ -1028,12 +1087,12 @@ export async function sendDemoRequestNotification(email: string) {
 
     await transporter.sendMail({
       from: '"Lead2Lease" <lead2leaseai@gmail.com>',
-      to: "lead2leaseai@gmail.com",
-      subject: `New Demo Request: ${email}`,
+      to: "support@lead2lease.ai",
+      subject: `New Demo Request: ${demoRequest.firstName} ${demoRequest.lastName} from ${demoRequest.company || 'Unknown Company'}`,
       html: notificationHtml,
     });
 
-    console.log(`[Email] Demo request notification sent to lead2leaseai@gmail.com for: ${email}`);
+    console.log(`[Email] Demo request notification sent to support@lead2lease.ai for: ${demoRequest.email}`);
   } catch (error) {
     console.error("[Email] Error sending demo request notification:", error);
     throw error;
