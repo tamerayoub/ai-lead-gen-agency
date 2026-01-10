@@ -1099,6 +1099,77 @@ export async function sendDemoRequestNotification(demoRequest: {
   }
 }
 
+export async function sendQuickEmailNotification(email: string) {
+  try {
+    const emailPassword = process.env.EMAIL_PASSWORD;
+    if (!emailPassword) {
+      console.error("[Email] EMAIL_PASSWORD not configured - cannot send quick email notification");
+      throw new Error("EMAIL_PASSWORD environment variable is not set");
+    }
+
+    const submittedTime = new Date().toLocaleString();
+
+    const notificationHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }
+          .info-row { margin: 8px 0; padding: 8px; }
+          .label { font-weight: bold; color: #64748b; display: inline-block; width: 180px; }
+          .value { color: #1e293b; }
+          .note { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>🔔 Quick Demo Request - Email Collected</h2>
+          </div>
+          <div class="content">
+            <div class="info-box">
+              <h3 style="margin-top: 0; color: #2563eb;">Contact Information</h3>
+              <div class="info-row">
+                <span class="label">Email:</span> 
+                <span class="value">${email}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Submitted:</span> 
+                <span class="value">${submittedTime}</span>
+              </div>
+            </div>
+            
+            <div class="note">
+              <strong>📝 Next Steps:</strong> The user has provided their email on the landing page and will be redirected to the full demo booking form to complete their information and schedule a time.
+            </div>
+            
+            <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
+              A new lead has provided their email. They are currently filling out the complete demo request form.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: '"Lead2Lease" <lead2leaseai@gmail.com>',
+      to: "support@lead2lease.ai",
+      subject: `Quick Demo Request: ${email}`,
+      html: notificationHtml,
+    });
+
+    console.log(`[Email] Quick email notification sent to support@lead2lease.ai for: ${email}`);
+  } catch (error) {
+    console.error("[Email] Error sending quick email notification:", error);
+    throw error;
+  }
+}
+
 export async function sendFoundingPartnerWelcomeEmail(data: {
   email: string;
   name?: string;

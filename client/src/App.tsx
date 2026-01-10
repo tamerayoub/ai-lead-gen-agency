@@ -112,6 +112,7 @@ import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import BookDemo from "@/pages/BookDemo";
+import ConfirmedDemo from "@/pages/ConfirmedDemo";
 import OnboardingFlow from "@/pages/OnboardingFlow";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
@@ -342,7 +343,10 @@ function MarketingRouter() {
       <Route path="/product/application-leasing" component={ProductApplicationLeasing} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/register" component={Register} />
-      <Route path="/book-demo" component={BookDemo} />
+      <Route path="/demo-form" component={BookDemo} />
+      <Route path="/schedule-demo" component={BookDemo} />
+      <Route path="/confirmed-demo" component={ConfirmedDemo} />
+      <Route path="/book-demo" component={BookDemo} /> {/* Legacy route */}
       <Route path="/terms-of-service" component={TermsOfService} />
       <Route path="/privacy-notice" component={PrivacyNotice} />
       <Route path="/cookies-policy" component={CookiesPolicy} />

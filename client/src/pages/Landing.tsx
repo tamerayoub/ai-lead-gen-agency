@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { PublicHeader } from "@/components/PublicHeader";
+import { trackEvent } from "@/lib/analytics";
 import {
   Building2,
   Calendar,
@@ -124,6 +125,7 @@ function Counter({ value, suffix = "" }: { value: number; suffix?: string }) {
 
 function LandingContent() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [timeRemaining, setTimeRemaining] = useState({
     days: 0,
     hours: 0,
@@ -238,8 +240,8 @@ function LandingContent() {
   }, []);
 
 
-  const handleDemoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleQuickEmailSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     
     if (!demoEmail || !demoEmail.includes("@")) {
       toast({
@@ -253,47 +255,60 @@ function LandingContent() {
     setIsSubmittingDemo(true);
     
     try {
-      // Submit demo request with email and required defaults
-      // The schema requires firstName, lastName, phone, etc., so we provide defaults
-      await apiRequest("POST", "/api/demo-requests", {
+      // Track Google Analytics event for email submission
+      trackEvent('book_demo_email_submit', {
+        event_category: 'Demo Request',
+        event_label: 'Landing Page Email Input',
+        value: 1,
+      });
+      
+      // Submit quick email collection - saves to database and sends notification to support@lead2lease.ai
+      await apiRequest("POST", "/api/demo-email-quick", {
         email: demoEmail,
-        firstName: "Not", // Default value since field is required
-        lastName: "Provided", // Default value since field is required
-        phone: "0000000000", // Default value since field is required
-        countryCode: "+1",
-        company: null, // Optional field
-        unitsUnderManagement: "Not specified", // Default value since field is required
-        managedOrOwned: "Not specified", // Default value since field is required
-        hqLocation: "Not specified", // Default value since field is required
-        currentTools: null, // Optional field
-        agreeTerms: true,
-        agreeMarketing: false,
-        isCurrentCustomer: false,
+      });
+      
+      // Track successful submission
+      trackEvent('book_demo_email_success', {
+        event_category: 'Demo Request',
+        event_label: 'Landing Page Email Input',
+        value: 1,
       });
       
       toast({
-        title: "Demo request submitted!",
-        description: "We'll be in touch soon to schedule your demo.",
+        title: "Email collected!",
+        description: "Redirecting you to complete your demo request...",
       });
       
+      // Close dialog if it's open
       setShowDemoDialog(false);
-      setDemoEmail("");
+      
+      // Redirect to /demo-form with email pre-filled via URL params
+      setLocation(`/demo-form?email=${encodeURIComponent(demoEmail)}`);
+      
+      // Clear email after a short delay to allow redirect
+      setTimeout(() => {
+        setDemoEmail("");
+        setIsSubmittingDemo(false);
+      }, 100);
     } catch (error: any) {
+      console.error("Error submitting email:", error);
       toast({
         title: "Submission failed",
-        description: error.message || "Unable to submit demo request. Please try again.",
+        description: error.message || "Unable to submit email. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsSubmittingDemo(false);
     }
+  };
+
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleQuickEmailSubmit(e);
   };
 
   const handleGetStarted = () => {
     window.location.href = "/onboarding";
   };
-
-  const [, setLocation] = useLocation();
 
   const handleSignIn = () => {
     // Redirect to app subdomain login in production, or /login locally
@@ -331,7 +346,7 @@ function LandingContent() {
 
   const handleSeeItInAction = () => {
     // Redirect to book demo page
-    setLocation("/book-demo");
+    setLocation("/demo-form");
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -412,7 +427,7 @@ function LandingContent() {
       />
 
       {/* Hero Section - Benefits Focused */}
-      <section className="relative overflow-hidden pt-20 md:pt-24">
+      <section className="relative overflow-hidden pt-8 md:pt-12">
         {/* Background layer that will be blurred under the header */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/15 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
@@ -422,7 +437,7 @@ function LandingContent() {
         </div>
 
         {/* Foreground content must be above the background */}
-        <div className="relative z-10 container mx-auto px-4 md:px-6 pt-8 pb-12 lg:pt-12 lg:pb-16 max-w-full overflow-x-hidden">
+        <div className="relative z-10 container mx-auto px-4 md:px-6 pt-4 pb-12 lg:pt-6 lg:pb-16 max-w-full overflow-x-hidden">
           <motion.div
             className="max-w-5xl mx-auto text-center"
             initial="hidden"
@@ -460,17 +475,39 @@ function LandingContent() {
             entire property rental pipeline—from first inquiry to signed lease—so you can
             fill property vacancies faster and maximize revenue.
           </motion.p>
-          <div className="flex gap-4 flex-wrap justify-center mb-8">
-            <Link href="/book-demo">
+          <div className="flex gap-3 flex-wrap justify-center mb-8 max-w-3xl mx-auto px-4">
+            <div className="w-full sm:flex-1 sm:min-w-0 flex flex-col sm:flex-row items-stretch sm:items-center rounded-xl sm:rounded-2xl overflow-hidden shadow-lg border-2 border-gray-200 focus-within:border-blue-600 focus-within:shadow-xl transition-all duration-300 bg-white">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={demoEmail}
+                onChange={(e) => setDemoEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && demoEmail && demoEmail.includes('@')) {
+                    handleQuickEmailSubmit(e);
+                  }
+                }}
+                disabled={isSubmittingDemo}
+                className="flex-1 h-12 sm:h-14 md:h-16 text-base sm:text-lg border-0 border-r-0 sm:border-r-0 rounded-none px-4 sm:px-6 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-base sm:placeholder:text-lg md:placeholder:text-xl placeholder:opacity-60"
+                data-testid="input-demo-email-hero"
+              />
               <Button
                 size="lg"
                 data-testid="button-get-started-hero"
-                className="px-10 py-4 text-white hover:opacity-90 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800"
+                onClick={handleQuickEmailSubmit}
+                disabled={isSubmittingDemo || !demoEmail || !demoEmail.includes('@')}
+                className="h-12 sm:h-14 md:h-16 px-4 sm:px-6 md:px-8 text-white hover:opacity-90 rounded-none shadow-none transition-all duration-300 font-semibold bg-gradient-to-r from-primary via-blue-600 to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 text-sm sm:text-base md:text-lg"
               >
-                <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span className="text-base font-semibold leading-tight">Get Your Free Demo</span>
+                {isSubmittingDemo ? (
+                  <span className="whitespace-nowrap">Submitting...</span>
+                ) : (
+                  <>
+                    <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                    <span className="font-semibold leading-tight whitespace-nowrap">Book a Free Demo</span>
+                  </>
+                )}
               </Button>
-            </Link>
+            </div>
           </div>
 
           {/* Key Metrics */}
@@ -2509,7 +2546,7 @@ function LandingContent() {
                 reducing vacancy costs by 40%.
               </p>
               <div className="flex gap-4 flex-wrap justify-center mb-8">
-                <Link href="/book-demo">
+                <Link href="/demo-form">
                   <Button
                     size="lg"
                     variant="outline"
@@ -2697,7 +2734,7 @@ function LandingContent() {
                 <ul className="space-y-2 text-sm">
                   <li>
                     <Link
-                      href="/book-demo"
+                      href="/demo-form"
                       className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Book Demo
@@ -2815,7 +2852,7 @@ function LandingContent() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmittingDemo || !demoEmail}
+                disabled={isSubmittingDemo || !demoEmail || !demoEmail.includes("@")}
                 className="flex-1 text-white bg-gradient-to-r from-primary via-blue-600 to-blue-700 hover:opacity-90"
               >
                 {isSubmittingDemo ? "Submitting..." : "Book Demo"}

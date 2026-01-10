@@ -189,7 +189,9 @@ export interface IStorage {
 
   // Demo Request operations
   getAllDemoRequests(): Promise<DemoRequest[]>;
+  getDemoRequestByEmail(email: string): Promise<DemoRequest | undefined>;
   createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest>;
+  updateDemoRequest(id: string, request: Partial<InsertDemoRequest>): Promise<DemoRequest | undefined>;
 
   // Appointment operations
   getAllAppointments(): Promise<Appointment[]>;
@@ -2070,8 +2072,24 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(demoRequests).orderBy(desc(demoRequests.createdAt));
   }
 
+  async getDemoRequestByEmail(email: string): Promise<DemoRequest | undefined> {
+    const result = await db.select().from(demoRequests)
+      .where(eq(demoRequests.email, email))
+      .orderBy(desc(demoRequests.createdAt))
+      .limit(1);
+    return result[0];
+  }
+
   async createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest> {
     const result = await db.insert(demoRequests).values(request).returning();
+    return result[0];
+  }
+
+  async updateDemoRequest(id: string, request: Partial<InsertDemoRequest>): Promise<DemoRequest | undefined> {
+    const result = await db.update(demoRequests)
+      .set(request)
+      .where(eq(demoRequests.id, id))
+      .returning();
     return result[0];
   }
 

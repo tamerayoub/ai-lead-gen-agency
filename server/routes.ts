@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertPropertyUnitSchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema, insertDemoRequestSchema, insertAppointmentSchema, insertShowingSchema, insertPropertySchedulingSettingsSchema, assignedMemberSchema, insertListingSchema, insertQualificationTemplateSchema, insertLeadQualificationSchema, insertQualificationSettingsSchema, qualificationQuestionSchema, type User, type Showing, type QualificationQuestion, type QualificationTemplate } from "@shared/schema";
+import { insertLeadSchema, insertPropertySchema, insertPropertyUnitSchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema, insertDemoRequestSchema, insertAppointmentSchema, insertShowingSchema, insertPropertySchedulingSettingsSchema, assignedMemberSchema, insertListingSchema, insertQualificationTemplateSchema, insertLeadQualificationSchema, insertQualificationSettingsSchema, qualificationQuestionSchema, type User, type Showing, type QualificationQuestion, type QualificationTemplate, type DemoRequest } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
 import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
@@ -12,7 +12,7 @@ import { getAvailabilityContext } from "./calendarAvailability";
 import { cleanEmailBody, cleanEmailSubject } from "./emailUtils";
 import { normalizeEmailSubject } from "@shared/emailUtils";
 import { sendInvitationEmail } from "./emailService";
-import { sendDemoRequestNotification } from "./email";
+import { sendDemoRequestNotification, sendQuickEmailNotification } from "./email";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
@@ -8566,10 +8566,79 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
   // ===== DEMO REQUEST ROUTES (PUBLIC) =====
   // Create a new demo request (no authentication required)
+  // Quick email collection endpoint for landing page
+  app.post("/api/demo-email-quick", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({ 
+          message: "Valid email address is required" 
+        });
+      }
+
+      // Save email to database with minimal required fields (will be updated later when user fills full form)
+      const quickDemoRequest = await storage.createDemoRequest({
+        email: email,
+        firstName: "Pending", // Will be updated when user completes full form
+        lastName: "Form Completion",
+        phone: "0000000000", // Placeholder, will be updated
+        countryCode: "+1",
+        company: null,
+        unitsUnderManagement: "Pending",
+        managedOrOwned: "Pending",
+        hqLocation: "Pending",
+        currentTools: null,
+        agreeTerms: true,
+        agreeMarketing: false,
+        isCurrentCustomer: false,
+      });
+      
+      // Send quick email notification to support@lead2lease.ai
+      try {
+        await sendQuickEmailNotification(email);
+        console.log("[Quick Demo Email] Email notification sent to support@lead2lease.ai for:", email);
+      } catch (emailError: any) {
+        console.error("[Quick Demo Email] Failed to send email notification:", emailError.message);
+        // Don't fail the request if email sending fails
+      }
+      
+      res.status(201).json({ 
+        success: true, 
+        email: email,
+        id: quickDemoRequest.id 
+      });
+    } catch (error: any) {
+      console.error("[Quick Demo Email] Error saving quick email:", error);
+      res.status(400).json({ 
+        message: "Failed to save email", 
+        error: error.message 
+      });
+    }
+  });
+
   app.post("/api/demo-requests", async (req, res) => {
     try {
       const validatedData = insertDemoRequestSchema.parse(req.body);
-      const demoRequest = await storage.createDemoRequest(validatedData);
+      
+      // Check if there's an existing demo request with the same email that has placeholder data
+      // This happens when user provided email on landing page and is now completing the full form
+      const existingRequest = await storage.getDemoRequestByEmail(validatedData.email);
+      let demoRequest: DemoRequest;
+      
+      if (existingRequest && existingRequest.firstName === "Pending" && existingRequest.lastName === "Form Completion") {
+        // Update existing placeholder demo request with full data
+        const updated = await storage.updateDemoRequest(existingRequest.id, validatedData);
+        if (!updated) {
+          throw new Error("Failed to update existing demo request");
+        }
+        demoRequest = updated;
+        console.log("[Demo Request] Updated existing placeholder demo request for:", validatedData.email);
+      } else {
+        // Create new demo request
+        demoRequest = await storage.createDemoRequest(validatedData);
+        console.log("[Demo Request] Created new demo request for:", validatedData.email);
+      }
       
       // Automatically create/update sales prospect from this demo request
       try {

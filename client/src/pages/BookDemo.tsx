@@ -64,7 +64,7 @@ const demoRequestSchema = z.object({
 type DemoRequestFormData = z.infer<typeof demoRequestSchema>;
 
 function BookDemoContent() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<DemoRequestFormData | null>(null);
@@ -95,9 +95,52 @@ function BookDemoContent() {
     }
   }, []);
 
-  // Initialize Calendly widget when form is submitted
+  // Listen for Calendly events to detect successful booking
   useEffect(() => {
-    if (!formSubmitted || !formData) {
+    if (!isCalendarRoute || !formData) {
+      return;
+    }
+
+    const handleCalendlyEvent = (e: MessageEvent) => {
+      // Check if message is from Calendly (events from Calendly widgets)
+      if (e.origin !== 'https://calendly.com' && e.origin !== window.location.origin) {
+        return;
+      }
+
+      // Calendly sends events in different formats, check for event_scheduled
+      if (e.data?.event === 'calendly.event_scheduled' || 
+          (e.data?.event && e.data.event.indexOf('calendly.event_scheduled') === 0)) {
+        // Successful booking - redirect to confirmation page
+        console.log('Calendly event scheduled:', e.data);
+        const eventDetails = e.data?.payload || e.data || {};
+        
+        // Build redirect URL with event details if available
+        const params = new URLSearchParams();
+        if (eventDetails.event?.name || eventDetails.name) {
+          params.append('event_name', eventDetails.event?.name || eventDetails.name);
+        }
+        if (eventDetails.event?.start_time || eventDetails.start_time) {
+          params.append('event_date', eventDetails.event?.start_time || eventDetails.start_time);
+        }
+        if (eventDetails.invitee?.email || eventDetails.email) {
+          params.append('invitee_email', eventDetails.invitee?.email || eventDetails.email);
+        }
+        
+        const queryString = params.toString();
+        setLocation(`/confirmed-demo${queryString ? `?${queryString}` : ''}`);
+      }
+    };
+
+    window.addEventListener('message', handleCalendlyEvent);
+
+    return () => {
+      window.removeEventListener('message', handleCalendlyEvent);
+    };
+  }, [isCalendarRoute, formData, setLocation]);
+
+  // Initialize Calendly widget when on calendar route with form data
+  useEffect(() => {
+    if (!isCalendarRoute || !formData) {
       return;
     }
 
@@ -169,13 +212,57 @@ function BookDemoContent() {
     return () => {
       cancelAnimationFrame(rafId);
     };
-  }, [formSubmitted, formData, toast]);
+  }, [isCalendarRoute, formData, toast]);
 
-  // Restore form data from sessionStorage on mount
+  // Get email from URL params if available
+  const getEmailFromUrl = () => {
+    if (typeof window === 'undefined') return null;
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('email');
+  };
+
+  // Determine if we should show form or calendar based on route
+  const isFormRoute = location === '/demo-form' || location === '/book-demo';
+  const isCalendarRoute = location === '/schedule-demo';
+  
+  // Restore submitted form data when on calendar route
+  useEffect(() => {
+    if (isCalendarRoute) {
+      if (!formData) {
+        const submittedData = typeof window !== 'undefined' ? sessionStorage.getItem('submittedDemoFormData') : null;
+        if (submittedData) {
+          try {
+            const parsed = JSON.parse(submittedData);
+            setFormData(parsed);
+            setFormSubmitted(true);
+          } catch (error) {
+            console.error('Failed to parse submitted form data:', error);
+            setLocation("/demo-form");
+          }
+        } else {
+          // No submitted form data, redirect to form
+          setLocation("/demo-form");
+        }
+      }
+    }
+    
+    // If form is submitted on form route, redirect to schedule-demo
+    if (isFormRoute && formSubmitted && formData) {
+      setLocation("/schedule-demo");
+    }
+  }, [isCalendarRoute, isFormRoute, formData, formSubmitted, setLocation]);
+  
+  // Restore form data from sessionStorage on mount (for form route)
   const savedFormData = typeof window !== 'undefined' ? sessionStorage.getItem('bookDemoFormData') : null;
+  const emailFromUrl = getEmailFromUrl();
   const initialValues = savedFormData ? (() => {
     try {
-      return JSON.parse(savedFormData);
+      const parsed = JSON.parse(savedFormData);
+      // If email is in URL, override with URL email
+      if (emailFromUrl) {
+        parsed.email = emailFromUrl;
+      }
+      return parsed;
     } catch (error) {
       console.error('Failed to parse saved form data:', error);
       return undefined;
@@ -187,7 +274,7 @@ function BookDemoContent() {
     defaultValues: initialValues || {
       firstName: "",
       lastName: "",
-      email: "",
+      email: emailFromUrl || "",
       phone: "",
       countryCode: "+1",
       organization: "",
@@ -212,8 +299,6 @@ function BookDemoContent() {
 
   async function onSubmit(values: DemoRequestFormData) {
     setIsLoading(true);
-    // Clear saved form data on successful submission
-    sessionStorage.removeItem('bookDemoFormData');
     
     try {
       // Save form data to backend first
@@ -223,16 +308,22 @@ function BookDemoContent() {
         isCurrentCustomer: false,
       });
       
+      // Store submitted form data in sessionStorage for calendar route
+      sessionStorage.setItem('submittedDemoFormData', JSON.stringify(values));
+      
       // Store form data locally
       setFormData(values);
       
-      // Mark form as submitted to show calendar
+      // Mark form as submitted
       setFormSubmitted(true);
       
       toast({
         title: "Form submitted successfully!",
-        description: "Please select a time slot for your demo.",
+        description: "Redirecting to schedule your demo...",
       });
+      
+      // Redirect to /schedule-demo to show the calendar
+      setLocation("/schedule-demo");
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast({
@@ -275,8 +366,8 @@ function BookDemoContent() {
 
       {/* Form and Calendar Section - Sequential Layout */}
       <div className="container mx-auto px-4 py-2">
-        <div className={`${formSubmitted ? 'max-w-7xl' : 'max-w-3xl'} mx-auto`}>
-          {!formSubmitted ? (
+        <div className={`${(isCalendarRoute && formData) ? 'max-w-7xl' : 'max-w-3xl'} mx-auto`}>
+          {isFormRoute ? (
             /* Step 1: Form Only */
             <div>
               {/* Header Section with Gradient */}
@@ -546,7 +637,7 @@ function BookDemoContent() {
               </CardContent>
             </Card>
             </div>
-          ) : (
+          ) : isCalendarRoute && formData ? (
             /* Step 2: Calendar with Side Panel */
             <div className="flex flex-col lg:flex-row gap-4" style={{ height: 'calc(100vh - 80px)', maxHeight: 'calc(100vh - 80px)' }}>
               {/* Left Side: Select Your Time Section */}
@@ -587,6 +678,13 @@ function BookDemoContent() {
                     />
                   </CardContent>
                 </Card>
+              </div>
+            </div>
+          ) : (
+            /* Fallback: Loading or redirecting */
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <p className="text-gray-600">Loading...</p>
               </div>
             </div>
           )}

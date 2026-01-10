@@ -170,7 +170,7 @@ export function PublicHeader({
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {/* Book a Demo */}
-                <Link href="/book-demo" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/demo-form" onClick={() => setMobileMenuOpen(false)}>
                   <Button 
                     variant="outline"
                     className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-blue-600"
@@ -302,7 +302,7 @@ export function PublicHeader({
         </div>
         {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
-          <Link href="/book-demo">
+          <Link href="/demo-form">
             <Button 
               variant="outline"
               data-testid="button-book-demo-header"
@@ -331,7 +331,7 @@ export function PublicHeader({
         </div>
         {/* Mobile Buttons - on the right */}
         <div className="md:hidden flex items-center gap-2">
-          <Link href="/book-demo">
+          <Link href="/demo-form">
             <Button 
               size="sm"
               variant="outline"
