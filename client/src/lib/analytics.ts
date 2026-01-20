@@ -1,5 +1,4 @@
-// Google Analytics utility functions
-// Assumes Google Analytics is already initialized in HTML <head>
+// Google Analytics initialization and utility functions
 
 declare global {
   interface Window {
@@ -10,6 +9,48 @@ declare global {
     ) => void;
     dataLayer?: any[];
   }
+}
+
+/**
+ * Initialize Google Analytics
+ * This should be called once when the app loads
+ */
+export function initGoogleAnalytics() {
+  const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
+  
+  if (!measurementId) {
+    console.log('[Analytics] Google Analytics not configured - VITE_GA_MEASUREMENT_ID not set');
+    return;
+  }
+
+  // Check if already initialized
+  if (window.gtag && window.dataLayer) {
+    console.log('[Analytics] Google Analytics already initialized');
+    return;
+  }
+
+  // Initialize dataLayer
+  window.dataLayer = window.dataLayer || [];
+  
+  // Define gtag function
+  function gtag(...args: any[]) {
+    window.dataLayer!.push(arguments);
+  }
+  window.gtag = gtag;
+
+  // Load Google Analytics script
+  const script1 = document.createElement('script');
+  script1.async = true;
+  script1.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+  document.head.appendChild(script1);
+
+  // Initialize GA4
+  gtag('js', new Date());
+  gtag('config', measurementId, {
+    page_path: window.location.pathname,
+  });
+
+  console.log('[Analytics] Google Analytics initialized with ID:', measurementId);
 }
 
 /**
@@ -45,9 +86,10 @@ export function trackPageView(path: string) {
     return;
   }
 
-  // Track page view event (GA4 automatically tracks page views, but this allows custom tracking)
-  window.gtag('event', 'page_view', {
+  // Track page view using GA4 config (this updates the page_path)
+  window.gtag('config', import.meta.env.VITE_GA_MEASUREMENT_ID || '', {
     page_path: path,
+    page_title: document.title,
   });
 }
 

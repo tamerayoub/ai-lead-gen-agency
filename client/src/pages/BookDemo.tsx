@@ -73,6 +73,11 @@ function BookDemoContent() {
   const calendlyScriptLoaded = useRef(false);
   const calendlyInitialized = useRef(false);
 
+  // Determine if we should show form or calendar based on route
+  // This must be declared before useEffect hooks that use it
+  const isFormRoute = location === '/demo-form' || location === '/book-demo';
+  const isCalendarRoute = location === '/schedule-demo';
+
   // Load Calendly script on component mount
   useEffect(() => {
     if (calendlyScriptLoaded.current) {
@@ -220,10 +225,6 @@ function BookDemoContent() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('email');
   };
-
-  // Determine if we should show form or calendar based on route
-  const isFormRoute = location === '/demo-form' || location === '/book-demo';
-  const isCalendarRoute = location === '/schedule-demo';
   
   // Restore submitted form data when on calendar route
   useEffect(() => {

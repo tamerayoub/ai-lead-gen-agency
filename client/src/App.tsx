@@ -3,6 +3,7 @@ import { useBrowserLocation } from "wouter/use-browser-location";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { trackPageView } from "./lib/analytics";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -332,6 +333,13 @@ function useHashLocation(): [string, (to: string) => void] {
 }
 
 function MarketingRouter() {
+  const [location] = useLocation();
+  
+  // Track page views for Google Analytics
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
+  
   return (
     <Switch>
       <Route path="/" component={Landing} />
@@ -424,6 +432,11 @@ function AppRouter({ style, showAppByHost }: { style: Record<string, string>; sh
 function LayoutRouter({ style }: { style: Record<string, string> }) {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
+  
+  // Track page views for Google Analytics
+  useEffect(() => {
+    trackPageView(location);
+  }, [location]);
   
   // Check if current route is an admin route
   const isAdminRoute = location.startsWith('/admin');
