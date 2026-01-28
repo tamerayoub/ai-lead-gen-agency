@@ -32,6 +32,7 @@ async function runMigration(migrationFile?: string) {
       "008_add_launch_date_setting.sql",
       "009_add_user_terms_and_email_subscription.sql",
       "010_add_organization_deleted_at.sql",
+      "011_fix_ai_settings_org_id_not_null.sql",
     ];
     
     for (const migrationFile of migrations) {

@@ -5367,47 +5367,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
   // ===== PUBLIC ROUTES =====
   // Public endpoint to get launch date for countdown
+  // Note: Global settings (org_id = NULL) have been removed for multi-tenancy.
+  // This endpoint now returns a default value since it's a public route without org context.
   app.get("/api/launch-date", async (req, res) => {
     try {
-      const { db } = await import("./db");
-      const { aiSettings } = await import("@shared/schema");
-      const { eq, and, isNull } = await import("drizzle-orm");
-      
-      const result = await db.select()
-        .from(aiSettings)
-        .where(
-          and(
-            eq(aiSettings.category, 'landing_page'),
-            eq(aiSettings.key, 'launch_date'),
-            isNull(aiSettings.orgId)
-          )
-        )
-        .limit(1);
-      
-      if (result.length > 0 && result[0].value) {
-        try {
-          const launchDate = new Date(result[0].value);
-          // Validate the date
-          if (isNaN(launchDate.getTime())) {
-            throw new Error("Invalid date format");
-          }
-          res.json({ launchDate: launchDate.toISOString() });
-        } catch (dateError) {
-          console.error("[Launch Date] Invalid date format in database:", result[0].value);
-          // Default to 1 month from now if date is invalid
-          const defaultDate = new Date();
-          defaultDate.setMonth(defaultDate.getMonth() + 1);
-          res.json({ launchDate: defaultDate.toISOString() });
-        }
-      } else {
-        // Default to 1 month from now if not set
-        const defaultDate = new Date();
-        defaultDate.setMonth(defaultDate.getMonth() + 1);
-        res.json({ launchDate: defaultDate.toISOString() });
-      }
+      // Default to 1 month from now
+      // If org-specific launch dates are needed in the future, this route would need
+      // to be updated to accept an orgId parameter or use a different approach
+      const defaultDate = new Date();
+      defaultDate.setMonth(defaultDate.getMonth() + 1);
+      res.json({ launchDate: defaultDate.toISOString() });
     } catch (error) {
-      console.error("[Launch Date] Error fetching launch date:", error);
-      // Default to 1 month from now on error
+      console.error("[Launch Date] Error generating default launch date:", error);
+      // Fallback: 1 month from now
       const defaultDate = new Date();
       defaultDate.setMonth(defaultDate.getMonth() + 1);
       res.json({ launchDate: defaultDate.toISOString() });

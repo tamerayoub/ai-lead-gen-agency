@@ -269,7 +269,7 @@ export const notes = pgTable("notes", {
 
 export const aiSettings = pgTable("ai_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   category: text("category").notNull(),
   key: text("key").notNull(),
   value: text("value").notNull(),
