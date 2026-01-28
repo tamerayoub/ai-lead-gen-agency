@@ -155,6 +155,7 @@ import Pricing from "@/pages/Pricing";
 import TermsOfService from "@/pages/TermsOfService";
 import PrivacyNotice from "@/pages/PrivacyNotice";
 import CookiesPolicy from "@/pages/CookiesPolicy";
+import ROICalculator from "@/pages/ROICalculator";
 import { AdminLayout } from "@/components/AdminLayout";
 import NotFound from "@/pages/not-found";
 
@@ -229,6 +230,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Landing} />
         <Route path="/landing" component={Landing} />
+        <Route path="/roi-calculator" component={ROICalculator} />
         <Route path="/login" component={Login} />
         <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
         <Route path="/product/scheduling" component={ProductScheduling} />
@@ -344,6 +346,7 @@ function MarketingRouter() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/landing" component={Landing} />
+      <Route path="/roi-calculator" component={ROICalculator} />
       <Route path="/login" component={Login} />
       <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
       <Route path="/product/scheduling" component={ProductScheduling} />

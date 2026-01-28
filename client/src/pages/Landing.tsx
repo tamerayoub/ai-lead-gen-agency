@@ -808,8 +808,13 @@ function LandingContent() {
       </section>
 
       {/* AI Leasing Agent - The Star Feature */}
-      <section id="ai-leasing-agent" className="py-20 relative overflow-hidden">
-        <div className="container mx-auto px-4">
+      <section id="ai-leasing-agent" className="py-20 relative overflow-hidden bg-gradient-to-b from-white to-gray-50">
+        {/* Background decorations */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 -right-8 w-72 h-72 bg-sky-400/10 md:bg-sky-400/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-20 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/12 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20 relative">
             <motion.div
               className="text-center mb-12 relative z-20"
@@ -1152,8 +1157,13 @@ function LandingContent() {
       </section>
 
       {/* CRM Section */}
-      <section id="crm" className="py-20">
-        <div className="container mx-auto px-4">
+      <section id="crm" className="py-20 relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+        {/* Background decorations */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/12 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
+          <div className="absolute bottom-20 -right-8 w-72 h-72 bg-pink-300/10 md:bg-pink-300/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-4000"></div>
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20">
             <motion.div
               className="text-center mb-12"
@@ -1311,8 +1321,13 @@ function LandingContent() {
       </section>
 
       {/* Smart Scheduling */}
-      <section id="ai-smart-scheduling" className="py-20 relative overflow-hidden">
-        <div className="container mx-auto px-4">
+      <section id="ai-smart-scheduling" className="py-20 relative overflow-hidden bg-gradient-to-b from-white to-gray-50">
+        {/* Background decorations */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 -right-8 w-72 h-72 bg-sky-400/10 md:bg-sky-400/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-20 -left-8 w-72 h-72 bg-primary/5 md:bg-primary/10 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-1000"></div>
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20 relative">
             <motion.div
               className="text-center mb-12 relative z-20"

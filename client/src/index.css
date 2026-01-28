@@ -372,7 +372,7 @@
     touch-action: pan-y;
     overscroll-behavior-x: none;
   }
-  
+
   html {
     overscroll-behavior-x: none;
   }
