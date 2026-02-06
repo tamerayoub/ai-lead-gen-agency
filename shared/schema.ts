@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -80,6 +80,16 @@ export const users = pgTable("users", {
   emailSubscription: boolean("email_subscription").default(false).notNull(), // Whether user subscribed to marketing emails
   // Multi-tenant: Current active organization
   currentOrgId: varchar("current_org_id").references(() => organizations.id),
+  // Acquisition attribution (first-touch, never overwritten)
+  initialOffer: varchar("initial_offer"),
+  acquisitionContextJson: jsonb("acquisition_context_json"),
+  firstTouchTs: timestamp("first_touch_ts"),
+  landingPage: varchar("landing_page"),
+  utmSource: varchar("utm_source"),
+  utmMedium: varchar("utm_medium"),
+  utmCampaign: varchar("utm_campaign"),
+  utmTerm: varchar("utm_term"),
+  utmContent: varchar("utm_content"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -152,7 +162,11 @@ export const properties = pgTable("properties", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
-  address: text("address").notNull(),
+  address: text("address").notNull(), // Kept for backward compatibility, can be computed from separate fields
+  street: text("street"), // Street address
+  city: text("city"), // City
+  state: text("state"), // State (2-letter code)
+  zipCode: text("zip_code"), // Zip code
   units: integer("units").notNull(),
   occupancy: integer("occupancy").notNull(),
   monthlyRevenue: text("monthly_revenue").notNull(),
@@ -179,6 +193,13 @@ export const propertyUnits = pgTable("property_units", {
   bedrooms: integer("bedrooms").notNull(),
   bathrooms: text("bathrooms").notNull(), // e.g., "1.5", "2"
   squareFeet: integer("square_feet"),
+  // Facebook Marketplace amenities
+  laundryType: text("laundry_type"), // 'In-unit laundry', 'Laundry in building', 'Laundry available', 'None'
+  parkingType: text("parking_type"), // 'Garage parking', 'Street parking', 'Off-street parking', 'Parking available', 'None'
+  airConditioningType: text("air_conditioning_type"), // 'Central AC', 'AC Available', 'None'
+  heatingType: text("heating_type"), // 'Central Heat', 'Gas Heat', 'Electric Heat', 'Radiator Heat', 'Heating Available', 'None'
+  catFriendly: boolean("cat_friendly").default(false).notNull(), // Whether the unit allows cats
+  dogFriendly: boolean("dog_friendly").default(false).notNull(), // Whether the unit allows dogs
   // Lease & financial
   monthlyRent: text("monthly_rent"),
   deposit: text("deposit"),
@@ -238,6 +259,7 @@ export const leads = pgTable("leads", {
   gmailThreadId: text("gmail_thread_id"),
   externalId: text("external_id"),
   metadata: jsonb("metadata"),
+  aiEnabled: boolean("ai_enabled").default(true).notNull(), // Enable/disable AI for this lead
   createdAt: timestamp("created_at").defaultNow().notNull(),
   lastContactAt: timestamp("last_contact_at").defaultNow().notNull(),
 });
@@ -287,8 +309,44 @@ export const integrationConfig = pgTable("integration_config", {
   uniqueOrgService: sql`UNIQUE (org_id, service)`,
 }));
 
+// External auth secrets: Key Vault secret references only (no plaintext). See server/keyVault.ts
+export const externalAuthSecrets = pgTable(
+  "external_auth_secrets",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    orgId: varchar("org_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+    userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    provider: text("provider").notNull().default("facebook"),
+    credentialKind: text("credential_kind").notNull(),
+    secretName: text("secret_name").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at"),
+    rotatedAt: timestamp("rotated_at"),
+  },
+  (table) => [
+    index("idx_external_auth_secrets_org_user").on(table.orgId, table.userId),
+    index("idx_external_auth_secrets_provider").on(table.provider),
+    unique("external_auth_secrets_org_user_provider_kind").on(table.orgId, table.userId, table.provider, table.credentialKind),
+  ]
+);
+
+export const externalAuthSecretAudit = pgTable(
+  "external_auth_secret_audit",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    orgId: varchar("org_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+    userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    provider: text("provider").notNull().default("facebook"),
+    action: text("action").notNull(),
+    reason: text("reason"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_external_auth_secret_audit_org_created").on(table.orgId, table.createdAt)]
+);
+
 export const pendingReplies = pgTable("pending_replies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   leadId: varchar("lead_id").references(() => leads.id).notNull(),
   leadName: text("lead_name").notNull(),
   leadEmail: text("lead_email").notNull(),
@@ -302,7 +360,25 @@ export const pendingReplies = pgTable("pending_replies", {
   references: text("references"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   approvedAt: timestamp("approved_at"),
+  metadata: jsonb("metadata"), // Stores auto-pilot metadata: { sentViaAutoPilot, confidenceLevel, autoPilotReason, questionType, originalContent, editedByUser, editedAt }
 });
+
+export const autopilotActivityLogs = pgTable("autopilot_activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  leadName: text("lead_name").notNull(),
+  leadMessage: text("lead_message").notNull(),
+  aiReply: text("ai_reply").notNull(),
+  sent: boolean("sent").notNull().default(false),
+  channel: text("channel").notNull(), // 'email', 'facebook', etc.
+  conversationId: varchar("conversation_id").references(() => conversations.id),
+  metadata: jsonb("metadata"), // Additional context like autoPilotReason, confidenceLevel, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_autopilot_org_created").on(table.orgId, table.createdAt),
+  index("idx_autopilot_lead").on(table.leadId),
+]);
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -392,6 +468,12 @@ export const insertPendingReplySchema = createInsertSchema(pendingReplies).omit(
   id: true,
   createdAt: true,
   approvedAt: true,
+});
+
+export const insertAutopilotActivityLogSchema = createInsertSchema(autopilotActivityLogs).omit({
+  id: true,
+  createdAt: true,
+  orgId: true, // orgId is passed separately to the storage method
 });
 
 export const calendarConnections = pgTable("calendar_connections", {
@@ -503,6 +585,18 @@ export const showings = pgTable("showings", {
   uniquePropertyTimeSlot: sql`UNIQUE (org_id, property_id, scheduled_date, scheduled_time)`,
 }));
 
+// Idempotency for in-chat tour bookings (prevents double-booking on retries)
+export const bookingIdempotency = pgTable("booking_idempotency", {
+  idempotencyKey: varchar("idempotency_key", { length: 128 }).primaryKey(),
+  leadId: varchar("lead_id").notNull(),
+  orgId: varchar("org_id").notNull(),
+  showingId: varchar("showing_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_booking_idempotency_lead").on(table.leadId),
+  index("idx_booking_idempotency_org").on(table.orgId),
+]);
+
 // Property scheduling settings - controls how public bookings work for each property
 export const propertySchedulingSettings = pgTable("property_scheduling_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -567,6 +661,106 @@ export const zillowListings = pgTable("zillow_listings", {
   uniqueProperty: sql`UNIQUE (property_id)`,
   uniqueZillowListing: sql`UNIQUE (org_id, zillow_listing_id)`,
 }));
+
+// Cache for nearby places web search results (7-day TTL)
+export const propertyAreaCache = pgTable("property_area_cache", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()::text`),
+  propertyId: varchar("property_id").references(() => properties.id, { onDelete: 'cascade' }).notNull(),
+  radiusMeters: integer("radius_meters").notNull().default(800),
+  categoriesHash: varchar("categories_hash").notNull(),
+  resultJson: jsonb("result_json").notNull(),
+  providerName: varchar("provider_name").notNull().default('openai_web_search'),
+  retrievedAt: timestamp("retrieved_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_property_area_cache_lookup").on(table.propertyId, table.radiusMeters, table.categoriesHash),
+  index("idx_property_area_cache_expires").on(table.expiresAt),
+]);
+
+// API Connector - external PMS integration (see server/API_CONNECTOR_ARCHITECTURE.md)
+export const integrationApiKeys = pgTable("integration_api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: text("name").notNull(),
+  hashedKey: text("hashed_key").notNull(),
+  keyPrefix: varchar("key_prefix", { length: 8 }).notNull(),
+  scopes: jsonb("scopes").notNull().default([]),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+  lastUsedAt: timestamp("last_used_at"),
+}, (table) => [
+  index("idx_integration_api_keys_org_prefix").on(table.orgId, table.keyPrefix),
+  index("idx_integration_api_keys_org").on(table.orgId),
+]);
+
+export const integrationApiAuditLog = pgTable("integration_api_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  apiKeyId: varchar("api_key_id").references(() => integrationApiKeys.id),
+  actorType: text("actor_type").notNull().default("api_key"),
+  method: varchar("method", { length: 10 }).notNull(),
+  path: text("path").notNull(),
+  statusCode: integer("status_code"),
+  requestId: text("request_id"),
+  idempotencyKey: text("idempotency_key"),
+  ip: text("ip"),
+  userAgent: text("user_agent"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_integration_api_audit_org_created").on(table.orgId, table.createdAt),
+  index("idx_integration_api_audit_key").on(table.apiKeyId),
+]);
+
+export const integrationApiIdempotency = pgTable("integration_api_idempotency", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  apiKeyId: varchar("api_key_id").references(() => integrationApiKeys.id),
+  idempotencyKey: varchar("idempotency_key", { length: 255 }).notNull(),
+  method: varchar("method", { length: 10 }).notNull(),
+  path: text("path").notNull(),
+  requestHash: text("request_hash").notNull(),
+  responseStatus: integer("response_status").notNull(),
+  responseBodyJson: text("response_body_json"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_integration_api_idempotency_org").on(table.orgId),
+  unique("integration_api_idempotency_org_key").on(table.orgId, table.idempotencyKey),
+]);
+
+export const integrationApiWebhookEndpoints = pgTable("integration_api_webhook_endpoints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  url: text("url").notNull(),
+  secret: text("secret").notNull(),
+  events: jsonb("events").notNull().default([]),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_integration_api_webhook_endpoints_org").on(table.orgId),
+]);
+
+export const integrationApiWebhookDeliveries = pgTable("integration_api_webhook_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  endpointId: varchar("endpoint_id").references(() => integrationApiWebhookEndpoints.id, { onDelete: 'cascade' }).notNull(),
+  eventType: text("event_type").notNull(),
+  payloadJson: text("payload_json"),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").default(0).notNull(),
+  lastAttemptAt: timestamp("last_attempt_at"),
+  nextRetryAt: timestamp("next_retry_at"),
+  responseCode: integer("response_code"),
+  responseBodySnippet: text("response_body_snippet"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_integration_api_webhook_deliveries_endpoint").on(table.endpointId),
+  index("idx_integration_api_webhook_deliveries_next_retry").on(table.nextRetryAt),
+]);
 
 export const insertCalendarConnectionSchema = createInsertSchema(calendarConnections).omit({
   id: true,
@@ -650,6 +844,9 @@ export type IntegrationConfig = typeof integrationConfig.$inferSelect;
 export type InsertPendingReply = z.infer<typeof insertPendingReplySchema>;
 export type PendingReply = typeof pendingReplies.$inferSelect;
 
+export type InsertAutopilotActivityLog = z.infer<typeof insertAutopilotActivityLogSchema>;
+export type AutopilotActivityLog = typeof autopilotActivityLogs.$inferSelect;
+
 export type InsertCalendarConnection = z.infer<typeof insertCalendarConnectionSchema>;
 export type CalendarConnection = typeof calendarConnections.$inferSelect;
 
@@ -687,6 +884,16 @@ export const demoRequests = pgTable("demo_requests", {
   currentTools: text("current_tools"),
   agreeTerms: boolean("agree_terms").notNull().default(true),
   agreeMarketing: boolean("agree_marketing").notNull().default(false),
+  // Acquisition attribution (first-touch from landing/demo page)
+  initialOffer: varchar("initial_offer"),
+  acquisitionContextJson: jsonb("acquisition_context_json"),
+  firstTouchTs: timestamp("first_touch_ts"),
+  landingPage: varchar("landing_page"),
+  utmSource: varchar("utm_source"),
+  utmMedium: varchar("utm_medium"),
+  utmCampaign: varchar("utm_campaign"),
+  utmTerm: varchar("utm_term"),
+  utmContent: varchar("utm_content"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -881,6 +1088,9 @@ export const listings = pgTable("listings", {
   status: text("status").notNull().default("active"), // 'active', 'paused', 'leased', 'expired'
   publishedAt: timestamp("published_at"), // When listing was first published
   expiresAt: timestamp("expires_at"), // Optional expiration date
+  // Facebook Marketplace integration
+  facebookListingId: text("facebook_listing_id"), // Facebook Marketplace listing ID (if posted to Facebook)
+  facebookListedAt: timestamp("facebook_listed_at"), // When listing was posted to Facebook Marketplace
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

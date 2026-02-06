@@ -162,7 +162,18 @@ function OnboardingFlowContent() {
     mutationFn: async () => {
       return await apiRequest("PATCH", `/api/onboarding/${sessionToken}/complete`);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      const { getAcquisitionContext } = await import("@/lib/acquisition");
+      const { trackOnboardingCompleted } = await import("@/lib/analytics");
+      const ctx = getAcquisitionContext();
+      if (ctx) {
+        trackOnboardingCompleted({
+          offer: ctx.offer,
+          source: ctx.source,
+          campaign: ctx.campaign ?? undefined,
+          landing_page: ctx.landing_page,
+        });
+      }
       // If user is authenticated, redirect to app (intake will be auto-linked)
       // Otherwise, redirect to login with onboarding token
       if (isAuthenticated) {

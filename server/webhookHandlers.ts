@@ -12,6 +12,9 @@ import { storage } from './storage';
 // This ensures each new organization gets an email, even if user has other orgs
 const sentWelcomeEmails = new Set<string>();
 
+/** Set to false to disable "Congratulations, you're a founding member" welcome emails */
+const SEND_FOUNDING_PARTNER_WELCOME_EMAIL = false;
+
 /**
  * Send founding partner welcome email for an organization with membership
  * Deduplicates by orgId:subscriptionId to ensure each new org gets an email
@@ -23,6 +26,10 @@ export async function sendWelcomeEmailForOrgMembership(
   userEmail: string,
   userName?: string
 ): Promise<void> {
+  if (!SEND_FOUNDING_PARTNER_WELCOME_EMAIL) {
+    return;
+  }
+
   const startTime = Date.now();
   const emailKey = `${orgId}:${subscriptionId}`;
   

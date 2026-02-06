@@ -61,6 +61,11 @@ const formSchema = z.object({
   notes: z.string().optional(),
   coverPhoto: z.string().optional(),
   photos: z.array(z.string()).default([]),
+  // Facebook Marketplace amenities
+  laundryType: z.enum(['In-unit laundry', 'Laundry in building', 'Laundry available', 'None']).optional().nullable(),
+  parkingType: z.enum(['Garage parking', 'Street parking', 'Off-street parking', 'Parking available', 'None']).optional().nullable(),
+  airConditioningType: z.enum(['Central AC', 'AC Available', 'None']).optional().nullable(),
+  heatingType: z.enum(['Central Heat', 'Gas Heat', 'Electric Heat', 'Radiator Heat', 'Heating Available', 'None']).optional().nullable(),
 });
 
 interface PropertyUnitDialogProps {
@@ -102,6 +107,10 @@ export default function PropertyUnitDialog({
       leaseEndDate: unit?.leaseEndDate || "",
       coverPhoto: unit?.coverPhoto || "",
       photos: unit?.photos || [],
+      laundryType: unit?.laundryType || null,
+      parkingType: unit?.parkingType || null,
+      airConditioningType: unit?.airConditioningType || null,
+      heatingType: unit?.heatingType || null,
     },
   });
 
@@ -125,6 +134,10 @@ export default function PropertyUnitDialog({
         leaseEndDate: unit.leaseEndDate || "",
         coverPhoto: unit.coverPhoto || "",
         photos: unit.photos || [],
+        laundryType: unit.laundryType || null,
+        parkingType: unit.parkingType || null,
+        airConditioningType: unit.airConditioningType || null,
+        heatingType: unit.heatingType || null,
       });
     } else {
       form.reset({
@@ -144,6 +157,10 @@ export default function PropertyUnitDialog({
         leaseEndDate: "",
         coverPhoto: "",
         photos: [],
+        laundryType: null,
+        parkingType: null,
+        airConditioningType: null,
+        heatingType: null,
       });
     }
   }, [unit, form]);
@@ -729,6 +746,108 @@ export default function PropertyUnitDialog({
                         data-testid="input-lease-end-date"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="laundryType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Laundry Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select laundry type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="In-unit laundry">In-unit laundry</SelectItem>
+                        <SelectItem value="Laundry in building">Laundry in building</SelectItem>
+                        <SelectItem value="Laundry available">Laundry available</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="parkingType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parking Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select parking type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Garage parking">Garage parking</SelectItem>
+                        <SelectItem value="Street parking">Street parking</SelectItem>
+                        <SelectItem value="Off-street parking">Off-street parking</SelectItem>
+                        <SelectItem value="Parking available">Parking available</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="airConditioningType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Air Conditioning Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select AC type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Central AC">Central AC</SelectItem>
+                        <SelectItem value="AC Available">AC Available</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="heatingType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Heating Type</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select heating type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Central Heat">Central Heat</SelectItem>
+                        <SelectItem value="Gas Heat">Gas Heat</SelectItem>
+                        <SelectItem value="Electric Heat">Electric Heat</SelectItem>
+                        <SelectItem value="Radiator Heat">Radiator Heat</SelectItem>
+                        <SelectItem value="Heating Available">Heating Available</SelectItem>
+                        <SelectItem value="None">None</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

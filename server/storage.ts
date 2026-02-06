@@ -5,7 +5,7 @@ import {
   zillowIntegrations, zillowListings, deletedLeads, demoRequests, appointments, onboardingIntakes,
   salesProspects, prospectSources, showings, invitations, auditLogs, propertyAssignments,
   propertySchedulingSettings, propertyUnits, listings, qualificationTemplates, leadQualifications, qualificationSettings,
-  pendingSubscriptions,
+  pendingSubscriptions, autopilotActivityLogs, bookingIdempotency,
   type User, type InsertUser, type UpsertUser,
   type Property, type InsertProperty,
   type PropertyUnit, type InsertPropertyUnit,
@@ -37,9 +37,10 @@ import {
   type QualificationTemplate, type InsertQualificationTemplate,
   type LeadQualification, type InsertLeadQualification,
   type QualificationSettings, type InsertQualificationSettings,
-  type Organization
+  type Organization,
+  type AutopilotActivityLog, type InsertAutopilotActivityLog
 } from "@shared/schema";
-import { eq, desc, asc, and, or, sql, gte, lte, inArray, isNotNull, isNull } from "drizzle-orm";
+import { eq, desc, asc, and, or, sql, gte, lte, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -79,6 +80,7 @@ export interface IStorage {
   getAllUnitsByProperty(propertyId: string, orgId: string): Promise<PropertyUnit[]>;
   getPropertyUnit(id: string, orgId: string): Promise<PropertyUnit | undefined>;
   getPropertyUnitPublic(id: string): Promise<(PropertyUnit & { property: Property }) | undefined>;
+  getUnitByFacebookListingId(facebookListingId: string, orgId: string): Promise<(PropertyUnit & { propertyId: string }) | undefined>;
   createPropertyUnit(unit: InsertPropertyUnit): Promise<PropertyUnit>;
   updatePropertyUnit(id: string, unit: Partial<InsertPropertyUnit>, orgId: string): Promise<PropertyUnit | undefined>;
   updatePropertyUnitDisplayOrder(id: string, displayOrder: number, orgId: string): Promise<PropertyUnit | undefined>;
@@ -100,13 +102,15 @@ export interface IStorage {
   deleteLeadsByIds(leadIds: string[]): Promise<number>;
 
   // Conversation operations
-  getConversationsByLeadId(leadId: string): Promise<Conversation[]>;
+  getConversationsByLeadId(leadId: string, orgId?: string): Promise<Conversation[]>;
   getConversationByExternalId(externalId: string): Promise<Conversation | undefined>;
+  getDuplicateConversation(leadId: string, message: string, timestamp: Date): Promise<Conversation | undefined>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
 
   // Note operations
   getNotesByLeadId(leadId: string): Promise<Note[]>;
   createNote(note: InsertNote): Promise<Note>;
+  deleteNote(noteId: string): Promise<boolean>;
 
   // AI Settings operations
   getAISettings(category: string, orgId: string): Promise<AISetting[]>;
@@ -135,8 +139,9 @@ export interface IStorage {
   // Pending Reply operations
   getAllPendingReplies(orgId: string): Promise<PendingReply[]>;
   getPendingReply(id: string, orgId: string): Promise<PendingReply | undefined>;
-  createPendingReply(reply: InsertPendingReply): Promise<PendingReply>;
+  createPendingReply(reply: InsertPendingReply & { orgId: string }): Promise<PendingReply>;
   updatePendingReplyStatus(id: string, status: string, orgId: string): Promise<PendingReply | undefined>;
+  updatePendingReply(id: string, updates: Partial<InsertPendingReply>, orgId: string): Promise<PendingReply | undefined>;
   deletePendingReply(id: string, orgId: string): Promise<boolean>;
 
   // Calendar Connection operations
@@ -189,9 +194,7 @@ export interface IStorage {
 
   // Demo Request operations
   getAllDemoRequests(): Promise<DemoRequest[]>;
-  getDemoRequestByEmail(email: string): Promise<DemoRequest | undefined>;
   createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest>;
-  updateDemoRequest(id: string, request: Partial<InsertDemoRequest>): Promise<DemoRequest | undefined>;
 
   // Appointment operations
   getAllAppointments(): Promise<Appointment[]>;
@@ -486,8 +489,10 @@ export class DatabaseStorage implements IStorage {
     .innerJoin(organizations, eq(memberships.orgId, organizations.id))
     .where(and(
       eq(memberships.userId, userId),
+      eq(memberships.status, 'active'), // CRITICAL: Only return active memberships
       isNull(organizations.deletedAt) // Exclude deleted organizations
     ))
+    .orderBy(desc(sql`CASE WHEN ${memberships.role} = 'owner' THEN 1 WHEN ${memberships.role} = 'admin' THEN 2 ELSE 3 END`)) // Prefer owner/admin roles
     .limit(1);
     return result[0];
   }
@@ -981,15 +986,35 @@ export class DatabaseStorage implements IStorage {
         };
 
         // Enrich each unit with booking type information
-        // Only show units that have booking enabled (either manually created or auto-created via isListed=true)
+        // Show units that have booking type configuration (custom or property-level), even if booking is disabled
+        // This ensures users can always see and manage booking types, even when they're temporarily disabled
         const enrichedUnits = units
           .filter((unit) => {
-            // Show units that have bookingEnabled=true OR have custom booking settings
-            // This includes both manually created booking types and auto-created ones from isListed=true
+            // Show units that have:
+            // 1. bookingEnabled=true (active booking)
+            // 2. Custom booking settings exist (hasCustomBookingType flag or any custom field)
+            // 3. Property-level booking settings exist (property has scheduling settings configured)
+            // 4. Unit is listed (isListed=true) - allows creating new booking types
+            const hasCustomSettings = unit.hasCustomBookingType === true ||
+                                     unit.customEventName !== null || 
+                                     unit.customBookingMode !== null ||
+                                     unit.customEventDuration !== null ||
+                                     unit.customEventDescription !== null ||
+                                     unit.customAssignedMembers !== null ||
+                                     unit.customBufferTime !== null ||
+                                     unit.customLeadTime !== null;
+            const hasPropertyLevelSettings = settings && settings.length > 0 && settings[0] && (
+              (settings[0].eventName !== null && settings[0].eventName !== undefined) ||
+              (settings[0].bookingMode !== null && settings[0].bookingMode !== undefined) ||
+              (settings[0].eventDuration !== null && settings[0].eventDuration !== undefined)
+            );
+            
+            // Show unit if it has active booking, custom settings, property-level settings, OR is listed
+            // This ensures units remain visible even when booking is disabled, so users can re-enable or create new booking types
             return unit.bookingEnabled === true || 
-                   unit.customEventName !== null || 
-                   unit.customBookingMode !== null ||
-                   unit.customEventDuration !== null;
+                   hasCustomSettings ||
+                   hasPropertyLevelSettings ||
+                   unit.isListed === true;
           })
           .map((unit) => {
             // If booking type was explicitly deleted, don't show any booking type
@@ -1018,11 +1043,20 @@ export class DatabaseStorage implements IStorage {
             };
           });
         
+        // Check if any listing for this property has acceptBookings: false
+        const propertyListings = await db.select().from(listings)
+          .where(and(
+            eq(listings.propertyId, property.id),
+            eq(listings.orgId, orgId)
+          ));
+        const hasListingsWithBookingsDisabled = propertyListings.some(listing => listing.acceptBookings === false);
+        
         return {
           ...property,
           listedUnits: enrichedUnits, // Renamed from listedUnits but keeping name for API compatibility
           bookingEnabled: settings[0]?.bookingEnabled,
-          hasSchedulingSettings: settings.length > 0
+          hasSchedulingSettings: settings.length > 0,
+          hasListingsWithBookingsDisabled // Flag to indicate if any listing has acceptBookings: false
         };
       })
     );
@@ -1105,44 +1139,70 @@ export class DatabaseStorage implements IStorage {
   async getPropertyUnitPublic(id: string): Promise<(PropertyUnit & { property: Property }) | undefined> {
     console.log("[Storage] getPropertyUnitPublic called with unitId:", id);
     
-    // Get the unit first
-    const unitResult = await db.select().from(propertyUnits)
+    // OPTIMIZED: Use JOIN to fetch unit and property in a single query
+    const result = await db
+      .select({
+        unit: propertyUnits,
+        property: properties,
+      })
+      .from(propertyUnits)
+      .innerJoin(properties, eq(propertyUnits.propertyId, properties.id))
       .where(eq(propertyUnits.id, id))
       .limit(1);
     
-    if (!unitResult[0]) {
+    if (!result[0]) {
       console.log("[Storage] Unit not found:", id);
       return undefined;
     }
     
-    const unit = unitResult[0];
-    console.log("[Storage] Unit found:", unit.unitNumber, "propertyId:", unit.propertyId);
-    
-    // Get the property details
-    const propertyResult = await db.select().from(properties)
-      .where(eq(properties.id, unit.propertyId))
-      .limit(1);
-    
-    if (!propertyResult[0]) {
-      console.error("[Storage] Property not found for unit:", unit.id, "propertyId:", unit.propertyId);
-      return undefined;
-    }
-    
-    console.log("[Storage] Property found:", propertyResult[0].name);
+    const { unit, property } = result[0];
+    console.log("[Storage] Unit and property found in single query:", unit.unitNumber, property.name);
     
     return {
       ...unit,
-      property: propertyResult[0]
+      property
     };
+  }
+
+  async getUnitByFacebookListingId(facebookListingId: string, orgId: string): Promise<(PropertyUnit & { propertyId: string }) | undefined> {
+    console.log("[Storage] getUnitByFacebookListingId called:", { facebookListingId, orgId });
+    
+    // Join listings -> property_units to find the unit
+    const result = await db
+      .select({
+        unit: propertyUnits,
+      })
+      .from(listings)
+      .innerJoin(propertyUnits, eq(listings.unitId, propertyUnits.id))
+      .where(and(
+        eq(listings.facebookListingId, facebookListingId),
+        eq(listings.orgId, orgId)
+      ))
+      .limit(1);
+    
+    if (!result[0]) {
+      console.log("[Storage] No unit found for Facebook listing ID:", facebookListingId);
+      return undefined;
+    }
+    
+    console.log("[Storage] Found unit for Facebook listing:", result[0].unit.unitNumber, "property:", result[0].unit.propertyId);
+    return result[0].unit;
   }
 
   async createPropertyUnit(unit: InsertPropertyUnit): Promise<PropertyUnit> {
     console.log("[Storage] Creating property unit with data:", unit);
     console.log("[Storage] Inserting into propertyUnits table (NOT properties table)");
     const result = await db.insert(propertyUnits).values(unit).returning();
-    console.log("[Storage] Unit created successfully:", result[0]);
-    console.log("[Storage] Created unit has propertyId:", result[0].propertyId, "unitNumber:", result[0].unitNumber);
-    return result[0];
+    const created = result[0];
+    console.log("[Storage] Unit created successfully:", created);
+    console.log("[Storage] Created unit has propertyId:", created.propertyId, "unitNumber:", created.unitNumber);
+    // Sync property.units count with actual unit count (ensures count is correct regardless of creation path)
+    if (created?.propertyId && unit.orgId) {
+      const units = await this.getAllUnitsByProperty(created.propertyId, unit.orgId);
+      await this.updateProperty(created.propertyId, { units: units.length }, unit.orgId);
+      console.log("[Storage] Synced property.units to:", units.length);
+    }
+    return created;
   }
 
   async updatePropertyUnit(id: string, unitData: Partial<InsertPropertyUnit>, orgId: string): Promise<PropertyUnit | undefined> {
@@ -1188,9 +1248,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePropertyUnit(id: string, orgId: string): Promise<boolean> {
+    const existing = await this.getPropertyUnit(id, orgId);
     const result = await db.delete(propertyUnits)
       .where(and(eq(propertyUnits.id, id), eq(propertyUnits.orgId, orgId)))
       .returning();
+    if (result.length > 0 && existing?.propertyId) {
+      const units = await this.getAllUnitsByProperty(existing.propertyId, orgId);
+      await this.updateProperty(existing.propertyId, { units: units.length }, orgId);
+      console.log("[Storage] Synced property.units to:", units.length, "after unit delete");
+    }
     return result.length > 0;
   }
 
@@ -1296,10 +1362,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteLead(id: string, orgId: string): Promise<boolean> {
-    // Delete related data first (conversations, notes, pending replies)
+    // Delete related data first - order matters due to foreign keys
+    // autopilot_activity_logs references both leadId and conversationId - delete first
+    await db.delete(autopilotActivityLogs).where(eq(autopilotActivityLogs.leadId, id));
     await db.delete(conversations).where(eq(conversations.leadId, id));
     await db.delete(notes).where(eq(notes.leadId, id));
     await db.delete(pendingReplies).where(eq(pendingReplies.leadId, id));
+    // Delete showings and booking_idempotency — they reference the lead
+    await db.delete(bookingIdempotency).where(eq(bookingIdempotency.leadId, id));
+    await db.delete(showings).where(eq(showings.leadId, id));
+    await db.delete(leadQualifications).where(eq(leadQualifications.leadId, id));
     
     const result = await db.delete(leads).where(and(eq(leads.id, id), eq(leads.orgId, orgId))).returning();
     return result.length > 0;
@@ -1359,28 +1431,58 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Conversation operations
-  async getConversationsByLeadId(leadId: string): Promise<Conversation[]> {
+  async getConversationsByLeadId(leadId: string, orgId?: string): Promise<Conversation[]> {
     // Use raw SQL to properly format timestamps with UTC timezone
-    const result = await db.execute(sql`
-      SELECT 
-        id,
-        lead_id,
-        type,
-        channel,
-        message,
-        ai_generated,
-        external_id,
-        gmail_message_id,
-        email_message_id,
-        email_subject,
-        source_integration,
-        delivery_status,
-        delivery_error,
-        to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
-      FROM conversations
-      WHERE lead_id = ${leadId}
-      ORDER BY created_at ASC
-    `);
+    // CRITICAL: Join with leads table to verify orgId if provided (multi-tenancy security)
+    let query;
+    if (orgId) {
+      query = sql`
+        SELECT 
+          c.id,
+          c.lead_id,
+          c.type,
+          c.channel,
+          c.message,
+          c.ai_generated,
+          c.external_id,
+          c.gmail_message_id,
+          c.email_message_id,
+          c.email_subject,
+          c.source_integration,
+          c.delivery_status,
+          c.delivery_error,
+          to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
+        FROM conversations c
+        INNER JOIN leads l ON c.lead_id = l.id
+        WHERE c.lead_id = ${leadId}
+          AND l.org_id = ${orgId}
+        ORDER BY c.created_at ASC
+      `;
+    } else {
+      // Fallback for backward compatibility (should be avoided in production)
+      query = sql`
+        SELECT 
+          id,
+          lead_id,
+          type,
+          channel,
+          message,
+          ai_generated,
+          external_id,
+          gmail_message_id,
+          email_message_id,
+          email_subject,
+          source_integration,
+          delivery_status,
+          delivery_error,
+          to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at
+        FROM conversations
+        WHERE lead_id = ${leadId}
+        ORDER BY created_at ASC
+      `;
+    }
+    
+    const result = await db.execute(query);
     
     // Map snake_case to camelCase
     return result.rows.map((row: any) => ({
@@ -1406,6 +1508,74 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getDuplicateConversation(leadId: string, message: string, timestamp: Date): Promise<Conversation | undefined> {
+    // Check for duplicate messages by:
+    // 1. Same lead_id
+    // 2. Same normalized message content (trimmed, lowercased)
+    // 3. Same timestamp (within 1 minute window - for polling time)
+    // This prevents duplicate messages from being stored when polling runs multiple times
+    // The timestamp represents when the message was polled into the database (created_at)
+    const normalizedMessage = message.trim().toLowerCase();
+    
+    // Create a 1-minute window around the timestamp for matching
+    // This accounts for messages polled at slightly different times but within the same polling run
+    const timestampStart = new Date(timestamp);
+    timestampStart.setSeconds(0, 0); // Round down to start of minute
+    timestampStart.setMilliseconds(0);
+    
+    const timestampEnd = new Date(timestampStart);
+    timestampEnd.setSeconds(59, 999); // Round up to end of minute
+    
+    // Use raw SQL to check for duplicates with timestamp range and normalized message
+    // Check conversations created within the same minute with the same content
+    const result = await db.execute(sql`
+      SELECT 
+        id,
+        lead_id,
+        type,
+        channel,
+        message,
+        ai_generated,
+        external_id,
+        gmail_message_id,
+        email_message_id,
+        email_subject,
+        source_integration,
+        delivery_status,
+        delivery_error,
+        created_at
+      FROM conversations
+      WHERE lead_id = ${leadId}
+        AND channel = 'facebook'
+        AND LOWER(TRIM(message)) = ${normalizedMessage}
+        AND DATE_TRUNC('minute', created_at) = DATE_TRUNC('minute', ${timestamp.toISOString()}::timestamp)
+      LIMIT 1
+    `);
+    
+    if (result.rows.length === 0) {
+      return undefined;
+    }
+    
+    // Map the result to Conversation type
+    const row = result.rows[0] as any;
+    return {
+      id: row.id,
+      leadId: row.lead_id,
+      type: row.type,
+      channel: row.channel,
+      message: row.message,
+      aiGenerated: row.ai_generated,
+      externalId: row.external_id,
+      gmailMessageId: row.gmail_message_id,
+      emailMessageId: row.email_message_id,
+      emailSubject: row.email_subject,
+      sourceIntegration: row.source_integration,
+      deliveryStatus: row.delivery_status,
+      deliveryError: row.delivery_error,
+      createdAt: row.created_at,
+    } as Conversation;
+  }
+
   async createConversation(conversation: InsertConversation): Promise<Conversation> {
     const result = await db.insert(conversations).values(conversation).returning();
     return result[0];
@@ -1419,6 +1589,11 @@ export class DatabaseStorage implements IStorage {
   async createNote(note: InsertNote): Promise<Note> {
     const result = await db.insert(notes).values(note).returning();
     return result[0];
+  }
+
+  async deleteNote(noteId: string): Promise<boolean> {
+    const result = await db.delete(notes).where(eq(notes.id, noteId)).returning();
+    return result.length > 0;
   }
 
   // AI Settings operations
@@ -1578,55 +1753,112 @@ export class DatabaseStorage implements IStorage {
 
   // Pending Reply operations (tenant-scoped through lead relationship)
   async getAllPendingReplies(orgId: string): Promise<PendingReply[]> {
-    return db.select({ 
-      id: pendingReplies.id,
-      leadId: pendingReplies.leadId,
-      leadName: pendingReplies.leadName,
-      leadEmail: pendingReplies.leadEmail,
-      subject: pendingReplies.subject,
-      content: pendingReplies.content,
-      originalMessage: pendingReplies.originalMessage,
-      channel: pendingReplies.channel,
-      status: pendingReplies.status,
-      threadId: pendingReplies.threadId,
-      inReplyTo: pendingReplies.inReplyTo,
-      references: pendingReplies.references,
-      createdAt: pendingReplies.createdAt,
-      approvedAt: pendingReplies.approvedAt,
-    })
-      .from(pendingReplies)
-      .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
-      .where(eq(leads.orgId, orgId))
-      .orderBy(desc(pendingReplies.createdAt));
+    // Try to use orgId column directly if it exists, otherwise fall back to join
+    try {
+      return db.select()
+        .from(pendingReplies)
+        .where(eq(pendingReplies.orgId, orgId))
+        .orderBy(desc(pendingReplies.createdAt));
+    } catch (error: any) {
+      // Fallback: if orgId column doesn't exist yet, use join with leads
+      if (error.code === '42703' || error.message?.includes('org_id')) {
+        return db.select({ 
+          id: pendingReplies.id,
+          leadId: pendingReplies.leadId,
+          leadName: pendingReplies.leadName,
+          leadEmail: pendingReplies.leadEmail,
+          subject: pendingReplies.subject,
+          content: pendingReplies.content,
+          originalMessage: pendingReplies.originalMessage,
+          channel: pendingReplies.channel,
+          status: pendingReplies.status,
+          threadId: pendingReplies.threadId,
+          inReplyTo: pendingReplies.inReplyTo,
+          references: pendingReplies.references,
+          createdAt: pendingReplies.createdAt,
+          approvedAt: pendingReplies.approvedAt,
+        })
+          .from(pendingReplies)
+          .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
+          .where(eq(leads.orgId, orgId))
+          .orderBy(desc(pendingReplies.createdAt));
+      }
+      throw error;
+    }
   }
 
   async getPendingReply(id: string, orgId: string): Promise<PendingReply | undefined> {
-    const result = await db.select({
-      id: pendingReplies.id,
-      leadId: pendingReplies.leadId,
-      leadName: pendingReplies.leadName,
-      leadEmail: pendingReplies.leadEmail,
-      subject: pendingReplies.subject,
-      content: pendingReplies.content,
-      originalMessage: pendingReplies.originalMessage,
-      channel: pendingReplies.channel,
-      status: pendingReplies.status,
-      threadId: pendingReplies.threadId,
-      inReplyTo: pendingReplies.inReplyTo,
-      references: pendingReplies.references,
-      createdAt: pendingReplies.createdAt,
-      approvedAt: pendingReplies.approvedAt,
-    })
-      .from(pendingReplies)
-      .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
-      .where(and(eq(pendingReplies.id, id), eq(leads.orgId, orgId)))
-      .limit(1);
-    return result[0];
+    // Try to use orgId column directly if it exists, otherwise fall back to join
+    try {
+      const result = await db.select()
+        .from(pendingReplies)
+        .where(and(eq(pendingReplies.id, id), eq(pendingReplies.orgId, orgId)))
+        .limit(1);
+      return result[0];
+    } catch (error: any) {
+      // Fallback: if orgId column doesn't exist yet, use join with leads
+      if (error.code === '42703' || error.message?.includes('org_id')) {
+        const result = await db.select({
+          id: pendingReplies.id,
+          leadId: pendingReplies.leadId,
+          leadName: pendingReplies.leadName,
+          leadEmail: pendingReplies.leadEmail,
+          subject: pendingReplies.subject,
+          content: pendingReplies.content,
+          originalMessage: pendingReplies.originalMessage,
+          channel: pendingReplies.channel,
+          status: pendingReplies.status,
+          threadId: pendingReplies.threadId,
+          inReplyTo: pendingReplies.inReplyTo,
+          references: pendingReplies.references,
+          createdAt: pendingReplies.createdAt,
+          approvedAt: pendingReplies.approvedAt,
+        })
+          .from(pendingReplies)
+          .innerJoin(leads, eq(pendingReplies.leadId, leads.id))
+          .where(and(eq(pendingReplies.id, id), eq(leads.orgId, orgId)))
+          .limit(1);
+        return result[0];
+      }
+      throw error;
+    }
   }
 
-  async createPendingReply(reply: InsertPendingReply): Promise<PendingReply> {
-    const result = await db.insert(pendingReplies).values(reply).returning();
-    return result[0];
+  async createPendingReply(reply: InsertPendingReply & { orgId: string }): Promise<PendingReply> {
+    // Extract metadata separately in case the column doesn't exist in the database
+    const { metadata, ...replyWithoutMetadata } = reply as any;
+    const insertData: any = { ...replyWithoutMetadata };
+    
+    // Ensure orgId is set (required for multi-tenancy)
+    if (!insertData.orgId) {
+      throw new Error('orgId is required when creating pending reply');
+    }
+    
+    // Only include metadata if it's provided (and column exists)
+    // If metadata column doesn't exist, it will be silently ignored
+    try {
+      if (metadata !== undefined) {
+        insertData.metadata = metadata;
+      }
+      const result = await db.insert(pendingReplies).values(insertData).returning();
+      return result[0];
+    } catch (error: any) {
+      // If error is about metadata or orgId column not existing, handle gracefully
+      if (error.code === '42703') {
+        if (error.message?.includes('metadata')) {
+          console.warn('[Storage] metadata column not found in pending_replies table, inserting without metadata');
+          const result = await db.insert(pendingReplies).values(replyWithoutMetadata).returning();
+          return result[0];
+        } else if (error.message?.includes('org_id')) {
+          // If orgId column doesn't exist yet, insert without it (migration will add it)
+          console.warn('[Storage] org_id column not found in pending_replies table, inserting without orgId (will be fixed by migration)');
+          const { orgId, ...replyWithoutOrgId } = insertData;
+          const result = await db.insert(pendingReplies).values(replyWithoutOrgId).returning();
+          return result[0];
+        }
+      }
+      throw error;
+    }
   }
 
   async updatePendingReplyStatus(id: string, status: string, orgId: string): Promise<PendingReply | undefined> {
@@ -1634,26 +1866,84 @@ export class DatabaseStorage implements IStorage {
     if (status === 'approved' || status === 'sent') {
       updates.approvedAt = new Date();
     }
-    const result = await db.update(pendingReplies)
-      .set(updates)
-      .from(leads)
-      .where(and(
-        eq(pendingReplies.id, id),
-        eq(pendingReplies.leadId, leads.id),
-        eq(leads.orgId, orgId)
-      ))
-      .returning();
-    return result[0];
+    // Try to use orgId column directly if it exists, otherwise fall back to join
+    try {
+      const result = await db.update(pendingReplies)
+        .set(updates)
+        .where(and(
+          eq(pendingReplies.id, id),
+          eq(pendingReplies.orgId, orgId)
+        ))
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      // Fallback: if orgId column doesn't exist yet, use join with leads
+      if (error.code === '42703' || error.message?.includes('org_id')) {
+        const result = await db.update(pendingReplies)
+          .set(updates)
+          .from(leads)
+          .where(and(
+            eq(pendingReplies.id, id),
+            eq(pendingReplies.leadId, leads.id),
+            eq(leads.orgId, orgId)
+          ))
+          .returning();
+        return result[0];
+      }
+      throw error;
+    }
+  }
+
+  async updatePendingReply(id: string, updates: Partial<InsertPendingReply>, orgId: string): Promise<PendingReply | undefined> {
+    // Try to use orgId column directly if it exists, otherwise fall back to join
+    try {
+      const result = await db.update(pendingReplies)
+        .set(updates)
+        .where(and(
+          eq(pendingReplies.id, id),
+          eq(pendingReplies.orgId, orgId)
+        ))
+        .returning();
+      return result[0];
+    } catch (error: any) {
+      // Fallback: if orgId column doesn't exist yet, use join with leads
+      if (error.code === '42703' || error.message?.includes('org_id')) {
+        const result = await db.update(pendingReplies)
+          .set(updates)
+          .where(and(
+            eq(pendingReplies.id, id),
+            inArray(pendingReplies.leadId, db.select({ id: leads.id }).from(leads).where(eq(leads.orgId, orgId)))
+          ))
+          .returning();
+        return result[0];
+      }
+      throw error;
+    }
   }
 
   async deletePendingReply(id: string, orgId: string): Promise<boolean> {
-    const result = await db.delete(pendingReplies)
-      .where(and(
-        eq(pendingReplies.id, id),
-        sql`${pendingReplies.leadId} IN (SELECT id FROM ${leads} WHERE ${leads.orgId} = ${orgId})`
-      ))
-      .returning();
-    return result.length > 0;
+    // Try to use orgId column directly if it exists, otherwise fall back to join
+    try {
+      const result = await db.delete(pendingReplies)
+        .where(and(
+          eq(pendingReplies.id, id),
+          eq(pendingReplies.orgId, orgId)
+        ))
+        .returning();
+      return result.length > 0;
+    } catch (error: any) {
+      // Fallback: if orgId column doesn't exist yet, use join with leads
+      if (error.code === '42703' || error.message?.includes('org_id')) {
+        const result = await db.delete(pendingReplies)
+          .where(and(
+            eq(pendingReplies.id, id),
+            sql`${pendingReplies.leadId} IN (SELECT id FROM ${leads} WHERE ${leads.orgId} = ${orgId})`
+          ))
+          .returning();
+        return result.length > 0;
+      }
+      throw error;
+    }
   }
 
   // Calendar Connection operations
@@ -2072,24 +2362,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(demoRequests).orderBy(desc(demoRequests.createdAt));
   }
 
-  async getDemoRequestByEmail(email: string): Promise<DemoRequest | undefined> {
-    const result = await db.select().from(demoRequests)
-      .where(eq(demoRequests.email, email))
-      .orderBy(desc(demoRequests.createdAt))
-      .limit(1);
-    return result[0];
-  }
-
   async createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest> {
     const result = await db.insert(demoRequests).values(request).returning();
-    return result[0];
-  }
-
-  async updateDemoRequest(id: string, request: Partial<InsertDemoRequest>): Promise<DemoRequest | undefined> {
-    const result = await db.update(demoRequests)
-      .set(request)
-      .where(eq(demoRequests.id, id))
-      .returning();
     return result[0];
   }
 
@@ -2292,18 +2566,48 @@ export class DatabaseStorage implements IStorage {
     bookingEnabled?: boolean; 
     customEventName?: string | null; 
     customEventDescription?: string | null; 
-    customAssignedMembers?: any | null;
-    customPreferredTimes?: any | null;
-    customBookingMode?: string | null;
-    customEventDuration?: number | null;
-    customBufferTime?: number | null;
-    customLeadTime?: number | null;
-    customReminderSettings?: any | null;
+    customAssignedMembers?: any | null; 
+    customPreferredTimes?: any | null; 
+    customBookingMode?: string | null; 
+    customEventDuration?: number | null; 
+    customBufferTime?: number | null; 
+    customLeadTime?: number | null; 
+    customReminderSettings?: any | null; 
   }, orgId: string): Promise<PropertyUnit | undefined> {
     // Fetch current unit to compute final state after update
     const currentUnit = await this.getUnitSchedulingSettings(unitId, orgId);
     if (!currentUnit) {
       throw new Error("Unit not found");
+    }
+    
+    // Get the unit to find its propertyId
+    const unit = await db.select({ propertyId: propertyUnits.propertyId })
+      .from(propertyUnits)
+      .where(and(
+        eq(propertyUnits.id, unitId),
+        eq(propertyUnits.orgId, orgId)
+      ))
+      .limit(1);
+    
+    if (unit.length === 0) {
+      throw new Error("Unit not found");
+    }
+    
+    const propertyId = unit[0].propertyId;
+    
+    // If enabling booking for this unit, disable booking for all other units in the same property
+    if (settings.bookingEnabled === true) {
+      await db.update(propertyUnits)
+        .set({ 
+          bookingEnabled: false,
+          updatedAt: new Date() 
+        })
+        .where(and(
+          eq(propertyUnits.propertyId, propertyId),
+          eq(propertyUnits.orgId, orgId),
+          ne(propertyUnits.id, unitId) // Exclude the current unit
+        ));
+      console.log(`[Unit Scheduling] Disabled booking for all other units in property ${propertyId} when enabling booking for unit ${unitId}`);
     }
     
     // Compute final state: what will be in DB after applying this update
@@ -2537,8 +2841,13 @@ export class DatabaseStorage implements IStorage {
       unitUpdateData.updatedAt = new Date();
       
       // Only include bookingEnabled if it's being set
+      // If unit has a listing with acceptBookings: false, always set bookingEnabled: false (booking type disabled until listing enables it)
       if (updateData.bookingEnabled !== undefined) {
-        unitUpdateData.bookingEnabled = updateData.bookingEnabled;
+        const listing = await this.getListingByUnit(unit.id, orgId);
+        const effectiveBookingEnabled = listing && listing.acceptBookings === false 
+          ? false 
+          : updateData.bookingEnabled;
+        unitUpdateData.bookingEnabled = effectiveBookingEnabled;
       }
       
       await db.update(propertyUnits)
@@ -2552,6 +2861,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async togglePropertyBooking(propertyId: string, enabled: boolean, orgId: string): Promise<PropertySchedulingSettings | undefined> {
+    console.log(`[Storage] togglePropertyBooking: ===== Starting toggle for property ${propertyId} =====`);
+    console.log(`[Storage] togglePropertyBooking: enabled=${enabled}, orgId=${orgId}`);
+    
     // Update property-level booking toggle
     const result = await db.update(propertySchedulingSettings)
       .set({ bookingEnabled: enabled, updatedAt: new Date() })
@@ -2561,32 +2873,105 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     
-    // Cascade to all units with booking types: enable/disable all unit bookings when property booking is toggled
-    // When enabling: all units with booking types are enabled
-    // When disabling: all units with booking types are disabled (units cannot accept bookings when property is off)
-    // Update all units that either:
-    // 1. Are listed (isListed = true), OR
-    // 2. Have custom booking settings (hasCustomBookingType = true), OR
-    // 3. Have a custom event name (customEventName is not null)
-    // This ensures we catch all units that are part of the booking system
-    const updatedUnits = await db.update(propertyUnits)
-      .set({ bookingEnabled: enabled, updatedAt: new Date() })
-      .where(and(
-        eq(propertyUnits.propertyId, propertyId),
-        eq(propertyUnits.orgId, orgId),
-        or(
-          eq(propertyUnits.isListed, true),
-          eq(propertyUnits.hasCustomBookingType, true),
-          isNotNull(propertyUnits.customEventName)
-        )
-      ))
-      .returning();
+    console.log(`[Storage] togglePropertyBooking: Property-level booking ${enabled ? 'enabled' : 'disabled'}`);
     
-    console.log(`[Storage] togglePropertyBooking: Updated ${updatedUnits.length} units for property ${propertyId}, bookingEnabled=${enabled}`);
-    if (updatedUnits.length > 0) {
-      console.log(`[Storage] togglePropertyBooking: Updated unit IDs:`, updatedUnits.map(u => u.id));
+    // CRITICAL: When turning OFF booking at property level, disable booking for ALL units under that property
+    // When turning ON booking at property level, enable booking for all units that have booking types configured
+    if (!enabled) {
+      // When disabling: disable ALL units under this property (regardless of their current state)
+      // This includes units with custom booking settings (customEventName, customBookingMode, etc.)
+      const allUnitsBefore = await db.select().from(propertyUnits)
+        .where(and(
+          eq(propertyUnits.propertyId, propertyId),
+          eq(propertyUnits.orgId, orgId)
+        ));
+      
+      console.log(`[Storage] togglePropertyBooking: Found ${allUnitsBefore.length} total units for property ${propertyId}`);
+      
+      // Log units with booking types before disabling
+      const unitsWithBookingTypes = allUnitsBefore.filter(u => 
+        u.bookingEnabled === true || 
+        u.customEventName !== null || 
+        u.customBookingMode !== null ||
+        u.hasCustomBookingType === true
+      );
+      
+      if (unitsWithBookingTypes.length > 0) {
+        console.log(`[Storage] togglePropertyBooking: Found ${unitsWithBookingTypes.length} units with booking types to disable:`, 
+          unitsWithBookingTypes.map(u => ({
+            unitId: u.id,
+            unitNumber: u.unitNumber,
+            bookingEnabled: u.bookingEnabled,
+            hasCustomEventName: u.customEventName !== null,
+            hasCustomBookingMode: u.customBookingMode !== null,
+            hasCustomBookingType: u.hasCustomBookingType
+          }))
+        );
+      }
+      
+      // Disable booking for ALL units (don't delete custom settings, just disable bookingEnabled)
+      const updatedUnits = await db.update(propertyUnits)
+        .set({ bookingEnabled: false, updatedAt: new Date() })
+        .where(and(
+          eq(propertyUnits.propertyId, propertyId),
+          eq(propertyUnits.orgId, orgId)
+        ))
+        .returning();
+      
+      console.log(`[Storage] togglePropertyBooking: ✅ Disabled booking for ALL ${updatedUnits.length} units under property ${propertyId}`);
+      if (updatedUnits.length > 0) {
+        console.log(`[Storage] togglePropertyBooking: Disabled unit details:`, 
+          updatedUnits.map(u => ({
+            unitId: u.id,
+            unitNumber: u.unitNumber || 'N/A',
+            bookingEnabled: u.bookingEnabled, // Should be false
+            customEventName: u.customEventName, // Preserved (not deleted)
+            customBookingMode: u.customBookingMode // Preserved (not deleted)
+          }))
+        );
+      }
+      
+      // Verify all units are disabled
+      const allUnitsAfter = await db.select().from(propertyUnits)
+        .where(and(
+          eq(propertyUnits.propertyId, propertyId),
+          eq(propertyUnits.orgId, orgId)
+        ));
+      
+      const stillEnabled = allUnitsAfter.filter(u => u.bookingEnabled === true);
+      if (stillEnabled.length > 0) {
+        console.error(`[Storage] togglePropertyBooking: ⚠️ WARNING: ${stillEnabled.length} units still have bookingEnabled=true after disable operation!`);
+        console.error(`[Storage] togglePropertyBooking: Units still enabled:`, stillEnabled.map(u => ({ id: u.id, unitNumber: u.unitNumber })));
+      } else {
+        console.log(`[Storage] togglePropertyBooking: ✅ Verified: All ${allUnitsAfter.length} units are now disabled`);
+      }
+    } else {
+      // When enabling: enable all units that have booking types configured
+      // Update all units that either:
+      // 1. Are listed (isListed = true), OR
+      // 2. Have custom booking settings (hasCustomBookingType = true), OR
+      // 3. Have a custom event name (customEventName is not null)
+      // This ensures we catch all units that are part of the booking system
+      const updatedUnits = await db.update(propertyUnits)
+        .set({ bookingEnabled: true, updatedAt: new Date() })
+        .where(and(
+          eq(propertyUnits.propertyId, propertyId),
+          eq(propertyUnits.orgId, orgId),
+          or(
+            eq(propertyUnits.isListed, true),
+            eq(propertyUnits.hasCustomBookingType, true),
+            isNotNull(propertyUnits.customEventName)
+          )
+        ))
+        .returning();
+      
+      console.log(`[Storage] togglePropertyBooking: ✅ Enabled booking for ${updatedUnits.length} units with booking types under property ${propertyId}`);
+      if (updatedUnits.length > 0) {
+        console.log(`[Storage] togglePropertyBooking: Enabled unit IDs:`, updatedUnits.map(u => `${u.unitNumber} (${u.id})`));
+      }
     }
     
+    console.log(`[Storage] togglePropertyBooking: ===== Toggle complete =====`);
     return result[0];
   }
 
@@ -3135,6 +3520,7 @@ export class DatabaseStorage implements IStorage {
       // Get invitation
       const invitation = await this.getInvitationByToken(token);
       if (!invitation || invitation.status !== 'pending') {
+        console.log(`[Accept Invitation] Invalid or non-pending invitation for token`);
         return null;
       }
 
@@ -3143,14 +3529,19 @@ export class DatabaseStorage implements IStorage {
         await db.update(invitations)
           .set({ status: 'expired' })
           .where(eq(invitations.id, invitation.id));
+        console.log(`[Accept Invitation] Invitation expired`);
         return null;
       }
+
+      // CRITICAL: Only create membership for the specific orgId from the invitation
+      // This ensures users only get access to the organization they were invited to
+      console.log(`[Accept Invitation] Creating membership for user ${userId} in org ${invitation.orgId} only (invited org)`);
 
       // Create or update membership
       const existingMembership = await db.select().from(memberships)
         .where(and(
           eq(memberships.userId, userId),
-          eq(memberships.orgId, invitation.orgId)
+          eq(memberships.orgId, invitation.orgId) // ONLY the org from the invitation
         ))
         .limit(1);
 
@@ -3166,15 +3557,17 @@ export class DatabaseStorage implements IStorage {
           .where(eq(memberships.id, existingMembership[0].id))
           .returning();
         membership = updated[0];
+        console.log(`[Accept Invitation] Updated existing membership for user ${userId} in org ${invitation.orgId}`);
       } else {
-        // Create new membership
+        // Create new membership - ONLY for the invitation's orgId
         const created = await db.insert(memberships).values({
           userId,
-          orgId: invitation.orgId,
+          orgId: invitation.orgId, // CRITICAL: Only the org from the invitation
           role: invitation.role,
           status: 'active',
         }).returning();
         membership = created[0];
+        console.log(`[Accept Invitation] Created new membership for user ${userId} in org ${invitation.orgId}`);
       }
 
       // Mark invitation as accepted
@@ -3187,9 +3580,10 @@ export class DatabaseStorage implements IStorage {
         .set({ currentOrgId: invitation.orgId })
         .where(eq(users.id, userId));
 
+      console.log(`[Accept Invitation] ✅ Successfully accepted invitation - user ${userId} now has access ONLY to org ${invitation.orgId}`);
       return membership;
     } catch (error) {
-      console.error('Error accepting invitation:', error);
+      console.error('[Accept Invitation] ❌ Error accepting invitation:', error);
       return null;
     }
   }
@@ -3686,6 +4080,41 @@ export class DatabaseStorage implements IStorage {
       ))
       .returning();
     return result.length > 0;
+  }
+
+  // Auto-pilot activity logs
+  async createAutopilotActivityLog(orgId: string, log: InsertAutopilotActivityLog): Promise<AutopilotActivityLog | null> {
+    try {
+      const result = await db.insert(autopilotActivityLogs).values({
+        ...log,
+        orgId,
+      }).returning();
+      return result[0];
+    } catch (error: any) {
+      // Gracefully handle if table doesn't exist yet
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        console.warn('[Storage] autopilot_activity_logs table does not exist yet, skipping log save');
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getAutopilotActivityLogs(orgId: string, limit: number = 100): Promise<AutopilotActivityLog[]> {
+    try {
+      return db.select()
+        .from(autopilotActivityLogs)
+        .where(eq(autopilotActivityLogs.orgId, orgId))
+        .orderBy(desc(autopilotActivityLogs.createdAt))
+        .limit(limit);
+    } catch (error: any) {
+      // Gracefully handle if table doesn't exist yet
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        console.warn('[Storage] autopilot_activity_logs table does not exist yet, returning empty array');
+        return [];
+      }
+      throw error;
+    }
   }
 }
 

@@ -67,7 +67,9 @@ function DraggableLeadCard({ lead, onLeadClick }: { lead: PipelineLead; onLeadCl
       <div className="space-y-1">
         <h4 className="text-sm font-medium">{lead.name}</h4>
         <p className="text-xs text-muted-foreground">{lead.property}</p>
-        <p className="text-xs font-medium text-status-success">{lead.value}</p>
+        {lead.value && (
+          <p className="text-xs font-medium text-status-success">{lead.value}</p>
+        )}
       </div>
     </Card>
   );
@@ -194,7 +196,9 @@ export function LeadPipeline({ stages, onLeadStatusChange, onLeadClick }: LeadPi
             <div className="space-y-1">
               <h4 className="text-sm font-medium">{activeLead.name}</h4>
               <p className="text-xs text-muted-foreground">{activeLead.property}</p>
-              <p className="text-xs font-medium text-status-success">{activeLead.value}</p>
+              {activeLead.value && (
+                <p className="text-xs font-medium text-status-success">{activeLead.value}</p>
+              )}
             </div>
           </Card>
         ) : null}

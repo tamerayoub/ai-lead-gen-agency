@@ -57,9 +57,7 @@ export default function AISuggestions() {
 
   const approveMutation = useMutation({
     mutationFn: async (showingId: string) => {
-      return apiRequest(`/api/showings/${showingId}/approve`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/showings/${showingId}/approve`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/showings/ai-suggested"] });
@@ -84,9 +82,7 @@ export default function AISuggestions() {
 
   const rejectMutation = useMutation({
     mutationFn: async (showingId: string) => {
-      return apiRequest(`/api/showings/${showingId}/reject`, {
-        method: "POST",
-      });
+      return apiRequest("POST", `/api/showings/${showingId}/reject`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/showings/ai-suggested"] });

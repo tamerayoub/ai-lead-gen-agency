@@ -2,9 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import crypto from "crypto";
 import { storage } from "./storage";
-import { insertLeadSchema, insertPropertySchema, insertPropertyUnitSchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema, insertDemoRequestSchema, insertAppointmentSchema, insertShowingSchema, insertPropertySchedulingSettingsSchema, assignedMemberSchema, insertListingSchema, insertQualificationTemplateSchema, insertLeadQualificationSchema, insertQualificationSettingsSchema, qualificationQuestionSchema, type User, type Showing, type QualificationQuestion, type QualificationTemplate, type DemoRequest } from "@shared/schema";
+import { insertLeadSchema, insertPropertySchema, insertPropertyUnitSchema, insertConversationSchema, insertNoteSchema, insertAISettingSchema, insertIntegrationConfigSchema, insertPendingReplySchema, insertCalendarConnectionSchema, insertSchedulePreferenceSchema, insertZillowIntegrationSchema, insertZillowListingSchema, insertDemoRequestSchema, insertAppointmentSchema, insertShowingSchema, insertPropertySchedulingSettingsSchema, assignedMemberSchema, insertListingSchema, insertQualificationTemplateSchema, insertLeadQualificationSchema, insertQualificationSettingsSchema, qualificationQuestionSchema, type User, type Showing, type QualificationQuestion, type QualificationTemplate } from "@shared/schema";
 import { getGmailAuthUrl, getGmailTokensFromCode, listMessages, getMessage, sendReply, getGmailUserEmail } from "./gmail";
-import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, getUserProfile, refreshOutlookToken } from "./outlook";
+import { getOutlookAuthUrl, getOutlookTokensFromCode, listOutlookMessages, getOutlookMessage, sendOutlookReply, sendOutlookEmail, getUserProfile, refreshOutlookToken } from "./outlook";
 import { parseMessengerWebhook, sendMessengerMessage, getMessengerUserProfile } from "./messenger";
 import { getFacebookAuthUrl, getFacebookTokensFromCode, getFacebookPages, getLongLivedPageAccessToken, subscribePage } from "./facebook";
 import { getCalendarAuthUrl, getCalendarTokensFromCode, listCalendars, listCalendarEvents, refreshCalendarToken, registerCalendarWebhook, stopCalendarWebhook, createOrUpdateCalendarEvent } from "./googleCalendar";
@@ -12,15 +12,18 @@ import { getAvailabilityContext } from "./calendarAvailability";
 import { cleanEmailBody, cleanEmailSubject } from "./emailUtils";
 import { normalizeEmailSubject } from "@shared/emailUtils";
 import { sendInvitationEmail } from "./emailService";
-import { sendDemoRequestNotification, sendQuickEmailNotification } from "./email";
+import { sendDemoRequestNotification } from "./email";
 import OpenAI from "openai";
 import authRouter from "./auth";
 import { gmailScanner } from "./gmailScanner";
 import { db } from "./db";
-import { zillowListings, properties, organizations, conversations, onboardingIntakes, showings, propertyUnits, leads, schedulePreferences, pendingSubscriptions, memberships, users } from "@shared/schema";
-import { eq, and, isNull, isNotNull, desc, sql } from "drizzle-orm";
+import { generateAIReplyV2 } from "./aiReplyGeneratorV2";
+import { zillowListings, properties, organizations, conversations, onboardingIntakes, showings, propertyUnits, leads, schedulePreferences, pendingSubscriptions, memberships, users, integrationConfig, autopilotActivityLogs } from "@shared/schema";
+import { eq, and, isNull, isNotNull, desc, sql, or, gte } from "drizzle-orm";
 import { z } from "zod";
 import { getUncachableStripeClient, getStripePublishableKey, getStripeLookupKey, getPriceByLookupKey } from "./stripeClient";
+import { getBaseUrlForBookingLink } from "./domainConfig";
+import { v1Router, createInternalRoutes } from "./integrations/apiConnector";
 
 console.log("🔥🔥🔥 ROUTES.TS LOADED AT:", new Date().toISOString(), "🔥🔥🔥");
 
@@ -32,6 +35,10 @@ function isAuthenticated(req: any, res: any, next: any) {
   res.status(401).json({ message: "Unauthorized" });
 }
 
+// Cache for org context (keyed by userId:sessionId to handle org switches)
+const orgContextCache = new Map<string, { orgId: string; role: string; expiresAt: number }>();
+const ORG_CONTEXT_CACHE_TTL = 300000; // 5 minutes cache (increased from 60 seconds for better performance)
+
 // Middleware to attach organization context to request
 async function attachOrgContext(req: any, res: any, next: any) {
   try {
@@ -39,26 +46,72 @@ async function attachOrgContext(req: any, res: any, next: any) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    // Get user to check their preferred organization
-    const user = await storage.getUser(req.user.id);
+    // Check cache first
+    const cacheKey = `${req.user.id}:${req.sessionID || 'no-session'}`;
+    const cached = orgContextCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      req.orgId = cached.orgId;
+      req.role = cached.role;
+      console.log(`[Org Context] Using cached orgId: ${cached.orgId} for user ${req.user.id}`);
+      return next();
+    }
+    
+    // OPTIMIZED: Try to get membership directly first (faster path)
+    // Only fetch user if we need currentOrgId
     let membership;
     
-    // Use user's preferred org if set
+    // Try user's preferred org first if we can get it from session/cache
+    // Otherwise fetch user to check currentOrgId
+    const user = await storage.getUser(req.user.id);
+    
+    // Use user's preferred org if set AND user is an active member of that org
     if (user?.currentOrgId) {
-      membership = await storage.getMembership(req.user.id, user.currentOrgId);
+      // Get full membership to check status
+      const fullMembership = await storage.getMembershipFull(req.user.id, user.currentOrgId);
+      if (fullMembership && fullMembership.status === 'active') {
+        // Use the simplified membership format
+        membership = {
+          orgId: fullMembership.orgId,
+          role: fullMembership.role
+        };
+        console.log(`[Org Context] User ${req.user.id} using currentOrgId: ${user.currentOrgId} (active membership)`);
+      } else if (fullMembership && fullMembership.status !== 'active') {
+        console.log(`[Org Context] User ${req.user.id} has currentOrgId ${user.currentOrgId} but membership is ${fullMembership.status}, falling back to first active membership`);
+        membership = undefined; // Fall back to first active membership
+      } else {
+        console.log(`[Org Context] User ${req.user.id} has currentOrgId ${user.currentOrgId} but is not a member, falling back to first active membership`);
+      }
     }
     
-    // Fallback to first membership if no preference or membership not found
+    // Fallback to first active membership if no preference or membership not found/not active
     if (!membership) {
       membership = await storage.getUserOrganization(req.user.id);
+      if (membership) {
+        console.log(`[Org Context] User ${req.user.id} using fallback orgId: ${membership.orgId} (first active membership)`);
+      }
     }
     
     if (!membership) {
+      console.error(`[Org Context] User ${req.user.id} has no active organization memberships`);
       return res.status(403).json({ message: "User not assigned to any organization" });
+    }
+    
+    // Cache the result
+    orgContextCache.set(cacheKey, {
+      orgId: membership.orgId,
+      role: membership.role,
+      expiresAt: Date.now() + ORG_CONTEXT_CACHE_TTL
+    });
+    
+    // Clean up old cache entries periodically (keep last 1000)
+    if (orgContextCache.size > 1000) {
+      const entries = Array.from(orgContextCache.entries());
+      entries.slice(0, 500).forEach(([key]) => orgContextCache.delete(key));
     }
     
     req.orgId = membership.orgId;
     req.role = membership.role;
+    console.log(`[Org Context] ✅ Attached orgId: ${membership.orgId}, role: ${membership.role} to request for user ${req.user.id}`);
     next();
   } catch (error) {
     console.error("[Org Context] Error attaching org context:", error);
@@ -79,6 +132,9 @@ const suggestTimesSchema = z.object({
   propertyId: z.string().min(1, "Property ID is required"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 });
+
+// Store running Facebook polling processes by orgId
+const facebookPollingProcesses = new Map<string, { process: any; pid: number; startedAt: Date }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -1061,23 +1117,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // in webhookHandlers.ts for reliable delivery with proper deduplication
 
   // Get organization membership status (from database - fast, cached from webhooks)
+  // CACHED: Membership status is cached in session after first check to avoid repeated Stripe calls
   app.get("/api/membership/status", isAuthenticated, async (req: any, res) => {
     try {
-      console.log('[Membership Status] ===== MEMBERSHIP STATUS CHECK =====');
-      console.log('[Membership Status] Request hostname:', req.get('host'));
-      console.log('[Membership Status] Request origin:', req.get('origin'));
-      console.log('[Membership Status] Request protocol:', req.protocol);
-      console.log('[Membership Status] Request secure:', req.secure);
-      console.log('[Membership Status] X-Forwarded-Proto:', req.get('x-forwarded-proto'));
-      console.log('[Membership Status] NODE_ENV:', process.env.NODE_ENV);
-      console.log('[Membership Status] PRODUCTION_DOMAIN:', process.env.PRODUCTION_DOMAIN);
+      // REDUCED LOGGING: Only log errors and critical status changes to reduce I/O overhead
+      const isDevelopment = process.env.NODE_ENV === 'development';
       
       const user = req.user;
-      console.log('[Membership Status] User ID:', user?.id);
-      console.log('[Membership Status] User email:', user?.email);
-      console.log('[Membership Status] User currentOrgId:', user?.currentOrgId);
+
+      // Only admin/owner roles can access the app - check across all user's orgs
+      let hasAdminRole = false;
+      try {
+        const userOrgs = await storage.getUserOrganizations(user.id);
+        hasAdminRole = userOrgs.some((o) => o.role === 'admin' || o.role === 'owner');
+      } catch (err) {
+        console.error("[Membership Status] Error checking admin role:", err);
+      }
       
+      // Check if we have cached membership status in session
+      // Cache key includes orgId to handle org switches
       let orgId = user?.currentOrgId;
+      
+      // If we have cached status for this org, return it immediately
+      if (req.session && req.session.membershipStatus && req.session.membershipStatus.orgId === orgId) {
+        const cachedStatus = req.session.membershipStatus;
+        const cacheAge = Date.now() - (cachedStatus.cachedAt || 0);
+        const cacheMaxAge = 30 * 60 * 1000; // 30 minutes cache
+        
+        // Only use cache if it's less than 30 minutes old
+        if (cacheAge < cacheMaxAge) {
+          if (isDevelopment) {
+            console.log(`[Membership Status] ✅ Using cached status for org ${orgId} (age: ${Math.round(cacheAge / 1000)}s)`);
+          }
+          return res.json({
+            isFoundingPartner: cachedStatus.isFoundingPartner,
+            status: cachedStatus.status,
+            currentPeriodEnd: cachedStatus.currentPeriodEnd,
+            isCancelled: cachedStatus.isCancelled,
+            orgName: cachedStatus.orgName,
+            orgImage: cachedStatus.orgImage,
+            hasCompletedOnboarding: cachedStatus.hasCompletedOnboarding,
+            hasAdminRole: cachedStatus.hasAdminRole ?? hasAdminRole,
+          });
+        } else {
+          // Cache expired, clear it
+          if (isDevelopment) {
+            console.log(`[Membership Status] ⏰ Cache expired for org ${orgId}, refreshing...`);
+          }
+          delete req.session.membershipStatus;
+        }
+      }
+      
+      // No valid cache, proceed with full check
+      if (isDevelopment) {
+        console.log(`[Membership Status] 🔍 Fetching fresh status for org ${orgId || 'none'}`);
+      }
 
       // If currentOrgId is not set, check if user has a membership and fix it
       if (!orgId) {
@@ -1085,7 +1179,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingMembership = await storage.getUserOrganization(user.id);
         if (existingMembership) {
           // User has a membership but currentOrgId wasn't set - fix it
+          if (isDevelopment) {
           console.log(`[Membership Status] User ${user.id} has membership in org ${existingMembership.orgId} but currentOrgId was null, fixing...`);
+          }
           await storage.updateUser(user.id, { currentOrgId: existingMembership.orgId });
           orgId = existingMembership.orgId;
         } else if (user?.email) {
@@ -1116,13 +1212,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error("[Membership] Error checking onboarding status:", error);
           }
 
-          return res.json({
+          const noMembershipResponse = {
             isFoundingPartner: false,
-            status: 'none',
+            status: 'none' as const,
             currentPeriodEnd: null,
             isCancelled: false,
             hasCompletedOnboarding,
-          });
+            hasAdminRole,
+          };
+          
+          // Cache the result in session
+          if (req.session) {
+            req.session.membershipStatus = {
+              ...noMembershipResponse,
+              orgId: null,
+              cachedAt: Date.now(),
+            };
+          }
+          
+          return res.json(noMembershipResponse);
         }
       }
 
@@ -1145,13 +1253,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("[Membership] Error checking onboarding status:", error);
         }
 
-        return res.json({
+        const noOrgResponse = {
           isFoundingPartner: false,
-          status: 'none',
+          status: 'none' as const,
           currentPeriodEnd: null,
           isCancelled: false,
           hasCompletedOnboarding,
-        });
+          hasAdminRole,
+        };
+        
+        // Cache the result in session
+        if (req.session) {
+          req.session.membershipStatus = {
+            ...noOrgResponse,
+            orgId: null,
+            cachedAt: Date.now(),
+          };
+        }
+        
+        return res.json(noOrgResponse);
       }
 
       // BEST PRACTICE: Check organization's subscription status directly from database FIRST
@@ -1160,9 +1280,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Quick check: if org already has active status in DB, trust it immediately
       if (org.foundingPartnerStatus === 'active') {
-        console.log(`[Membership Status] ✅ Org ${orgId} has active status in database, granting access immediately`);
-        console.log(`[Membership Status] Org name: ${org.name}`);
-        console.log(`[Membership Status] Org stripeSubscriptionId: ${org.stripeSubscriptionId}`);
+        // Only log in development mode
+        if (isDevelopment) {
+          console.log(`[Membership Status] ✅ Org ${orgId} has active status in database`);
+        }
         
         let hasCompletedOnboarding = false;
         try {
@@ -1172,15 +1293,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("[Membership] Error checking onboarding status:", error);
         }
         
-        return res.json({
+        const activeResponse = {
           isFoundingPartner: true,
-          status: 'active',
+          status: 'active' as const,
           currentPeriodEnd: org.subscriptionCurrentPeriodEnd ? new Date(org.subscriptionCurrentPeriodEnd).toISOString() : null,
           isCancelled: false,
           orgName: org.name,
           orgImage: org.profileImage,
           hasCompletedOnboarding,
-        });
+          hasAdminRole,
+        };
+        
+        // Cache the result in session
+        if (req.session) {
+          req.session.membershipStatus = {
+            ...activeResponse,
+            orgId,
+            cachedAt: Date.now(),
+          };
+        }
+        
+        return res.json(activeResponse);
       }
       
       // Check for one-time payment with the configured lookup key
@@ -1192,11 +1325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const expectedLookupKey = getStripeLookupKey();
           
           if (!expectedLookupKey) {
-            console.log(`[Membership Status] ⚠️ No STRIPE_LOOKUP_KEY set - skipping one-time payment check for org ${orgId}`);
             // Continue to normal membership check if no lookup key is configured
           } else {
-            console.log(`[Membership Status] Checking for one-time payment for org ${orgId} (customer: ${org.stripeCustomerId}, current status: ${org.foundingPartnerStatus}, lookup key: ${expectedLookupKey})`);
-          
           // Search for successful checkout sessions (one-time payments) for this customer
           const checkoutSessions = await stripe.checkout.sessions.list({
             customer: org.stripeCustomerId,
@@ -1211,13 +1341,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             session.payment_status === 'paid'
           );
           
-          console.log(`[Membership Status] Found ${successfulOneTimePayments.length} successful one-time payment(s) for customer ${org.stripeCustomerId}`);
-          console.log(`[Membership Status] Checking sessions for org ${orgId} - will verify lookup key and metadata`);
-          
           // Check if any of these sessions used the configured lookup key
           for (const session of successfulOneTimePayments) {
             try {
-              console.log(`[Membership Status] Processing session ${session.id} - mode: ${session.mode}, payment_status: ${session.payment_status}, metadata:`, session.metadata);
               
               // Retrieve the line items to check the price lookup key
               // Wrap in try-catch with timeout to prevent hanging
@@ -1229,38 +1355,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     setTimeout(() => reject(new Error('listLineItems timeout after 10 seconds')), 10000)
                   )
                 ]) as any;
-                console.log(`[Membership Status] Retrieved ${lineItems.data.length} line item(s) for session ${session.id}`);
               } catch (lineItemFetchError: any) {
-                console.error(`[Membership Status] ⚠️ Failed to retrieve line items for session ${session.id}:`, {
-                  error: lineItemFetchError?.message || lineItemFetchError,
-                  code: lineItemFetchError?.code,
-                  type: lineItemFetchError?.type,
-                });
+                // Only log errors, not every fetch attempt
+                if (isDevelopment) {
+                  console.error(`[Membership Status] ⚠️ Failed to retrieve line items for session ${session.id}:`, lineItemFetchError?.message);
+                }
                 continue; // Skip this session and try the next one
               }
               
               if (!lineItems || !lineItems.data || lineItems.data.length === 0) {
-                console.log(`[Membership Status] ⚠️ No line items found for session ${session.id}`);
                 continue;
               }
               
               for (const item of lineItems.data) {
                 const price = item.price;
                 const lookupKey = price?.lookup_key;
-                console.log(`[Membership Status] Checking session ${session.id} - price ID: ${price?.id}, lookup_key: ${lookupKey}, metadata orgId: ${session.metadata?.orgId}, organization_id: ${session.metadata?.organization_id}`);
                 
                 if (lookupKey === expectedLookupKey) {
-                  console.log(`[Membership Status] ✅ MATCH! Found '${expectedLookupKey}' lookup key for session ${session.id}`);
-                  
                   // Verify metadata matches this org (or if metadata is missing, assume it's for this org if customer matches)
                   const metadataMatches = (!session.metadata?.orgId && !session.metadata?.organization_id) || 
                                          session.metadata?.orgId === orgId || 
                                          session.metadata?.organization_id === orgId;
                   
-                  console.log(`[Membership Status] Metadata check - orgId: ${orgId}, session orgId: ${session.metadata?.orgId}, session organization_id: ${session.metadata?.organization_id}, matches: ${metadataMatches}`);
-                  
                   if (metadataMatches) {
-                    console.log(`[Membership Status] ✅ Found one-time payment with '${expectedLookupKey}' lookup key for org ${orgId} (session: ${session.id})`);
+                    if (isDevelopment) {
+                      console.log(`[Membership Status] ✅ Found one-time payment for org ${orgId}`);
+                    }
                     
                     // Update org status to active (one-time payment grants access)
                     await db.update(organizations)
@@ -1281,35 +1401,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       console.error("[Membership] Error checking onboarding status:", error);
                     }
                     
-                    return res.json({
+                    const oneTimePaymentResponse = {
                       isFoundingPartner: true,
-                      status: 'active',
+                      status: 'active' as const,
                       currentPeriodEnd: null, // One-time payments don't have a period end
                       isCancelled: false,
                       orgName: org.name,
                       orgImage: org.profileImage,
                       hasCompletedOnboarding,
-                    });
-                  } else {
-                    console.log(`[Membership Status] ⚠️ Found one-time payment with correct lookup key but metadata doesn't match org ${orgId} - session metadata:`, session.metadata);
+                      hasAdminRole,
+                    };
+                    
+                    // Cache the result in session
+                    if (req.session) {
+                      req.session.membershipStatus = {
+                        ...oneTimePaymentResponse,
+                        orgId,
+                        cachedAt: Date.now(),
+                      };
+                    }
+                    
+                    return res.json(oneTimePaymentResponse);
                   }
-                } else {
-                  console.log(`[Membership Status] Lookup key mismatch - expected '${expectedLookupKey}', got: ${lookupKey}`);
                 }
               }
             } catch (lineItemError: any) {
-              console.error(`[Membership Status] Error checking line items for session ${session.id}:`, lineItemError);
-              console.error(`[Membership Status] Error details:`, {
-                message: lineItemError?.message,
-                code: lineItemError?.code,
-                type: lineItemError?.type,
-                stack: lineItemError?.stack,
-              });
+              // Only log errors
+              console.error(`[Membership Status] Error checking line items for session ${session.id}:`, lineItemError?.message);
             }
           }
-          
-            // Log summary after checking all sessions
-            console.log(`[Membership Status] Finished checking ${successfulOneTimePayments.length} session(s) for org ${orgId}`);
           }
         } catch (oneTimePaymentError: any) {
           // Check if this is a "No such customer" error (test mode customer in live mode)
@@ -1318,7 +1438,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isNoSuchCustomer = errorMessage.includes('No such customer') || errorCode === 'resource_missing';
           
           if (isNoSuchCustomer) {
-            console.log(`[Membership Status] ⚠️ Customer ${org.stripeCustomerId} doesn't exist in Stripe (likely test-mode ID in live mode) - clearing stale data for org ${orgId}`);
             // Clear the stale test-mode customer ID so user can start fresh
             try {
               await db.update(organizations)
@@ -1330,7 +1449,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .where(eq(organizations.id, orgId));
               org.stripeCustomerId = null;
               org.stripeSubscriptionId = null;
-              console.log(`[Membership Status] ✅ Cleared stale Stripe data for org ${orgId}`);
             } catch (updateError) {
               console.error(`[Membership Status] Failed to clear stale Stripe data for org ${orgId}:`, updateError);
             }
@@ -1356,22 +1474,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error("[Membership] Error checking onboarding status:", error);
         }
         
-        return res.json({
+        const stripeUnavailableResponse = {
           isFoundingPartner: org.foundingPartnerStatus === 'active',
-          status: org.foundingPartnerStatus || 'none',
+          status: (org.foundingPartnerStatus || 'none') as string,
           currentPeriodEnd: org.subscriptionCurrentPeriodEnd ? new Date(org.subscriptionCurrentPeriodEnd).toISOString() : null,
           isCancelled: org.foundingPartnerStatus === 'cancelled',
           orgName: org.name,
           orgImage: org.profileImage,
           hasCompletedOnboarding,
-        });
+          hasAdminRole,
+        };
+        
+        // Cache the result in session
+        if (req.session) {
+          req.session.membershipStatus = {
+            ...stripeUnavailableResponse,
+            orgId,
+            cachedAt: Date.now(),
+          };
+        }
+        
+        return res.json(stripeUnavailableResponse);
       }
       
       // First, if org has a subscription ID, verify it's active in Stripe
       if (org.stripeSubscriptionId) {
         try {
           const existingSub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
-          console.log(`[Membership Status] Org ${orgId} has subscription ${org.stripeSubscriptionId}, Stripe status: ${existingSub.status}`);
           
           if (existingSub.status === 'active' || existingSub.status === 'trialing') {
             // Subscription is active - ensure org status is updated
@@ -1401,16 +1530,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .where(eq(organizations.id, orgId));
               org.foundingPartnerStatus = 'active';
               org.subscriptionCurrentPeriodEnd = periodEndDate;
-              console.log(`[Membership Status] ✅ Updated org ${orgId} status to 'active' (subscription verified in Stripe)`);
             }
           } else {
             // Subscription exists but is not active - search for active subscription
-            console.log(`[Membership Status] Org ${orgId} subscription ${org.stripeSubscriptionId} is ${existingSub.status}, searching for active subscription...`);
             org.stripeSubscriptionId = null; // Clear so we search for a new one
           }
         } catch (e: any) {
           // Subscription not found or error - search for active subscription
-          console.log(`[Membership Status] Could not retrieve subscription ${org.stripeSubscriptionId} for org ${orgId}:`, e.message);
           org.stripeSubscriptionId = null; // Clear so we search for a new one
         }
       }
@@ -1427,8 +1553,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               limit: 10,
             });
             
-            console.log(`[Membership Status] Found ${activeSubscriptions.data.length} active subscription(s) for customer ${org.stripeCustomerId}`);
-            
             // Find founding partner subscription
             for (const sub of activeSubscriptions.data) {
               const hasFoundingPartnerMetadata = sub.metadata?.membershipType === 'founding_partner' || 
@@ -1437,8 +1561,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const is149Price = sub.items.data.some(item => 
                 item.price.unit_amount === 14999 && item.price.recurring?.interval === 'month'
               );
-              
-              console.log(`[Membership Status] Checking subscription ${sub.id}: metadata=${JSON.stringify(sub.metadata)}, is149Price=${is149Price}`);
               
               if (hasFoundingPartnerMetadata || is149Price) {
                 // Validate current_period_end before converting
@@ -1472,7 +1594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 org.foundingPartnerStatus = 'active';
                 org.subscriptionCurrentPeriodEnd = periodEndDate;
                 
-                console.log(`[Membership Status] ✅ Linked subscription ${sub.id} to org ${orgId} via customer ID`);
+                if (isDevelopment) {
+                  console.log(`[Membership Status] ✅ Linked subscription ${sub.id} to org ${orgId}`);
+                }
                 break;
               }
             }
@@ -1489,8 +1613,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               query: `metadata['organization_id']:'${orgId}' OR metadata['orgId']:'${orgId}'`,
               limit: 10,
             });
-            
-            console.log(`[Membership Status] Found ${allSubscriptions.data.length} subscription(s) with org ${orgId} in metadata`);
             
             for (const sub of allSubscriptions.data) {
               if (sub.status === 'active' || sub.status === 'trialing') {
@@ -1518,7 +1640,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   }
                 }
                 
-                console.log(`[Membership Status] ✅ Linked subscription ${sub.id} to org ${orgId} via metadata search`);
+                if (isDevelopment) {
+                  console.log(`[Membership Status] ✅ Linked subscription ${sub.id} to org ${orgId}`);
+                }
                 break;
               }
             }
@@ -1567,8 +1691,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let currentPeriodEnd = org.subscriptionCurrentPeriodEnd;
       let isCancelled = status === 'cancelled';
       
-      console.log(`[Membership Status] After linking attempts - org ${orgId}: status=${status}, stripeSubscriptionId=${org.stripeSubscriptionId || 'none'}, stripeCustomerId=${org.stripeCustomerId || 'none'}`);
-      
       // ALWAYS verify subscription status in Stripe if we have a subscription ID
       // This ensures we catch cases where the database status is stale
       let isActive = false;
@@ -1578,7 +1700,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const stripe = await getUncachableStripeClient();
           const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
-          console.log(`[Membership Status] Verified subscription ${org.stripeSubscriptionId} for org ${orgId}: status=${sub.status}, org DB status=${org.foundingPartnerStatus}`);
           
           const periodEnd = (sub as any).current_period_end ? new Date((sub as any).current_period_end * 1000) : null;
           const periodStart = (sub as any).current_period_start ? new Date((sub as any).current_period_start * 1000) : null;
@@ -1589,7 +1710,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             verifiedStatus = 'active';
             // ALWAYS update org status to 'active' if Stripe says it's active
             if (org.foundingPartnerStatus !== 'active') {
-              console.log(`[Membership Status] ⚠️ Updating org ${orgId} status from '${org.foundingPartnerStatus}' to 'active' (Stripe subscription is active)`);
               // Validate periodEnd before using
               const validPeriodEnd = periodEnd && !isNaN(periodEnd.getTime()) ? periodEnd : null;
               await db.update(organizations)
@@ -1653,7 +1773,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (org.stripeCustomerId) {
         // No subscription ID but we have customer ID - try one more search
-        console.log(`[Membership Status] ⚠️ Org ${orgId} has customer ID ${org.stripeCustomerId} but no subscription ID, doing final search...`);
         try {
           const stripe = await getUncachableStripeClient();
           const activeSubscriptions = await stripe.subscriptions.list({
@@ -1704,7 +1823,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isActive = true;
               currentPeriodEnd = periodEndDate;
               
-              console.log(`[Membership Status] ✅ Found and linked subscription ${sub.id} in final search for org ${orgId}`);
+              if (isDevelopment) {
+                console.log(`[Membership Status] ✅ Found and linked subscription ${sub.id} for org ${orgId}`);
+              }
               break;
             }
           }
@@ -1730,12 +1851,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Final check: if status is 'active' but isActive is false, set it to true
       if (status === 'active' && !isActive) {
         isActive = true;
-        console.log(`[Membership Status] ⚠️ Status is 'active' but isActive was false, correcting to true`);
       }
       
       // Cancelled subscriptions are NEVER active, regardless of period end
-
-      console.log(`[Membership Status] ✅ Final result for org ${orgId} (user: ${user.email}): isActive=${isActive}, status=${status}, isFoundingPartner=${isActive}, stripeSubscriptionId=${org.stripeSubscriptionId || 'none'}, foundingPartnerStatus=${org.foundingPartnerStatus}`);
 
       // Check if user has completed general onboarding (has linked onboarding intake)
       let hasCompletedOnboarding = false;
@@ -1755,9 +1873,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orgName: org.name,
         orgImage: org.profileImage,
         hasCompletedOnboarding,
+        hasAdminRole,
       };
       
-      console.log(`[Membership Status] Returning response:`, JSON.stringify(response, null, 2));
+      // Cache the result in session for 30 minutes
+      if (req.session) {
+        req.session.membershipStatus = {
+          ...response,
+          orgId,
+          cachedAt: Date.now(),
+        };
+        // Save session to persist cache (non-blocking)
+        req.session.save((err) => {
+          if (err && isDevelopment) {
+            console.error("[Membership Status] Error saving session cache:", err);
+          }
+        });
+      }
       
       res.json(response);
     } catch (error: any) {
@@ -2540,40 +2672,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current organization (from user preference or first membership)
   app.get("/api/organizations/current", isAuthenticated, async (req: any, res) => {
     try {
+      // OPTIMIZED: Use cached org context if available (from attachOrgContext middleware)
+      // This avoids duplicate database queries
+      if (req.orgId && req.role) {
+        return res.json({ orgId: req.orgId, role: req.role });
+      }
+      
+      // Fallback: If org context not available, do minimal queries
       const user = await storage.getUser(req.user.id);
       
       // Check if user has a preferred org
       if (user?.currentOrgId) {
-        // Verify the organization still exists
-        const orgExists = await storage.getOrganization(user.currentOrgId);
-        if (orgExists) {
-          const membership = await storage.getMembership(req.user.id, user.currentOrgId);
-          if (membership) {
-            return res.json(membership);
-          } else {
-            // Organization exists but user is not a member - clear currentOrgId
-            console.log(`[Orgs] User ${req.user.id} currentOrgId ${user.currentOrgId} points to org they're not a member of, clearing it`);
-            await storage.updateUser(req.user.id, { currentOrgId: null });
-          }
+        // Try membership first (faster - single query with join)
+        const membership = await storage.getMembership(req.user.id, user.currentOrgId);
+        if (membership) {
+          return res.json(membership);
         } else {
-          // Organization doesn't exist - clear currentOrgId
-          console.log(`[Orgs] User ${req.user.id} currentOrgId ${user.currentOrgId} points to non-existent org, clearing it`);
-          await storage.updateUser(req.user.id, { currentOrgId: null });
+          // Membership not found - clear currentOrgId (non-blocking)
+          storage.updateUser(req.user.id, { currentOrgId: null }).catch(err => 
+            console.error(`[Orgs] Error clearing currentOrgId:`, err)
+          );
         }
       }
       
-      // Fallback to first membership
+      // Fallback to first membership (single query)
       const membership = await storage.getUserOrganization(req.user.id);
       if (!membership) {
         return res.status(404).json({ error: "No organization found" });
       }
       
-      // Verify the organization still exists
-      const orgExists = await storage.getOrganization(membership.orgId);
-      if (!orgExists) {
-        console.error(`[Orgs] User ${req.user.id} has membership in non-existent org ${membership.orgId}`);
-        return res.status(404).json({ error: "Organization not found" });
-      }
+      // No need to verify org exists - getUserOrganization already joins with organizations table
       
       // Update user's preference to this org
       await storage.updateUser(req.user.id, { currentOrgId: membership.orgId });
@@ -2636,6 +2764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Switch to a different organization (update user's active org)
+  // CACHE INVALIDATION: Clears membership status cache when switching orgs
   app.post("/api/organizations/switch", isAuthenticated, async (req: any, res) => {
     try {
       const { orgId } = req.body;
@@ -2658,6 +2787,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user's current organization preference in database
       await storage.updateUser(req.user.id, { currentOrgId: orgId });
       
+      // CRITICAL: Clear org context cache for this user to force fresh lookup with new orgId
+      // This ensures all subsequent requests use the new organization context
+      const cacheKey = `${req.user.id}:${req.sessionID || 'no-session'}`;
+      orgContextCache.delete(cacheKey);
+      
+      // Also clear all cache entries for this user (in case they have multiple sessions)
+      const entries = Array.from(orgContextCache.entries());
+      for (const [key] of entries) {
+        if (key.startsWith(`${req.user.id}:`)) {
+          orgContextCache.delete(key);
+        }
+      }
+      
+      // Clear membership status cache when switching orgs (different org = different membership status)
+      if (req.session) {
+        delete (req.session as any).membershipStatus;
+        req.session.save(() => {}); // Save session to persist cache clear
+      }
+      
+      console.log(`[Orgs] Switched user ${req.user.id} to org ${orgId} - cleared org context cache`);
       res.json(membership);
     } catch (error) {
       console.error("[Orgs] Failed to switch organization:", error);
@@ -3985,9 +4134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get user details for audit log
       const targetUser = await storage.getUser(userId);
-
       const deleted = await storage.deleteMembership(userId, req.orgId);
       
       if (!deleted) {
@@ -4012,7 +4159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ message: "Member removed successfully" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Team] Failed to remove member:", error);
       res.status(500).json({ error: "Failed to remove member" });
     }
@@ -4062,7 +4209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
       
-      const conversations = await storage.getConversationsByLeadId(lead.id);
+      const conversations = await storage.getConversationsByLeadId(lead.id, req.orgId);
       const notes = await storage.getNotesByLeadId(lead.id);
       
       // Map createdAt to timestamp for frontend compatibility
@@ -4106,6 +4253,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Handle profileData merging - if profileData is provided, merge with existing data
+      if (validatedData.profileData && typeof validatedData.profileData === 'object') {
+        const existingLead = await storage.getLead(req.params.id, req.orgId);
+        if (existingLead && existingLead.profileData) {
+          // Merge new profileData with existing profileData
+          validatedData.profileData = {
+            ...(existingLead.profileData as any),
+            ...validatedData.profileData,
+          };
+        }
+      }
+      
       const lead = await storage.updateLead(req.params.id, validatedData, req.orgId);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
@@ -4131,6 +4290,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         count = 0;
         console.log("[Delete Gmail Leads] No lead IDs provided, skipping deletion");
       }
+
+      // SECURITY: All showings are created with property.orgId to maintain tenant isolation
+      // This prevents cross-org showing creation - the showing belongs to the property's org
+
+      // Create or find lead first
+      let lead = await storage.getLeadByEmail(email, property.orgId);
+      if (!lead) {
+        lead = await storage.createLead({
+          name,
+          email,
+          phone,
+          propertyId,
+          propertyName: property.name,
+          status: "new",
+          source: "website",
+          orgId: property.orgId,
+        });
+      }
+
+      // ATOMICALLY re-check conflicts right before creating showing (prevent race condition)
+      const { detectConflicts } = await import("./ai-scheduling");
+      // Get all showings for the selected date (needed for member-level conflict checking)
+      const freshShowings = await storage.getShowingsByDateRange(date, date, property.orgId);
+      const schedulePrefs = await storage.getSchedulePreferences();
+
+      // Get property scheduling settings to find assigned members and event duration
+      const propertySettings = await storage.getPropertySchedulingSettings(propertyId, property.orgId);
       
       res.json({ 
         message: leadIds?.length > 0 ? "Gmail-sourced leads deleted" : "No leads to delete", 
@@ -4143,20 +4329,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete("/api/leads/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    const leadId = req.params.id;
+    const start = Date.now();
     try {
-      // Get lead details before deleting
-      const lead = await storage.getLead(req.params.id, req.orgId);
+      console.log(`[Delete Lead] Starting delete for lead ${leadId}, org ${req.orgId}`);
+      const lead = await storage.getLead(leadId, req.orgId);
       if (!lead) {
+        console.log(`[Delete Lead] Lead ${leadId} not found`);
         return res.status(404).json({ error: "Lead not found" });
       }
 
-      // Get most recent conversation date to track when we last saw messages
-      const conversations = await storage.getConversationsByLeadId(lead.id);
+      const conversations = await storage.getConversationsByLeadId(lead.id, req.orgId);
       const lastMessageDate = conversations.length > 0
         ? new Date(Math.max(...conversations.map(c => new Date(c.createdAt).getTime())))
         : new Date();
 
-      // Track deleted lead to prevent auto-reimport by scanner
       await storage.createDeletedLead({
         orgId: req.orgId,
         email: lead.email || null,
@@ -4166,16 +4353,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastMessageDate,
       });
 
-      // Now delete the lead
-      const deleted = await storage.deleteLead(req.params.id, req.orgId);
+      const deleted = await storage.deleteLead(leadId, req.orgId);
       if (!deleted) {
+        console.log(`[Delete Lead] deleteLead returned false for ${leadId}`);
         return res.status(404).json({ error: "Lead not found" });
       }
-      
-      console.log(`[Delete Lead] Tracked deleted lead ${lead.email} to prevent auto-reimport`);
+
+      const duration = Date.now() - start;
+      console.log(`[Delete Lead] Successfully deleted ${lead.email || lead.phone || lead.id} in ${duration}ms`);
       res.status(204).send();
     } catch (error) {
-      console.error("[Delete Lead] Error:", error);
+      const duration = Date.now() - start;
+      console.error(`[Delete Lead] Error deleting ${leadId} after ${duration}ms:`, error);
       res.status(500).json({ error: "Failed to delete lead" });
     }
   });
@@ -4197,7 +4386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all conversations to build proper threading
-      const conversations = await storage.getConversationsByLeadId(leadId);
+      const conversations = await storage.getConversationsByLeadId(leadId, req.orgId);
 
       // Determine channel based on lead source
       const channel = lead.source === 'gmail' || lead.source === 'outlook' ? 'email' : 
@@ -4294,25 +4483,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const properties = await storage.getAllProperties(req.orgId);
       
-      // Enhance with lead counts
-      const leads = await storage.getAllLeads(req.orgId);
-      const propertiesWithStats = properties.map(property => {
-        const propertyLeads = leads.filter(lead => lead.propertyId === property.id);
-        const activeLeads = propertyLeads.filter(lead => 
-          !['approved', 'rejected'].includes(lead.status)
-        ).length;
+      // OPTIMIZED: Only fetch leads if we have properties (avoid unnecessary query)
+      let propertiesWithStats = properties;
+      if (properties.length > 0) {
+        // Fetch all leads once (instead of filtering in memory for each property)
+        const leads = await storage.getAllLeads(req.orgId);
         
-        const approvedLeads = propertyLeads.filter(lead => lead.status === 'approved').length;
-        const conversionRate = propertyLeads.length > 0 
-          ? Math.round((approvedLeads / propertyLeads.length) * 100) 
-          : 0;
+        // Create a map of propertyId -> lead counts for O(1) lookup
+        const leadStatsMap = new Map<string, { active: number; approved: number; total: number }>();
         
-        return {
-          ...property,
-          activeLeads,
-          conversionRate: `${conversionRate}%`,
-        };
-      });
+        for (const lead of leads) {
+          if (!lead.propertyId) continue;
+          
+          const stats = leadStatsMap.get(lead.propertyId) || { active: 0, approved: 0, total: 0 };
+          stats.total++;
+          
+          if (lead.status === 'approved') {
+            stats.approved++;
+          }
+          if (!['approved', 'rejected'].includes(lead.status)) {
+            stats.active++;
+          }
+          
+          leadStatsMap.set(lead.propertyId, stats);
+        }
+        
+        // Map properties with stats from the map (much faster than filtering for each property)
+        propertiesWithStats = properties.map(property => {
+          const stats = leadStatsMap.get(property.id) || { active: 0, approved: 0, total: 0 };
+          const conversionRate = stats.total > 0 
+            ? Math.round((stats.approved / stats.total) * 100) 
+            : 0;
+          
+          return {
+            ...property,
+            activeLeads: stats.active,
+            conversionRate: `${conversionRate}%`,
+          };
+        });
+      }
       
       res.json(propertiesWithStats);
     } catch (error) {
@@ -4556,8 +4765,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/units/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
+      // Debug: Log the incoming request body
+      console.log(`[Update Unit] Received update request for unit ${req.params.id}:`, JSON.stringify(req.body, null, 2));
+      console.log(`[Update Unit] Amenity fields in request:`, {
+        laundryType: req.body.laundryType,
+        parkingType: req.body.parkingType,
+        airConditioningType: req.body.airConditioningType,
+        heatingType: req.body.heatingType,
+      });
+      
       const partialSchema = insertPropertyUnitSchema.partial();
       const validatedData = partialSchema.parse(req.body);
+      
+      // Debug: Log validated data
+      console.log(`[Update Unit] Validated data:`, JSON.stringify(validatedData, null, 2));
+      console.log(`[Update Unit] Amenity fields in validated data:`, {
+        laundryType: validatedData.laundryType,
+        parkingType: validatedData.parkingType,
+        airConditioningType: validatedData.airConditioningType,
+        heatingType: validatedData.heatingType,
+      });
       
       // Get the current unit to check if isListed is being changed
       const currentUnit = await storage.getPropertyUnit(req.params.id, req.orgId);
@@ -4588,10 +4815,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!unit) {
         return res.status(404).json({ error: "Unit not found" });
       }
+      
+      // Debug: Log the returned unit
+      console.log(`[Update Unit] Updated unit returned:`, {
+        id: unit.id,
+        laundryType: unit.laundryType,
+        parkingType: unit.parkingType,
+        airConditioningType: unit.airConditioningType,
+        heatingType: unit.heatingType,
+      });
+      
       res.json(unit);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[Update Unit] Error:", error);
-      res.status(400).json({ error: "Failed to update unit" });
+      console.error("[Update Unit] Error details:", error.message, error.stack);
+      res.status(400).json({ error: "Failed to update unit", details: error.message });
     }
   });
 
@@ -4614,7 +4852,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("[Delete Unit] Error deleting scheduling settings (may not exist):", err);
       }
 
-      // Delete the unit
       const deleted = await storage.deletePropertyUnit(req.params.id, req.orgId);
       if (!deleted) {
         console.log("[Delete Unit] Delete operation returned false");
@@ -4630,12 +4867,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ===== CONVERSATION ROUTES =====
-  app.get("/api/conversations/:leadId", isAuthenticated, async (req, res) => {
+  // ===== UNIFIED MESSAGES INBOX =====
+  app.get("/api/messages/inbox", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    const requestStartTime = Date.now();
+    const requestId = Math.random().toString(36).substring(7);
+    
     try {
-      const conversations = await storage.getConversationsByLeadId(req.params.leadId);
+      console.log(`[Messages Inbox ${requestId}] 📥 Request started for org ${req.orgId}`);
+      
+      // Diagnostic: Check if there are any conversations/leads for this org
+      try {
+        const diagnosticResult = await db.execute(sql`
+          SELECT 
+            (SELECT COUNT(*) FROM leads WHERE org_id = ${req.orgId}) as total_leads,
+            (SELECT COUNT(*) FROM conversations c 
+             INNER JOIN leads l ON c.lead_id = l.id 
+             WHERE l.org_id = ${req.orgId}) as total_conversations,
+            (SELECT COUNT(*) FROM conversations c 
+             INNER JOIN leads l ON c.lead_id = l.id 
+             WHERE l.org_id = ${req.orgId} AND c.channel = 'facebook') as facebook_conversations
+        `);
+        const diag = diagnosticResult.rows[0];
+        console.log(`[Messages Inbox ${requestId}] 🔍 Diagnostic:`, {
+          totalLeads: diag.total_leads,
+          totalConversations: diag.total_conversations,
+          facebookConversations: diag.facebook_conversations,
+        });
+      } catch (diagError) {
+        console.warn(`[Messages Inbox ${requestId}] ⚠️  Diagnostic query failed:`, diagError);
+      }
+      
+      // OPTIMIZED: Simplified query with window functions, pagination, and better indexing
+      // Get pagination parameters (default: 25 items for faster initial load, page 0)
+      const limit = parseInt(req.query.limit as string) || 25;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const maxLimit = 200; // Cap at 200 to prevent excessive load
+      const safeLimit = Math.min(limit, maxLimit);
+      
+      console.log(`[Messages Inbox ${requestId}] 📊 Query params: limit=${safeLimit}, offset=${offset}`);
+      
+      // OPTIMIZED QUERY: Uses window functions instead of DISTINCT ON and correlated subqueries
+      // This is much faster because:
+      // 1. Window functions are more efficient than DISTINCT ON for large datasets
+      // 2. Single pass through conversations table instead of multiple scans
+      // 3. Simplified unread count calculation using window functions
+      // 4. Added pagination to limit results
+      const queryStartTime = Date.now();
+      console.log(`[Messages Inbox ${requestId}] 🔍 Executing SQL query...`);
+      console.log(`[Messages Inbox ${requestId}] 🔍 SQL query will filter by org_id: ${req.orgId}`);
+      
+      let result;
+      try {
+        result = await db.execute(sql`
+        WITH ranked_conversations AS (
+          SELECT 
+            c.lead_id,
+            c.id as conversation_id,
+            c.type,
+            c.channel,
+            c.message,
+            c.ai_generated,
+            c.created_at,
+            to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created_at_formatted,
+            c.email_subject,
+            c.source_integration,
+            ROW_NUMBER() OVER (PARTITION BY c.lead_id ORDER BY c.created_at DESC) as rn
+          FROM conversations c
+          INNER JOIN leads l ON c.lead_id = l.id
+          WHERE l.org_id = ${req.orgId}
+        ),
+        latest_conversations AS (
+          SELECT 
+            lead_id,
+            conversation_id,
+            type,
+            channel,
+            message,
+            ai_generated,
+            created_at_formatted as created_at,
+            created_at as created_at_timestamp,
+            email_subject,
+            source_integration
+          FROM ranked_conversations
+          WHERE rn = 1
+        ),
+        last_outgoing_messages AS (
+          SELECT 
+            lead_id,
+            MAX(created_at) as last_outgoing_at
+          FROM conversations
+          WHERE type IN ('outgoing', 'sent')
+          GROUP BY lead_id
+        ),
+        unread_counts AS (
+          SELECT 
+            c.lead_id,
+            COUNT(*) as unread_count
+          FROM conversations c
+          INNER JOIN leads l ON c.lead_id = l.id
+          LEFT JOIN last_outgoing_messages lom ON c.lead_id = lom.lead_id
+          WHERE l.org_id = ${req.orgId}
+            AND (c.type = 'received' OR c.type = 'incoming')
+            AND c.created_at > COALESCE(lom.last_outgoing_at, '1970-01-01'::timestamp)
+          GROUP BY c.lead_id
+        )
+        SELECT 
+          l.id,
+          l.name,
+          l.email,
+          l.phone,
+          l.status,
+          l.source,
+          l.property_name,
+          l.created_at as lead_created_at,
+          l.last_contact_at,
+          l.metadata,
+          COALESCE(uc.unread_count, 0)::int as unread_count,
+          lc.conversation_id,
+          lc.type as last_message_type,
+          lc.channel as last_message_channel,
+          lc.message as last_message,
+          lc.ai_generated as last_message_ai_generated,
+          lc.created_at as last_message_at,
+          lc.email_subject,
+          lc.source_integration
+        FROM leads l
+        INNER JOIN latest_conversations lc ON l.id = lc.lead_id
+        LEFT JOIN unread_counts uc ON l.id = uc.lead_id
+        WHERE l.org_id = ${req.orgId}
+        ORDER BY lc.created_at_timestamp DESC
+        LIMIT ${safeLimit}
+        OFFSET ${offset}
+      `);
+      } catch (sqlError: any) {
+        const queryTime = Date.now() - queryStartTime;
+        console.error(`[Messages Inbox ${requestId}] ❌ SQL query failed after ${queryTime}ms:`, sqlError);
+        console.error(`[Messages Inbox ${requestId}] ❌ SQL error details:`, {
+          message: sqlError.message,
+          code: sqlError.code,
+          detail: sqlError.detail,
+          hint: sqlError.hint,
+          position: sqlError.position,
+        });
+        throw sqlError; // Re-throw to be caught by outer try-catch
+      }
+      
+      const queryTime = Date.now() - queryStartTime;
+      console.log(`[Messages Inbox ${requestId}] ✅ Query completed in ${queryTime}ms, returned ${result.rows.length} rows`);
+
+      // Transform the results to camelCase
+      const transformStartTime = Date.now();
+      const inboxItems = result.rows.map((row: any) => ({
+        lead: {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          status: row.status,
+          source: row.source,
+          propertyName: row.property_name,
+          createdAt: row.lead_created_at,
+          lastContactAt: row.last_contact_at,
+          metadata: row.metadata,
+        },
+        unreadCount: row.unread_count || 0,
+        lastMessage: {
+          id: row.conversation_id,
+          type: row.last_message_type,
+          channel: row.last_message_channel,
+          message: row.last_message,
+          aiGenerated: row.last_message_ai_generated,
+          createdAt: row.last_message_at ? new Date(row.last_message_at).toISOString() : null,
+          emailSubject: row.email_subject,
+          sourceIntegration: row.source_integration,
+        },
+      }));
+
+      const transformTime = Date.now() - transformStartTime;
+      console.log(`[Messages Inbox ${requestId}] ✅ Transformation completed in ${transformTime}ms`);
+
+      // Debug logging for Facebook leads
+      const facebookLeads = inboxItems.filter(item => item.lead.source === 'facebook' || item.lastMessage.channel === 'facebook');
+      if (facebookLeads.length > 0) {
+        console.log(`[Messages Inbox ${requestId}] 📘 Found ${facebookLeads.length} Facebook leads in inbox for org ${req.orgId}`);
+      }
+      
+      const totalTime = Date.now() - requestStartTime;
+      console.log(`[Messages Inbox ${requestId}] ✅ Request completed in ${totalTime}ms (query: ${queryTime}ms, transform: ${transformTime}ms)`);
+
+      // Return array format for backward compatibility with existing frontend
+      // Frontend expects an array, not an object with items/pagination
+      // TODO: Update frontend to use pagination in future optimization
+      res.json(inboxItems);
+    } catch (error: any) {
+      const totalTime = Date.now() - requestStartTime;
+      console.error(`[Messages Inbox ${requestId}] ❌ Failed to fetch unified inbox after ${totalTime}ms:`, error);
+      console.error(`[Messages Inbox ${requestId}] ❌ Error details:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        code: error.code,
+      });
+      res.status(500).json({ 
+        error: "Failed to fetch unified inbox",
+        requestId,
+        errorMessage: error.message 
+      });
+    }
+  });
+
+  // ===== CONVERSATION ROUTES =====
+  app.get("/api/conversations/:leadId", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      // CRITICAL: Verify lead belongs to this organization before fetching conversations
+      const lead = await storage.getLead(req.params.leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      const conversations = await storage.getConversationsByLeadId(req.params.leadId, req.orgId);
+      
+      // Debug logging for Facebook messages
+      const facebookMessages = conversations.filter(c => c.channel === 'facebook');
+      if (facebookMessages.length > 0) {
+        console.log(`[Conversations API] Found ${facebookMessages.length} Facebook messages for lead ${req.params.leadId}`);
+      }
+      
       res.json(conversations);
     } catch (error) {
+      console.error("[Conversations API] Error fetching conversations:", error);
       res.status(500).json({ error: "Failed to fetch conversations" });
     }
   });
@@ -4661,6 +5121,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const emailSubject = validatedData.emailSubject || `Message from ${req.user.name || 'Property Manager'}`;
         validatedData.emailSubject = emailSubject;
         validatedData.sourceIntegration = integrationToUse;
+      }
+      
+      // For Facebook conversations, set sourceIntegration and mark as pending
+      if (validatedData.channel === "facebook") {
+        validatedData.sourceIntegration = validatedData.sourceIntegration || 'facebook';
+        // Facebook messages need to be sent via the polling script, so mark as pending
+        if (validatedData.type === "outgoing" || validatedData.type === "sent") {
+          (validatedData as any).deliveryStatus = 'pending';
+        }
       }
       
       // If channel is email and type is outgoing, send actual email
@@ -4699,7 +5168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Fetch conversation history to build proper email threading headers
             // Note: By design, each lead maps to exactly ONE email thread per integration
             // The import logic ensures this by creating new leads for new threads
-            const conversationHistory = await storage.getConversationsByLeadId(lead.id);
+            const conversationHistory = await storage.getConversationsByLeadId(lead.id, req.orgId);
             
             // Filter to only emails from the SAME integration (Gmail, Outlook, etc.)
             // This ensures we're looking at conversations from the correct email account
@@ -4846,6 +5315,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const conversation = await storage.createConversation(validatedData);
       
+      // Log manual message if not AI-generated
+      if (!validatedData.aiGenerated) {
+        const { logAIAction } = await import("./auditLogging");
+        await logAIAction(req, {
+          actionType: "manual_message",
+          leadId: validatedData.leadId,
+          leadName: lead.name,
+          conversationId: conversation.id,
+          channel: validatedData.channel || 'email',
+        });
+      }
+      
       // Update lead's lastContactAt
       await storage.updateLead(validatedData.leadId, { lastContactAt: new Date() } as any, req.orgId);
       
@@ -4922,7 +5403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Fetch conversation history to build proper email threading headers
           // Note: By design, each lead maps to exactly ONE Gmail thread (lead.gmailThreadId)
           // The import logic ensures this by creating new leads for new threads
-          const conversationHistory = await storage.getConversationsByLeadId(lead.id);
+          const conversationHistory = await storage.getConversationsByLeadId(lead.id, req.orgId);
           
           // Filter to only Gmail emails (conversations for this lead are already from the same thread)
           // We filter by sourceIntegration to ensure we're only looking at Gmail messages
@@ -5102,6 +5583,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
       
+      // Delete autopilot_activity_logs that reference this conversation first (foreign key)
+      await db.delete(autopilotActivityLogs).where(eq(autopilotActivityLogs.conversationId, conversationId));
+      
       // Delete the conversation
       await db.delete(conversations).where(eq(conversations.id, conversationId));
       
@@ -5126,6 +5610,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found" });
       }
 
+      // Check if AI is enabled for this lead
+      if (lead.aiEnabled === false) {
+        return res.status(403).json({ 
+          error: "AI is disabled for this lead",
+          aiEnabled: false 
+        });
+      }
+
       // Get user information
       const user = req.user;
       const userName = user?.name || user?.email?.split('@')[0] || 'Property Manager';
@@ -5136,7 +5628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgName = organization?.name || 'Our Property Management';
 
       // Get conversations for this lead
-      const conversations = await storage.getConversationsByLeadId(leadId);
+      const conversations = await storage.getConversationsByLeadId(leadId, req.orgId);
       
       // Find the most recent incoming message
       const incomingMessage = conversations
@@ -5145,6 +5637,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!incomingMessage) {
         return res.status(400).json({ error: "No incoming message to reply to" });
+      }
+
+      // Analyze conversation for intelligence and context awareness
+      const { analyzeConversation, buildConversationContext, buildAntiRepetitionInstructions } = await import("./conversationIntelligence");
+      const conversationAnalysis = await analyzeConversation(
+        conversations.map((c: any) => ({
+          type: c.type,
+          message: c.message,
+          createdAt: c.createdAt,
+          channel: c.channel,
+        })),
+        openai
+      );
+
+      // Check if escalation is required
+      if (conversationAnalysis.requiresEscalation) {
+        // Use fallback email for Facebook leads that don't have an email
+        const leadEmail = lead.email || (lead.source === 'facebook' 
+          ? `facebook-${lead.externalId || lead.id}@facebook.local` 
+          : `lead-${lead.id}@local`);
+        
+        // Create pending reply with escalation flag
+        const pendingReply = await storage.createPendingReply({
+          orgId: req.orgId,
+          leadId: lead.id,
+          leadName: lead.name,
+          leadEmail: leadEmail,
+          subject: `[ESCALATION REQUIRED] Re: Inquiry about ${lead.propertyName || 'our property'}`,
+          content: `This conversation requires human review.\n\nReason: ${conversationAnalysis.escalationReason || 'Complex case'}\n\nLead's latest message: ${incomingMessage.message}`,
+          originalMessage: incomingMessage.message,
+          channel: incomingMessage.channel || 'email',
+          status: 'pending',
+          threadId: (incomingMessage as any).threadId,
+          inReplyTo: incomingMessage.externalId,
+          references: incomingMessage.externalId,
+          metadata: {
+            requiresEscalation: true,
+            escalationReason: conversationAnalysis.escalationReason,
+            leadIntent: conversationAnalysis.leadIntent,
+          } as any,
+        });
+
+        return res.status(201).json({
+          message: "Conversation requires human escalation",
+          pendingReply,
+          escalation: {
+            required: true,
+            reason: conversationAnalysis.escalationReason,
+          },
+        });
       }
 
       // Detect if this is a showing request using AI
@@ -5177,24 +5719,67 @@ Examples:
       
       console.log("[AI Reply] Showing request analysis:", { isShowingRequest, confidence: analysisResult.confidence, leadId: lead.id });
 
+      // Detect if message is asking about available properties
+      const messageLower = incomingMessage.message.toLowerCase();
+      const isAskingAboutAvailableProperties = 
+        messageLower.includes('other properties') ||
+        messageLower.includes('other property') ||
+        messageLower.includes('any other') ||
+        messageLower.includes('what properties') ||
+        messageLower.includes('which properties') ||
+        messageLower.includes('available properties') ||
+        messageLower.includes('available property') ||
+        messageLower.includes('what listings') ||
+        messageLower.includes('which listings') ||
+        messageLower.includes('other listings') ||
+        messageLower.includes('more properties') ||
+        messageLower.includes('more property') ||
+        messageLower.includes('do you have') && (messageLower.includes('property') || messageLower.includes('listing'));
+
       // Get property details if lead has one
       let property = null;
+      let propertyUnits: any[] = [];
+      let allPropertiesWithUnits: any[] = [];
       let suggestedTimeSlots: any[] = [];
       let bookingLink = '';
 
-      console.log("[AI Reply] Lead property check:", { leadId: lead.id, propertyId: lead.propertyId, propertyName: lead.propertyName });
+      console.log("[AI Reply] Lead property check:", { leadId: lead.id, propertyId: lead.propertyId, propertyName: lead.propertyName, isAskingAboutAvailableProperties });
 
-      if (lead.propertyId) {
+      if (isAskingAboutAvailableProperties) {
+        // Fetch ALL properties with listed units when asking about available properties
+        console.log("[AI Reply] Message asks about available properties - fetching all properties with units");
+        allPropertiesWithUnits = await storage.getPropertiesWithListedUnits(req.orgId, { includeAll: false });
+        // Filter to only properties with listed/available units WITH booking enabled
+        allPropertiesWithUnits = allPropertiesWithUnits
+          .map(prop => ({
+            ...prop,
+            listedUnits: prop.listedUnits.filter((unit: any) => 
+              unit.isListed && 
+              unit.status === 'not_occupied' && 
+              unit.bookingEnabled === true
+            )
+          }))
+          .filter(prop => prop.listedUnits.length > 0);
+        console.log(`[AI Reply] Found ${allPropertiesWithUnits.length} properties with available units (listed + available + booking enabled)`);
+      } else if (lead.propertyId) {
         property = await storage.getProperty(lead.propertyId, req.orgId);
         console.log("[AI Reply] Property fetched:", property ? { id: property.id, name: property.name } : 'NOT FOUND');
         
-        // ALWAYS generate booking link if property exists
+        // Get all listed units for this property (for availability, rent, details)
         if (property) {
-          let baseUrl = process.env.REPLIT_DOMAINS?.split(',')[0] || 'http://localhost:5000';
-          // Ensure baseUrl has protocol
-          if (baseUrl && !baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-            baseUrl = `https://${baseUrl}`;
-          }
+          propertyUnits = await storage.getAllUnitsByProperty(property.id, req.orgId);
+          // Filter to only listed/available units WITH booking enabled
+          propertyUnits = propertyUnits.filter(unit => 
+            unit.isListed && 
+            unit.status === 'not_occupied' && 
+            unit.bookingEnabled === true
+          );
+          console.log("[AI Reply] Property units fetched (listed + available + booking enabled):", propertyUnits.length);
+        }
+        
+        // ALWAYS generate booking link if property exists (env-appropriate: localhost in dev, canonical in prod)
+        if (property) {
+          const baseUrl = getBaseUrlForBookingLink();
           bookingLink = `${baseUrl}/book-showing/property/${property.id}`;
           console.log("[AI Reply] Generated booking link:", bookingLink);
         }
@@ -5205,16 +5790,72 @@ Examples:
           try {
             const { suggestTimeSlots } = await import("./ai-scheduling");
             
+            // Get property scheduling settings (includes assigned members)
+            const propertySettings = await storage.getPropertySchedulingSettings(property.id, req.orgId);
+            
+            // Get unit scheduling settings if we have a specific unit (use first available unit with booking enabled)
+            // This ensures we check member availability for the specific unit's assigned members
+            let unitSettings = null;
+            let unitIdForSlots: string | undefined = undefined;
+            if (propertyUnits.length > 0) {
+              // Use the first unit with booking enabled for time slot generation
+              const firstBookableUnit = propertyUnits.find((u: any) => u.bookingEnabled === true);
+              if (firstBookableUnit) {
+                unitIdForSlots = firstBookableUnit.id;
+                unitSettings = await storage.getUnitSchedulingSettings(firstBookableUnit.id, req.orgId);
+                console.log("[AI Reply] Using unit-specific settings for time slots:", { unitId: unitIdForSlots });
+              }
+            }
+            
+            // Merge unit settings with property settings (unit overrides property)
+            const effectiveSettings = unitSettings ? {
+              ...propertySettings,
+              assignedMembers: unitSettings.customAssignedMembers || propertySettings?.assignedMembers,
+              eventDuration: unitSettings.customEventDuration ?? propertySettings?.eventDuration,
+              bufferTime: unitSettings.customBufferTime ?? propertySettings?.bufferTime,
+              leadTime: unitSettings.customLeadTime ?? propertySettings?.leadTime,
+            } : propertySettings;
+            
+            // Check booking configuration for logging
+            const isBookingEnabled = unitSettings?.bookingEnabled ?? propertySettings?.bookingEnabled ?? false;
+            const assignedMembers = effectiveSettings?.assignedMembers || [];
+            const hasAssignedMembers = Array.isArray(assignedMembers) && assignedMembers.length > 0;
+            
+            console.log("[AI Reply] Booking availability check:", {
+              isBookingEnabled,
+              hasAssignedMembers,
+              assignedMembersCount: assignedMembers.length,
+              hasUnitSettings: !!unitSettings,
+              hasPropertySettings: !!propertySettings,
+            });
+            
+            // Always try to generate time slots - let suggestTimeSlots determine actual availability
+            // This ensures we check real member availability even if settings aren't perfectly configured
             // Get all showings for next 7 days
             const startDate = new Date().toISOString().split('T')[0];
             const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
             const allShowings = await storage.getShowingsByDateRange(startDate, endDate, req.orgId);
-            // Get all active schedule preferences (not scoped to org yet)
-            const schedulePrefs = await storage.getSchedulePreferences();
+            
+            // Get schedule preferences - if assigned members exist, filter to them; otherwise use all
+            let schedulePrefs = await storage.getSchedulePreferences();
+            if (effectiveSettings?.assignedMembers && Array.isArray(effectiveSettings.assignedMembers) && effectiveSettings.assignedMembers.length > 0) {
+              const assignedMemberIds = effectiveSettings.assignedMembers.map((m: any) => 
+                typeof m === 'string' ? m : (m?.userId || m)
+              ).filter(Boolean);
+              schedulePrefs = schedulePrefs.filter(pref => assignedMemberIds.includes(pref.userId));
+              console.log("[AI Reply] Filtered schedule preferences to assigned members:", assignedMemberIds.length, "members");
+            } else {
+              // If no assigned members specified, use all schedule preferences (property might have general availability)
+              console.log("[AI Reply] No assigned members specified, using all schedule preferences");
+            }
             
             // Get all properties for route optimization
             const allPropertiesArray = await storage.getAllProperties(req.orgId);
             const allPropertiesMap = new Map(allPropertiesArray.map(p => [p.id, p]));
+            
+            // Get lead preferred times if available (from metadata)
+            const leadMetadata = lead?.metadata as any;
+            const leadPreferredTimes = leadMetadata?.preferredTimes || leadMetadata?.preferred_time || null;
             
             // Get suggestions for next 7 days - collect all time slots across all days
             const allSuggestions: any[] = [];
@@ -5227,21 +5868,53 @@ Examples:
                 property,
                 allShowings,
                 schedulePrefs,
-                allPropertiesMap
+                allPropertiesMap,
+                effectiveSettings as any,
+                unitIdForSlots
               );
+              
+              // If lead has preferred times, prioritize slots around those times
+              if (leadPreferredTimes && daySuggestions.length > 0) {
+                // Boost scores for slots near preferred times
+                daySuggestions.forEach(slot => {
+                  // Check if slot time is close to any preferred time
+                  // This is a simple implementation - could be enhanced
+                  const slotTime = slot.time;
+                  // Add score boost for preferred times (simple implementation)
+                  if (leadPreferredTimes) {
+                    slot.score += 10; // Boost score for any slot when lead has preferences
+                  }
+                });
+              }
+              
               allSuggestions.push(...daySuggestions);
             }
             
-            // Sort by score and take top 5
+            // Sort by score and take top 5 - only include slots with actual availability
             suggestedTimeSlots = allSuggestions
+              .filter(slot => slot.score > 0) // Only include slots with positive scores (available)
               .sort((a, b) => b.score - a.score)
               .slice(0, 5);
             
             console.log("[AI Reply] Generated scheduling data:", { 
               timeSlotsCount: suggestedTimeSlots.length, 
               bookingLink,
-              firstSlot: suggestedTimeSlots[0] 
+              firstSlot: suggestedTimeSlots[0],
+              hasUnitSettings: !!unitSettings,
+              hasAssignedMembers: !!(effectiveSettings?.assignedMembers?.length),
+              isBookingEnabled,
+              totalSuggestionsBeforeFilter: allSuggestions.length,
+              schedulePrefsCount: schedulePrefs.length
             });
+            
+            // If no time slots were generated, log why
+            if (suggestedTimeSlots.length === 0) {
+              console.log("[AI Reply] ⚠️ No available time slots generated - this could be due to:");
+              console.log("  - No schedule preferences configured");
+              console.log("  - All assigned members are fully booked");
+              console.log("  - Booking not enabled at property/unit level");
+              console.log("  - No available time windows in the next 7 days");
+            }
           } catch (schedulingError: any) {
             console.error("[AI Reply] Failed to fetch AI scheduling suggestions:", schedulingError.message);
             console.error("[AI Reply] Stack trace:", schedulingError.stack);
@@ -5253,6 +5926,163 @@ Examples:
         }
       } else {
         console.log("[AI Reply] No property linked to lead - cannot generate booking link");
+      }
+
+      // Get organization AI settings (brand voice, policies)
+      const orgAISettings = await storage.getAISettings('organization', req.orgId);
+      const brandVoice = orgAISettings.find(s => s.key === 'brand_voice')?.value;
+      const policies = orgAISettings.find(s => s.key === 'policies')?.value;
+
+      // Get personality/tone settings (for training content generation - not used in V2)
+      const personalitySettingsTraining = await storage.getAISettings('personality', req.orgId);
+      const friendliness = personalitySettingsTraining.find(s => s.key === 'friendliness')?.value || 'professional'; // friendly, professional
+      const formality = personalitySettingsTraining.find(s => s.key === 'formality')?.value || 'professional'; // formal, conversational
+      const responseLength = personalitySettingsTraining.find(s => s.key === 'response_length')?.value || 'detailed'; // short, detailed
+      const urgency = personalitySettingsTraining.find(s => s.key === 'urgency')?.value || 'moderate'; // low, moderate, high
+      const warmth = personalitySettingsTraining.find(s => s.key === 'warmth')?.value || 'moderate'; // low, moderate, high
+      const communicationStyle = personalitySettingsTraining.find(s => s.key === 'communication_style')?.value || 'informational'; // sales-assist, informational
+
+      // Get training content (auto-generated from historical conversations)
+      const trainingSettings = await storage.getAISettings('training', req.orgId);
+      const trainingContentRaw = trainingSettings.find(s => s.key === 'auto_training_content')?.value;
+      
+      // Limit training content length to avoid overly long prompts (keep first 2000 chars)
+      const trainingContent = trainingContentRaw ? trainingContentRaw.substring(0, 2000) : null;
+      
+      if (trainingContentRaw) {
+        console.log(`[AI Reply] Using training content (${trainingContentRaw.length} chars, truncated to ${trainingContent?.length || 0} chars)`);
+      } else {
+        console.log(`[AI Reply] No training content found - AI will use default behavior`);
+      }
+
+      // Get corrections (examples of correct responses from interactive training)
+      const correctionsSettings = await storage.getAISettings('training_corrections', req.orgId);
+      const correctionsData = correctionsSettings.find(s => s.key === 'corrections')?.value;
+      let correctionsContext = '';
+      if (correctionsData) {
+        try {
+          const corrections = JSON.parse(correctionsData);
+          if (Array.isArray(corrections) && corrections.length > 0) {
+            correctionsContext = '\n\nCORRECTED EXAMPLES (learn from these - these are the RIGHT way to respond):\n';
+            corrections.slice(-20).forEach((correction: any, idx: number) => {
+              correctionsContext += `\nExample ${idx + 1}:\n`;
+              correctionsContext += `Lead said: "${correction.leadMessage}"\n`;
+              correctionsContext += `Wrong response: "${correction.originalMessage}"\n`;
+              correctionsContext += `Correct response: "${correction.correctedMessage}"\n`;
+            });
+          }
+        } catch (e) {
+          console.error('[AI Reply] Error parsing corrections:', e);
+        }
+      }
+
+      // Get lead notes for context
+      const leadNotes = await storage.getNotesByLeadId(leadId);
+
+      // Get leasing rules (qualification settings) - ALWAYS fetch org-level, property-level overrides if lead has property
+      // This ensures qualifications are always available for the AI to reference
+      let qualificationSettings = await storage.getOrgQualificationSettings(req.orgId);
+      if (lead.propertyId) {
+        // Property-level settings override org-level
+        const propertyQualificationSettings = await storage.getPropertyQualificationSettings(lead.propertyId, req.orgId);
+        if (propertyQualificationSettings) {
+          qualificationSettings = propertyQualificationSettings;
+        }
+      }
+      // Debug logging for qualifications
+      if (qualificationSettings) {
+        console.log(`[AI Reply] Qualification settings found:`, {
+          orgId: req.orgId,
+          propertyId: lead.propertyId,
+          hasQualifications: !!qualificationSettings.qualifications,
+          qualificationsCount: Array.isArray(qualificationSettings.qualifications) ? qualificationSettings.qualifications.length : 0,
+          qualifications: qualificationSettings.qualifications
+        });
+      } else {
+        console.log(`[AI Reply] No qualification settings found for orgId: ${req.orgId}`);
+      }
+
+      // Build property context
+      let propertyContext = '';
+      if (property) {
+        propertyContext = `\n\nPROPERTY INFORMATION (use accurate information from database):
+Property: ${property.name}
+Address: ${property.address}
+${property.description ? `Description: ${property.description}` : ''}
+${property.amenities && property.amenities.length > 0 ? `Amenities: ${property.amenities.join(', ')}` : ''}`;
+
+        // Add available units information - format as: "{bedrooms} bed/{bathrooms} bath, {address} Apartment Unit {unitNumber}"
+        if (propertyUnits.length > 0) {
+          propertyContext += `\n\nAVAILABLE UNITS (current database values - format as: "{bedrooms} bed/{bathrooms} bath, {property address} Apartment Unit {unitNumber}"):`;
+          propertyUnits.slice(0, 5).forEach((unit, idx) => {
+            const bedBath = unit.bedrooms && unit.bathrooms 
+              ? `${unit.bedrooms} bed/${unit.bathrooms} bath`
+              : unit.bedrooms 
+                ? `${unit.bedrooms} bed`
+                : unit.bathrooms
+                  ? `${unit.bathrooms} bath`
+                  : '';
+            propertyContext += `\n${bedBath ? bedBath + ', ' : ''}${property.address} Apartment Unit ${unit.unitNumber}`;
+            if (unit.monthlyRent) propertyContext += ` - $${parseFloat(unit.monthlyRent).toLocaleString()}/month`;
+            if (unit.leaseStartDate) propertyContext += ` - Available: ${unit.leaseStartDate}`;
+          });
+          if (propertyUnits.length > 5) {
+            propertyContext += `\n...and ${propertyUnits.length - 5} more available units`;
+          }
+        } else {
+          propertyContext += `\n\nAVAILABLE UNITS: Please check availability or contact for current listings.`;
+        }
+      } else if (allPropertiesWithUnits.length > 0) {
+        // Build context for ALL available properties when question is about available properties
+        propertyContext = `\n\nALL AVAILABLE PROPERTIES AND UNITS (current database values - use these exact details):\nFormat each unit as: "{bedrooms} bed/{bathrooms} bath, {property address} Apartment Unit {unitNumber}"\n\n`;
+        allPropertiesWithUnits.forEach((prop, propIdx) => {
+          if (prop.listedUnits && prop.listedUnits.length > 0) {
+            prop.listedUnits.slice(0, 10).forEach((unit: any, unitIdx: number) => {
+              const bedBath = unit.bedrooms && unit.bathrooms 
+                ? `${unit.bedrooms} bed/${unit.bathrooms} bath`
+                : unit.bedrooms 
+                  ? `${unit.bedrooms} bed`
+                  : unit.bathrooms
+                    ? `${unit.bathrooms} bath`
+                    : '';
+              propertyContext += `${bedBath ? bedBath + ', ' : ''}${prop.address} Apartment Unit ${unit.unitNumber}`;
+              if (unit.monthlyRent) propertyContext += ` - $${parseFloat(unit.monthlyRent).toLocaleString()}/month`;
+              if (unit.leaseStartDate) propertyContext += ` - Available: ${unit.leaseStartDate}`;
+              propertyContext += `\n`;
+            });
+            if (prop.listedUnits.length > 10) {
+              propertyContext += `...and ${prop.listedUnits.length - 10} more available units\n`;
+            }
+          }
+        });
+        propertyContext += `\nIMPORTANT: Use only the property and unit information provided above from the database. Format responses as: "{bedrooms} bed/{bathrooms} bath, {address} Apartment Unit {unitNumber}". Do not make up details.`;
+      }
+
+      // Build leasing rules context - ALWAYS include if qualifications exist
+      let leasingRulesContext = '';
+      if (qualificationSettings && qualificationSettings.qualifications) {
+        const quals = qualificationSettings.qualifications as any[];
+        if (quals.length > 0) {
+          leasingRulesContext = `\n\nLEASING REQUIREMENTS / QUALIFICATIONS (CRITICAL: Always use these EXACT criteria when asked about qualifications, requirements, or policies):
+`;
+          quals.forEach((qual: any) => {
+            if (qual.type === 'income') {
+              leasingRulesContext += `- Income Requirement: ${qual.value} (e.g., ${qual.value}x monthly rent)\n`;
+            } else if (qual.type === 'credit_score') {
+              leasingRulesContext += `- Minimum Credit Score: ${qual.value}\n`;
+            } else if (qual.type === 'pet_policy') {
+              leasingRulesContext += `- Pet Policy: ${qual.value}\n`;
+            } else if (qual.type === 'move_in_date') {
+              leasingRulesContext += `- Move-in Date Policy: ${qual.value}\n`;
+            } else {
+              leasingRulesContext += `- ${qual.label || qual.type}: ${qual.value}\n`;
+            }
+          });
+          leasingRulesContext += `\nIMPORTANT: If the lead asks about qualifications, requirements, or policies, you MUST provide the exact information listed above. Do not make up or guess qualification requirements.`;
+        }
+      } else {
+        // Even if no qualifications are set, let the AI know
+        leasingRulesContext = `\n\nLEASING REQUIREMENTS: No specific qualification requirements have been set for this organization.`;
       }
 
       // Get calendar availability context
@@ -5271,60 +6101,300 @@ Examples:
         timeSlotsText = `\n\nPublic Booking Link (for self-service scheduling): ${bookingLink}`;
       }
 
-      // Generate AI reply based on the lead's inquiry
-      const replyPrompt = `You are a professional property manager responding to a rental inquiry. 
+      // Build organization context
+      let orgContext = '';
+      if (brandVoice) {
+        orgContext += `\n- Brand Voice/Tone: ${brandVoice}`;
+      }
+      if (policies) {
+        orgContext += `\n- Organization Policies: ${policies}`;
+      }
+      if (organization?.email) {
+        orgContext += `\n- Organization Email: ${organization.email}`;
+      }
+      if (organization?.phone) {
+        orgContext += `\n- Organization Phone: ${organization.phone}`;
+      }
+      if (organization?.address) {
+        orgContext += `\n- Organization Address: ${organization.address}`;
+      }
 
-Your Information (use this to sign the email):
-- Your Name: ${userName}
-- Company/Organization: ${orgName}
-${userEmail ? `- Email: ${userEmail}` : ''}
+      // Build conversation context and anti-repetition instructions
+      const conversationContext = buildConversationContext(
+        conversations.map((c: any) => ({
+          type: c.type,
+          message: c.message,
+          createdAt: c.createdAt,
+          channel: c.channel,
+        })),
+        conversationAnalysis
+      );
+      const antiRepetitionInstructions = buildAntiRepetitionInstructions(conversationAnalysis);
 
-Lead Information:
-- Name: ${lead.name}
-- Property Interested In: ${lead.propertyName || 'our property'}
-- Move-in Date: ${lead.moveInDate || 'Not specified'}
-- Their Message: ${incomingMessage.message}
+      // Build personality/tone instructions
+      let personalityInstructions = '';
+      
+      // Friendliness level
+      if (friendliness === 'friendly') {
+        personalityInstructions += 'Write in a warm, approachable, and friendly tone. Use casual language and show enthusiasm. ';
+      } else {
+        personalityInstructions += 'Write in a professional and businesslike tone. Maintain a respectful and courteous demeanor. ';
+      }
+      
+      // Formality level
+      if (formality === 'conversational') {
+        personalityInstructions += 'Use conversational language with contractions and a more relaxed style. ';
+      } else {
+        personalityInstructions += 'Use formal language with proper grammar and structure. Avoid contractions. ';
+      }
+      
+      // Response length
+      if (responseLength === 'short') {
+        personalityInstructions += 'Keep responses concise (2-3 short paragraphs maximum). Get to the point quickly. ';
+      } else {
+        personalityInstructions += 'Provide detailed, thorough responses (3-4 paragraphs). Include comprehensive information. ';
+      }
+      
+      // Urgency level
+      if (urgency === 'high') {
+        personalityInstructions += 'Create a sense of urgency and timeliness. Encourage quick action. Use phrases like "limited availability" or "act soon". ';
+      } else if (urgency === 'low') {
+        personalityInstructions += 'Maintain a relaxed, no-pressure approach. Avoid creating urgency. ';
+      } else {
+        personalityInstructions += 'Balance urgency with professionalism. Mention availability naturally without being pushy. ';
+      }
+      
+      // Warmth level
+      if (warmth === 'high') {
+        personalityInstructions += 'Show genuine warmth and care. Use empathetic language and show personal interest. ';
+      } else if (warmth === 'low') {
+        personalityInstructions += 'Keep responses factual and straightforward. Maintain professional distance. ';
+      } else {
+        personalityInstructions += 'Show appropriate warmth while remaining professional. Be personable but not overly casual. ';
+      }
+      
+      // Communication style
+      if (communicationStyle === 'sales-assist') {
+        personalityInstructions += 'Adopt a sales-assist approach: highlight benefits, create excitement, guide toward application/showing, and overcome objections. ';
+      } else {
+        personalityInstructions += 'Adopt an informational approach: provide clear information, answer questions thoroughly, and let the lead decide without pressure. ';
+      }
 
-${availabilityContext}${timeSlotsText}
+      // CRITICAL: Check if auto-pilot already sent a reply to this message
+      // If auto-pilot already sent, don't create a pending reply - just return the sent status
+      console.log(`[AI Reply] [Manual Endpoint] 🔍 Checking for auto-pilot replies for lead ${leadId}`);
+      console.log(`[AI Reply] [Manual Endpoint] Incoming message ID: ${incomingMessage.id}, createdAt: ${incomingMessage.createdAt}, channel: ${incomingMessage.channel || 'email'}`);
+      
+      // Get auto-pilot settings to check if it's enabled
+      const autoPilotSettings = await storage.getAISettings("automation", req.orgId);
+      const autoPilotMode = autoPilotSettings.find(s => s.key === "auto_pilot_mode")?.value === "true";
+      
+      // Check if there's already a sent conversation for this incoming message (auto-pilot may have already sent)
+      // Look for outgoing conversations created AFTER this incoming message that are AI-generated and marked as sent
+      const recentOutgoingConversations = conversations
+        .filter((c: any) => {
+          const isOutgoing = c.type === 'outgoing' || c.type === 'sent';
+          const isAIGenerated = c.aiGenerated === true;
+          const isSent = c.deliveryStatus === 'sent';
+          const isAfterIncoming = new Date(c.createdAt).getTime() > new Date(incomingMessage.createdAt).getTime();
+          const isRecent = (new Date().getTime() - new Date(c.createdAt).getTime()) < 10 * 60 * 1000; // Within last 10 minutes
+          
+          return isOutgoing && isAIGenerated && isSent && isAfterIncoming && isRecent;
+        });
+      
+      console.log(`[AI Reply] [Manual Endpoint] Found ${recentOutgoingConversations.length} recent auto-pilot sent conversations:`, 
+        recentOutgoingConversations.map((c: any) => ({
+          id: c.id,
+          type: c.type,
+          createdAt: c.createdAt,
+          deliveryStatus: c.deliveryStatus,
+          aiGenerated: c.aiGenerated,
+          channel: c.channel,
+          timeSinceIncoming: Math.round((new Date(c.createdAt).getTime() - new Date(incomingMessage.createdAt).getTime()) / 1000) + 's'
+        }))
+      );
+      
+      if (recentOutgoingConversations.length > 0) {
+        console.log(`[AI Reply] [Manual Endpoint] ⚠️ BLOCKING pending reply creation - auto-pilot already sent a reply to this message`);
+        console.log(`[AI Reply] [Manual Endpoint] Blocking reason: Found ${recentOutgoingConversations.length} sent conversation(s) after incoming message`);
+        return res.status(200).json({
+          message: "Auto-pilot already sent a reply to this message",
+          conversationId: recentOutgoingConversations[0].id,
+          alreadySent: true,
+        });
+      }
+      
+      console.log(`[AI Reply] [Manual Endpoint] ✅ No auto-pilot reply found - proceeding with pending reply creation`);
 
-Write a friendly, professional email response that:
-1. Thanks them for their interest
-2. Confirms receipt of their inquiry
-3. Briefly addresses their specific questions or needs
-${suggestedTimeSlots.length > 0 ? 
-`4. Include the AI-optimized showing times listed above (present them naturally in the email, e.g., "I have great availability this week: Tuesday 2pm, Wednesday 10am..." picking the best 3-4 slots)
-5. MUST include the booking link: "You can also view all available times and book a showing instantly here: ${bookingLink}"` : 
-bookingLink ? 
-`4. MUST include the booking link naturally (e.g., "You can view available times and book a showing instantly here: ${bookingLink}")
-5. If they're asking about showing times, suggest checking the booking link for real-time availability` :
-'4. If they\'re asking about viewing/showing times, suggest specific available times based on the calendar above'}
-6. Mentions next steps (viewing, application, etc.)
-7. Signs off warmly with YOUR REAL NAME (${userName}) and company/organization (${orgName})
-
-CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE:
-- Sign the email with the EXACT name: "${userName}" - NO PLACEHOLDERS
-- Use the EXACT organization name: "${orgName}" - NO PLACEHOLDERS
-- DO NOT use bracketed placeholders like [Your Name], [Company], [Your Contact Information], etc.
-- The signature should look professional, for example:
-  "Best regards,
-  ${userName}
-  ${orgName}${userEmail ? `\n${userEmail}` : ''}"
-
-Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
-
-      const replyCompletion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: replyPrompt }],
-        temperature: 0.7,
+      // Get personality settings
+      const personalitySettings = await storage.getAISettings('personality', req.orgId);
+      
+      // Use V2 AI reply generator (RAG + Tools + Structured Outputs)
+      const structuredResponse = await generateAIReplyV2(openai, {
+        orgId: req.orgId,
+        leadMessage: incomingMessage.message,
+        leadId: lead.id,
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          propertyId: lead.propertyId,
+          propertyName: lead.propertyName,
+          source: lead.source,
+          status: lead.status,
+        },
+        conversations,
+        isPracticeMode: false,
+        personalitySettings: {
+          friendliness: personalitySettings.find(s => s.key === 'friendliness')?.value,
+          formality: personalitySettings.find(s => s.key === 'formality')?.value,
+          responseLength: personalitySettings.find(s => s.key === 'response_length')?.value,
+          urgency: personalitySettings.find(s => s.key === 'urgency')?.value,
+          warmth: personalitySettings.find(s => s.key === 'warmth')?.value,
+          communicationStyle: personalitySettings.find(s => s.key === 'communication_style')?.value,
+        }
       });
+      
+      const aiReplyContent = structuredResponse.answer;
+      
+      // Log structured response metadata
+      console.log('[AI Reply] V2 Response:', {
+        confidence: structuredResponse.confidence,
+        needsHuman: structuredResponse.needsHuman,
+        sourcesCount: structuredResponse.sources.length,
+        toolResultsCount: structuredResponse.toolResults?.length || 0
+      });
+      
+      // If needs human escalation, flag it in metadata
+      if (structuredResponse.needsHuman) {
+        console.log('[AI Reply] ⚠️ Response flagged for human escalation');
+      }
 
-      const aiReplyContent = replyCompletion.choices[0].message.content || "";
+      // Check auto-pilot settings and rules
+      let shouldAutoSend = false;
+      let autoPilotDecision: { shouldAutoSend: boolean; reason: string; confidence: string } | null = null;
+      let messageAnalysis: { questionType: string; confidence: string; reasoning: string } | null = null;
+      
+      if (autoPilotMode) {
+        // Import auto-pilot rules
+        const { analyzeMessageForAutoPilot, shouldAutoSend: shouldAutoSendCheck } = await import("./autoPilotRules");
+        
+        // Analyze the incoming message
+        messageAnalysis = await analyzeMessageForAutoPilot(incomingMessage.message, openai);
+        
+        // Build auto-pilot settings object
+        const autoPilotConfig: any = {
+          enabled: true,
+          businessHoursOnly: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_enabled")?.value === "true",
+          businessHoursStart: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_start")?.value || "09:00",
+          businessHoursEnd: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_end")?.value || "17:00",
+          businessDays: parseArraySetting(
+            autoPilotSettings.find(s => s.key === "auto_pilot_business_days")?.value,
+            ["monday", "tuesday", "wednesday", "thursday", "friday"]
+          ),
+          allowedQuestionTypes: parseArraySetting(
+            autoPilotSettings.find(s => s.key === "auto_pilot_question_types")?.value,
+            ["availability", "pricing", "general"]
+          ),
+          minConfidenceLevel: (autoPilotSettings.find(s => s.key === "auto_pilot_min_confidence")?.value || "high") as "high" | "medium" | "low",
+          timezone: organization?.timezone || "America/Chicago",
+        };
+        
+        // Check if should auto-send
+        autoPilotDecision = shouldAutoSendCheck(autoPilotConfig, messageAnalysis);
+        shouldAutoSend = autoPilotDecision.shouldAutoSend;
+      }
 
-      // Create pending reply for review
-      const pendingReply = await storage.createPendingReply({
+      // If auto-pilot should send, send immediately
+      if (shouldAutoSend && autoPilotDecision) {
+        // Send the email
+        const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
+        const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+        
+        const gmailTokens = gmailConfig?.config as any;
+        const outlookTokens = outlookConfig?.config as any;
+        
+        let emailSent = false;
+        if (gmailTokens?.access_token) {
+          const { sendReply } = await import("./gmail");
+          await sendReply(gmailTokens, {
+            to: lead.email!,
+            subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+            body: aiReplyContent,
+            threadId: (incomingMessage as any).threadId || undefined,
+            inReplyTo: incomingMessage.externalId || undefined,
+            references: incomingMessage.externalId || undefined,
+          });
+          emailSent = true;
+        } else if (outlookTokens?.access_token) {
+          const { sendOutlookEmail } = await import("./outlook");
+          await sendOutlookEmail(outlookTokens.access_token, {
+            to: lead.email!,
+            subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+            body: aiReplyContent,
+            inReplyTo: incomingMessage.externalId || undefined,
+            references: incomingMessage.externalId || undefined,
+          });
+          emailSent = true;
+        }
+        
+        if (emailSent) {
+          // Record conversation - NO pending reply creation for auto-pilot
+          const conversation = await storage.createConversation({
+            leadId: lead.id,
+            type: 'outgoing',
+            channel: incomingMessage.channel || 'email',
+            message: aiReplyContent,
+            aiGenerated: true,
+          });
+          
+          // Log AI reply sent via auto-pilot (no pending reply needed)
+          const { logAIAction } = await import("./auditLogging");
+          await logAIAction(req, {
+            actionType: "ai_reply_sent",
+            leadId: lead.id,
+            leadName: lead.name,
+            conversationId: conversation.id,
+            channel: incomingMessage.channel || 'email',
+            sentViaAutoPilot: true,
+            autoPilotReason: autoPilotDecision.reason,
+            confidenceLevel: messageAnalysis?.confidence || "medium",
+          });
+          
+          return res.status(201).json({
+            message: "AI reply sent automatically via auto-pilot",
+            conversationId: conversation.id,
+            autoPilot: {
+              enabled: true,
+              sent: true,
+              reason: autoPilotDecision.reason,
+              confidence: messageAnalysis?.confidence || "medium",
+              questionType: messageAnalysis?.questionType || "general",
+            },
+          });
+        }
+      }
+
+      // Use fallback email for Facebook leads that don't have an email
+      const leadEmail = lead.email || (lead.source === 'facebook' 
+        ? `facebook-${lead.externalId || lead.id}@facebook.local` 
+        : `lead-${lead.id}@local`);
+
+      // Create pending reply for review (co-pilot mode or auto-pilot blocked)
+      console.log(`[AI Reply] [Manual Endpoint] 📝 Creating pending reply for lead ${leadId} (${lead.name})`);
+      console.log(`[AI Reply] [Manual Endpoint] Pending reply details:`, {
         leadId: lead.id,
         leadName: lead.name,
-        leadEmail: lead.email,
+        channel: incomingMessage.channel || 'email',
+        incomingMessageId: incomingMessage.id,
+        incomingMessageCreatedAt: incomingMessage.createdAt,
+        aiReplyLength: aiReplyContent.length,
+      });
+      
+      const pendingReply = await storage.createPendingReply({
+        orgId: req.orgId,
+        leadId: lead.id,
+        leadName: lead.name,
+        leadEmail: leadEmail,
         subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
         content: aiReplyContent,
         originalMessage: incomingMessage.message,
@@ -5333,6 +6403,28 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         threadId: (incomingMessage as any).threadId,
         inReplyTo: incomingMessage.externalId,
         references: incomingMessage.externalId,
+        metadata: {
+          originalContent: aiReplyContent, // Store original AI-generated content
+          editedByUser: false,
+          sentViaAutoPilot: false,
+          autoPilotBlocked: autoPilotMode && !shouldAutoSend,
+          autoPilotReason: autoPilotDecision?.reason,
+          confidenceLevel: messageAnalysis?.confidence,
+          questionType: messageAnalysis?.questionType,
+        } as any,
+      });
+      
+      console.log(`[AI Reply] [Manual Endpoint] ✅ Created pending reply ID: ${pendingReply.id}`);
+      console.log(`[AI Reply] [Manual Endpoint] ⚠️ WARNING: This pending reply was created even though auto-pilot may have already sent a message. Check logs above for why the check didn't block it.`);
+
+      // Log AI draft creation
+      const { logAIAction } = await import("./auditLogging");
+      await logAIAction(req, {
+        actionType: "ai_draft_created",
+        leadId: lead.id,
+        leadName: lead.name,
+        pendingReplyId: pendingReply.id,
+        channel: incomingMessage.channel || 'email',
       });
 
       res.status(201).json({ 
@@ -5342,6 +6434,43 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error("Error generating AI reply:", error);
       res.status(500).json({ error: "Failed to generate AI reply" });
+    }
+  });
+
+  // Toggle AI for a lead
+  app.patch("/api/leads/:leadId/ai-toggle", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const leadId = req.params.leadId;
+      const { enabled } = req.body;
+      
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      
+      const lead = await storage.getLead(leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      // Update lead AI enabled status
+      await storage.updateLead(leadId, { aiEnabled: enabled } as any, req.orgId);
+      
+      // Log AI toggle action
+      const { logAIAction } = await import("./auditLogging");
+      await logAIAction(req, {
+        actionType: enabled ? "ai_enabled" : "ai_disabled",
+        leadId: leadId,
+        leadName: lead.name,
+      });
+      
+      res.json({ 
+        success: true, 
+        aiEnabled: enabled,
+        message: enabled ? "AI enabled for this lead" : "AI disabled for this lead"
+      });
+    } catch (error) {
+      console.error("Error toggling AI for lead:", error);
+      res.status(500).json({ error: "Failed to toggle AI for lead" });
     }
   });
 
@@ -5365,21 +6494,61 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
+  app.delete("/api/notes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const deleted = await storage.deleteNote(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Note not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete note" });
+    }
+  });
+
   // ===== PUBLIC ROUTES =====
   // Public endpoint to get launch date for countdown
-  // Note: Global settings (org_id = NULL) have been removed for multi-tenancy.
-  // This endpoint now returns a default value since it's a public route without org context.
   app.get("/api/launch-date", async (req, res) => {
     try {
-      // Default to 1 month from now
-      // If org-specific launch dates are needed in the future, this route would need
-      // to be updated to accept an orgId parameter or use a different approach
-      const defaultDate = new Date();
-      defaultDate.setMonth(defaultDate.getMonth() + 1);
-      res.json({ launchDate: defaultDate.toISOString() });
+      const { db } = await import("./db");
+      const { aiSettings } = await import("@shared/schema");
+      const { eq, and, isNull } = await import("drizzle-orm");
+      
+      const result = await db.select()
+        .from(aiSettings)
+        .where(
+          and(
+            eq(aiSettings.category, 'landing_page'),
+            eq(aiSettings.key, 'launch_date'),
+            isNull(aiSettings.orgId)
+          )
+        )
+        .limit(1);
+      
+      if (result.length > 0 && result[0].value) {
+        try {
+          const launchDate = new Date(result[0].value);
+          // Validate the date
+          if (isNaN(launchDate.getTime())) {
+            throw new Error("Invalid date format");
+          }
+          res.json({ launchDate: launchDate.toISOString() });
+        } catch (dateError) {
+          console.error("[Launch Date] Invalid date format in database:", result[0].value);
+          // Default to 1 month from now if date is invalid
+          const defaultDate = new Date();
+          defaultDate.setMonth(defaultDate.getMonth() + 1);
+          res.json({ launchDate: defaultDate.toISOString() });
+        }
+      } else {
+        // Default to 1 month from now if not set
+        const defaultDate = new Date();
+        defaultDate.setMonth(defaultDate.getMonth() + 1);
+        res.json({ launchDate: defaultDate.toISOString() });
+      }
     } catch (error) {
-      console.error("[Launch Date] Error generating default launch date:", error);
-      // Fallback: 1 month from now
+      console.error("[Launch Date] Error fetching launch date:", error);
+      // Default to 1 month from now on error
       const defaultDate = new Date();
       defaultDate.setMonth(defaultDate.getMonth() + 1);
       res.json({ launchDate: defaultDate.toISOString() });
@@ -5402,6 +6571,1167 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       res.status(201).json(setting);
     } catch (error) {
       res.status(400).json({ error: "Invalid AI setting data" });
+    }
+  });
+
+  // Auto Train AI - Generate training content from historical conversations
+  app.post("/api/ai-training/auto-train", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { propertyId, windowDays = 90, dryRun = false } = req.body;
+
+      console.log(`[Auto Train API] Training request for org ${req.orgId}${propertyId ? `, property ${propertyId}` : ''}`);
+
+      const { trainAI } = await import("./aiAutoTrain");
+      const result = await trainAI(openai, req.orgId, {
+        propertyId,
+        windowDays,
+        dryRun
+      });
+
+      res.json({
+        success: true,
+        styleProfile: result.styleProfile,
+        intentPlaybook: result.intentPlaybook,
+        messageCount: result.messageCount,
+        saved: result.saved
+      });
+    } catch (error: any) {
+      console.error('[Auto Train API] Error:', error);
+      res.status(500).json({
+        error: "Failed to train AI",
+        message: error.message
+      });
+    }
+  });
+
+  // Legacy auto-train endpoint (keeping for backward compatibility)
+  app.post("/api/ai-training/auto-train-legacy", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      
+      // Get all leads for this organization
+      const allLeads = await storage.getAllLeads(req.orgId);
+      
+      // Get conversations for all leads, ordered by lead and timestamp
+      const allConversations: Array<{
+        leadId: string;
+        leadName: string;
+        type: string;
+        message: string;
+        createdAt: string;
+        channel: string;
+      }> = [];
+      
+      for (const lead of allLeads) {
+        const conversations = await storage.getConversationsByLeadId(lead.id, req.orgId);
+        for (const conv of conversations) {
+          allConversations.push({
+            leadId: lead.id,
+            leadName: lead.name || 'Unknown',
+            type: conv.type,
+            message: conv.message,
+            createdAt: conv.createdAt,
+            channel: conv.channel || 'email',
+          });
+        }
+      }
+      
+      if (allConversations.length === 0) {
+        return res.status(400).json({ 
+          error: "No conversations found. You need at least some conversation history to train the AI." 
+        });
+      }
+      
+      // Group conversations by lead and order by timestamp
+      const conversationsByLead = new Map<string, typeof allConversations>();
+      for (const conv of allConversations) {
+        if (!conversationsByLead.has(conv.leadId)) {
+          conversationsByLead.set(conv.leadId, []);
+        }
+        conversationsByLead.get(conv.leadId)!.push(conv);
+      }
+      
+      // Sort conversations within each lead by timestamp
+      conversationsByLead.forEach((convs) => {
+        convs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
+      
+      // Build conversation threads for analysis (limit to most recent 50 leads to avoid token limits)
+      const leadIds = Array.from(conversationsByLead.keys()).slice(0, 50);
+      const conversationThreads: string[] = [];
+      
+      for (const leadId of leadIds) {
+        const convs = conversationsByLead.get(leadId)!;
+        const leadName = convs[0]?.leadName || 'Lead';
+        
+        let thread = `\n=== Conversation with ${leadName} ===\n`;
+        for (const conv of convs) {
+          const sender = (conv.type === 'incoming' || conv.type === 'received') ? 'Lead' : 'You';
+          thread += `${sender}: ${conv.message}\n`;
+        }
+        conversationThreads.push(thread);
+      }
+      
+      const conversationsText = conversationThreads.join('\n');
+      
+      // Use OpenAI to analyze conversations and generate training content
+      const trainingPrompt = `Analyze the following historical conversations between property managers/leasing agents and leads. Extract common patterns, questions leads ask, and how the property manager responds.
+
+Your task is to create a CONCISE training content script (500-1000 words maximum) that will help an AI assistant learn:
+1. Common questions/requests from leads (e.g., "Is this available?", "What's the rent?", "Can I schedule a tour?")
+2. How the property manager typically responds to these questions (tone, style, information provided)
+3. The personality and communication style of the property manager
+
+CRITICAL: Keep responses SHORT and CONCISE. The property manager's responses should be 2-4 paragraphs maximum. Extract only the most important patterns.
+
+Format the output as a structured training script with:
+- Common lead questions/patterns (brief list, 5-10 examples max)
+- Example responses that match the property manager's style (2-3 short examples, each 2-3 sentences)
+- Communication guidelines based on the observed patterns (concise bullet points)
+
+Conversations:
+${conversationsText.substring(0, 15000)} ${conversationsText.length > 15000 ? '...(truncated)' : ''}
+
+Generate a CONCISE training script (500-1000 words) that captures the key communication patterns, tone, and response style. Emphasize brevity - responses should be short and to the point.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: trainingPrompt }],
+        temperature: 0.7,
+        max_tokens: 1000, // Reduced to encourage more concise training content
+      });
+      
+      const trainingContent = completion.choices[0].message.content || '';
+      
+      // Save the training content to ai_settings
+      const trainingSetting = await storage.upsertAISetting({
+        category: 'training',
+        key: 'auto_training_content',
+        value: trainingContent,
+        orgId: req.orgId,
+      });
+      
+      res.json({
+        success: true,
+        trainingContent,
+        conversationsAnalyzed: allConversations.length,
+        leadsAnalyzed: leadIds.length,
+        setting: trainingSetting,
+      });
+    } catch (error: any) {
+      console.error("[AI Training] Error generating training content:", error);
+      res.status(500).json({ error: "Failed to generate training content", message: error.message });
+    }
+  });
+
+  // ===== INTERACTIVE AI TRAINING ROUTES =====
+  
+  // Generate AI response for practice (interactive training)
+  // Uses the SAME AI Leasing Agent logic as real lead replies
+  app.post("/api/ai-training/practice", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { leadMessage, conversationHistory = [], propertyId = null } = req.body;
+      
+      if (!leadMessage || !leadMessage.trim()) {
+        return res.status(400).json({ error: "Lead message is required" });
+      }
+
+      // Get user information (same as real AI reply)
+      const user = req.user;
+      const userName = user?.name || user?.email?.split('@')[0] || 'Property Manager';
+      const userEmail = user?.email || '';
+      
+      // Get organization information (same as real AI reply) - CRITICAL: Use req.orgId
+      console.log(`[AI Training Practice] Using orgId: ${req.orgId} for practice session`);
+      const organization = await storage.getOrganization(req.orgId);
+      const orgName = organization?.name || 'Our Property Management';
+      console.log(`[AI Training Practice] Organization: ${orgName} (orgId: ${req.orgId})`);
+
+      // Detect if message is asking about available properties
+      const messageLower = leadMessage.toLowerCase();
+      const isAskingAboutAvailableProperties = 
+        messageLower.includes('other properties') ||
+        messageLower.includes('other property') ||
+        messageLower.includes('any other') ||
+        messageLower.includes('what properties') ||
+        messageLower.includes('which properties') ||
+        messageLower.includes('available properties') ||
+        messageLower.includes('available property') ||
+        messageLower.includes('what listings') ||
+        messageLower.includes('which listings') ||
+        messageLower.includes('other listings') ||
+        messageLower.includes('more properties') ||
+        messageLower.includes('more property') ||
+        messageLower.includes('do you have') && (messageLower.includes('property') || messageLower.includes('listing'));
+
+      // Detect if message is asking about tours/showings
+      const isShowingRequest = 
+        messageLower.includes('tour') ||
+        messageLower.includes('showing') ||
+        messageLower.includes('viewing') ||
+        messageLower.includes('visit') ||
+        messageLower.includes('see the property') ||
+        messageLower.includes('schedule') ||
+        messageLower.includes('available time') ||
+        messageLower.includes('opening') ||
+        messageLower.includes('when can') ||
+        messageLower.includes('what time');
+
+      // Get property details - detect property mentions in message if propertyId not provided
+      let property = null;
+      let propertyUnits: any[] = [];
+      let allPropertiesWithUnits: any[] = [];
+      let suggestedTimeSlots: any[] = [];
+      let bookingLink = '';
+      
+      // Helper function to normalize addresses (same as in aiReplyGenerator)
+      const normalizeAddress = (address: string): string => {
+        if (!address) return '';
+        let normalized = address.toLowerCase().trim();
+        const abbreviations: Record<string, string> = {
+          '\\bst\\b': 'street',
+          '\\bave\\b': 'avenue',
+          '\\brd\\b': 'road',
+          '\\bdr\\b': 'drive',
+          '\\bln\\b': 'lane',
+          '\\bblvd\\b': 'boulevard',
+          '\\bct\\b': 'court',
+          '\\bpl\\b': 'place',
+        };
+        for (const [abbrev, full] of Object.entries(abbreviations)) {
+          normalized = normalized.replace(new RegExp(abbrev, 'gi'), full);
+        }
+        normalized = normalized.replace(/[.,;:!?]/g, '').replace(/\s+/g, ' ').trim();
+        return normalized;
+      };
+      
+      // Detect property mention in message if propertyId not provided
+      // Skip detection for slot selection ("1", "2", "3. 2026-02-02 at 09:15", etc.) - these are not property addresses
+      let detectedPropertyId = propertyId;
+      const trimmedMsg = String(leadMessage || '').trim();
+      const isSlotSelectionOnly = /^[1-4]\s*$/i.test(trimmedMsg) || /^[1-4][.)\s\-].*at\s+\d{1,2}:\d{2}/i.test(trimmedMsg) || /^\d{4}-\d{2}-\d{2}\s+at\s+\d{1,2}:\d{2}/.test(trimmedMsg);
+      if (!propertyId && leadMessage && !isSlotSelectionOnly) {
+        const patterns = [
+          /(?:is|are|this|that)\s+([A-Z0-9][^?.,!]*?)(?:\s+available|\?|$)/i,
+          /(?:for|at|about|of)\s+([A-Z0-9][^?.,!]*?)(?:\s+available|\?|\.|,|!|$)/i,
+          /([0-9]+\s+[A-Z][^?.,!]*?(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Place|Pl))(?:\s+available|\?|\.|,|!|$)/i,
+          /^([0-9]{2,})(?:\s+available|\?|$)/i,  // Require 2+ digits to avoid matching "1", "2", "3", "4" (slot selections)
+        ];
+        
+        let propertyMention: string | null = null;
+        for (const pattern of patterns) {
+          const match = leadMessage.match(pattern);
+          if (match) {
+            propertyMention = match[1].trim();
+            break;
+          }
+        }
+        
+        if (propertyMention) {
+          const allProperties = await storage.getAllProperties(req.orgId);
+          const normalizedMention = normalizeAddress(propertyMention);
+          const matchedProperty = allProperties.find((p: any) => {
+            const propAddress = (p.address || '').toLowerCase();
+            const normalizedPropAddress = normalizeAddress(propAddress);
+            return normalizedPropAddress.includes(normalizedMention) ||
+                   normalizedMention.includes(normalizedPropAddress) ||
+                   (normalizedMention.match(/^\d+/) && normalizedPropAddress.match(new RegExp(normalizedMention.replace(/\s+/g, '.*'), 'i')));
+          });
+          
+          if (matchedProperty) {
+            detectedPropertyId = matchedProperty.id;
+            console.log('[AI Training] Detected property mention:', propertyMention, '→', matchedProperty.name || matchedProperty.address);
+          }
+        }
+      }
+      
+      if (isAskingAboutAvailableProperties) {
+        // Fetch ALL properties with listed units when asking about available properties
+        console.log('[AI Training] Message asks about available properties - fetching all properties with units');
+        allPropertiesWithUnits = await storage.getPropertiesWithListedUnits(req.orgId, { includeAll: false });
+        // Filter to only properties with listed/available units WITH booking enabled
+        allPropertiesWithUnits = allPropertiesWithUnits
+          .map(prop => ({
+            ...prop,
+            listedUnits: prop.listedUnits.filter((unit: any) => 
+              unit.isListed && 
+              unit.status === 'not_occupied' && 
+              unit.bookingEnabled === true
+            )
+          }))
+          .filter(prop => prop.listedUnits.length > 0);
+        console.log(`[AI Training] Found ${allPropertiesWithUnits.length} properties with available units (listed + available + booking enabled)`);
+      } else if (detectedPropertyId) {
+        property = await storage.getProperty(detectedPropertyId, req.orgId);
+        if (property) {
+          propertyUnits = await storage.getAllUnitsByProperty(property.id, req.orgId);
+          propertyUnits = propertyUnits.filter(unit => 
+            unit.isListed && 
+            unit.status === 'not_occupied' && 
+            unit.bookingEnabled === true
+          );
+          
+          // Generate booking link (env-appropriate: localhost in dev, canonical in prod)
+          const baseUrl = getBaseUrlForBookingLink();
+          bookingLink = `${baseUrl}/book-showing/property/${property.id}`;
+          
+          // Generate time slots if this is a showing request
+          if (isShowingRequest && property) {
+            try {
+              const { suggestTimeSlots } = await import("./ai-scheduling");
+              
+              // Get property scheduling settings
+              const propertySettings = await storage.getPropertySchedulingSettings(property.id, req.orgId);
+              
+              // Get unit scheduling settings if we have a specific unit
+              let unitSettings = null;
+              let unitIdForSlots: string | undefined = undefined;
+              if (propertyUnits.length > 0) {
+                const firstBookableUnit = propertyUnits.find((u: any) => u.bookingEnabled === true);
+                if (firstBookableUnit) {
+                  unitIdForSlots = firstBookableUnit.id;
+                  unitSettings = await storage.getUnitSchedulingSettings(firstBookableUnit.id, req.orgId);
+                }
+              }
+              
+              // Merge settings
+              const effectiveSettings = unitSettings ? {
+                ...propertySettings,
+                assignedMembers: unitSettings.customAssignedMembers || propertySettings?.assignedMembers,
+                eventDuration: unitSettings.customEventDuration ?? propertySettings?.eventDuration,
+                bufferTime: unitSettings.customBufferTime ?? propertySettings?.bufferTime,
+                leadTime: unitSettings.customLeadTime ?? propertySettings?.leadTime,
+              } : propertySettings;
+              
+              // Check booking configuration for logging
+              const isBookingEnabled = unitSettings?.bookingEnabled ?? propertySettings?.bookingEnabled ?? false;
+              const assignedMembers = effectiveSettings?.assignedMembers || [];
+              const hasAssignedMembers = Array.isArray(assignedMembers) && assignedMembers.length > 0;
+              
+              console.log('[AI Training] Booking availability check:', {
+                isBookingEnabled,
+                hasAssignedMembers,
+                assignedMembersCount: assignedMembers.length,
+              });
+              
+              // Always try to generate time slots - let suggestTimeSlots determine actual availability
+              // This ensures we check real member availability even if settings aren't perfectly configured
+              // Get all showings for next 7 days
+              const startDate = new Date().toISOString().split('T')[0];
+              const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+              const allShowings = await storage.getShowingsByDateRange(startDate, endDate, req.orgId);
+              
+              // Get schedule preferences - if assigned members exist, filter to them; otherwise use all
+              let schedulePrefs = await storage.getSchedulePreferences();
+              if (assignedMembers.length > 0) {
+                const assignedMemberIds = assignedMembers.map((m: any) => 
+                  typeof m === 'string' ? m : (m?.userId || m)
+                ).filter(Boolean);
+                schedulePrefs = schedulePrefs.filter(pref => assignedMemberIds.includes(pref.userId));
+                console.log('[AI Training] Filtered schedule preferences to assigned members:', assignedMemberIds.length, "members");
+              } else {
+                // If no assigned members specified, use all schedule preferences (property might have general availability)
+                console.log('[AI Training] No assigned members specified, using all schedule preferences');
+              }
+              
+              // Get all properties for route optimization
+              const allPropertiesArray = await storage.getAllProperties(req.orgId);
+              const allPropertiesMap = new Map(allPropertiesArray.map(p => [p.id, p]));
+              
+              // Get suggestions for next 7 days
+              const allSuggestions: any[] = [];
+              for (let daysAhead = 0; daysAhead < 7; daysAhead++) {
+                const targetDate = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+                const dateStr = targetDate.toISOString().split('T')[0];
+                
+                const daySuggestions = suggestTimeSlots(
+                  dateStr,
+                  property,
+                  allShowings,
+                  schedulePrefs,
+                  allPropertiesMap,
+                  effectiveSettings as any,
+                  unitIdForSlots
+                );
+                
+                allSuggestions.push(...daySuggestions);
+              }
+              
+              // Only include slots with actual availability
+              suggestedTimeSlots = allSuggestions
+                .filter(slot => slot.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 5);
+              
+              console.log('[AI Training] Generated time slots:', {
+                timeSlotsCount: suggestedTimeSlots.length,
+                isBookingEnabled,
+                hasAssignedMembers,
+                totalSuggestionsBeforeFilter: allSuggestions.length,
+                schedulePrefsCount: schedulePrefs.length
+              });
+              
+              // If no time slots were generated, log why
+              if (suggestedTimeSlots.length === 0) {
+                console.log('[AI Training] ⚠️ No available time slots generated - this could be due to:');
+                console.log('  - No schedule preferences configured');
+                console.log('  - All assigned members are fully booked');
+                console.log('  - Booking not enabled at property/unit level');
+                console.log('  - No available time windows in the next 7 days');
+              }
+            } catch (schedulingError: any) {
+              console.error('[AI Training] Failed to generate time slots:', schedulingError.message);
+            }
+          }
+        }
+      }
+
+      // Get or create a practice lead so in-chat booking flow can create real bookings during practice
+      let practiceLead = null;
+      const existingLeads = await storage.getLeadsByStatus('new', req.orgId);
+      practiceLead = existingLeads.find((l: any) => l.source === 'ai_training_practice');
+      if (!practiceLead) {
+        practiceLead = await storage.createLead({
+          orgId: req.orgId,
+          name: 'Practice Lead',
+          source: 'ai_training_practice',
+          status: 'new',
+        });
+      }
+
+      // Get personality settings
+      const personalitySettingsPractice = await storage.getAISettings('personality', req.orgId);
+      
+      // Use V2 AI reply generator (RAG + Tools + Structured Outputs)
+      const structuredResponse = await generateAIReplyV2(openai, {
+        orgId: req.orgId,
+        leadMessage,
+        leadId: practiceLead?.id,
+        lead: practiceLead ? {
+          id: practiceLead.id,
+          name: practiceLead.name,
+          email: practiceLead.email,
+          phone: practiceLead.phone,
+          propertyId: detectedPropertyId || practiceLead.propertyId,
+        } : undefined,
+        conversations: conversationHistory.map((msg: any) => ({
+          type: msg.role === 'lead' ? 'incoming' : 'outgoing',
+          message: msg.message,
+          createdAt: msg.createdAt || new Date().toISOString(),
+          channel: 'email'
+        })),
+        isPracticeMode: true,
+        personalitySettings: {
+          friendliness: personalitySettingsPractice.find(s => s.key === 'friendliness')?.value,
+          formality: personalitySettingsPractice.find(s => s.key === 'formality')?.value,
+          responseLength: personalitySettingsPractice.find(s => s.key === 'response_length')?.value,
+          urgency: personalitySettingsPractice.find(s => s.key === 'urgency')?.value,
+          warmth: personalitySettingsPractice.find(s => s.key === 'warmth')?.value,
+          communicationStyle: personalitySettingsPractice.find(s => s.key === 'communication_style')?.value,
+        }
+      });
+
+      res.json({
+        success: true,
+        response: structuredResponse.answer,
+        metadata: {
+          confidence: structuredResponse.confidence,
+          needsHuman: structuredResponse.needsHuman,
+          sources: structuredResponse.sources,
+          toolResults: structuredResponse.toolResults
+        }
+      });
+    } catch (error: any) {
+      console.error("[AI Training] Error generating practice response:", error);
+      res.status(500).json({ error: "Failed to generate AI response", message: error.message });
+    }
+  });
+
+  // Save a correction
+  app.post("/api/ai-training/correction", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { aiMessageId, originalMessage, correctedMessage, leadMessage } = req.body;
+
+      // CRITICAL: Ensure corrections are saved to the current organization only
+      console.log(`[AI Training] Received correction request for orgId: ${req.orgId}`, {
+        orgId: req.orgId,
+        hasOriginalMessage: !!originalMessage,
+        hasCorrectedMessage: !!correctedMessage,
+        hasLeadMessage: !!leadMessage,
+        leadMessageLength: leadMessage?.length || 0,
+      });
+
+      if (!originalMessage || !correctedMessage) {
+        return res.status(400).json({ error: "Missing required fields: originalMessage and correctedMessage are required" });
+      }
+      
+      // leadMessage is optional, use a default if not provided
+      const finalLeadMessage = leadMessage?.trim() || 'Practice message';
+
+      // Get existing corrections
+      const correctionsSettings = await storage.getAISettings('training_corrections', req.orgId);
+      const existingCorrectionsData = correctionsSettings.find(s => s.key === 'corrections')?.value;
+      
+      let corrections: Array<{
+        id: string;
+        leadMessage: string;
+        originalMessage: string;
+        correctedMessage: string;
+        createdAt: string;
+      }> = [];
+
+      if (existingCorrectionsData) {
+        try {
+          corrections = JSON.parse(existingCorrectionsData);
+          console.log(`[AI Training] Loaded ${corrections.length} existing corrections`);
+        } catch (e) {
+          console.error('[AI Training] Error parsing existing corrections:', e);
+        }
+      }
+
+      // Add new correction
+      const newCorrection = {
+        id: `correction-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        leadMessage: finalLeadMessage,
+        originalMessage: originalMessage.trim(),
+        correctedMessage: correctedMessage.trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      corrections.push(newCorrection);
+
+      // Limit to last 100 corrections to avoid storage issues
+      if (corrections.length > 100) {
+        corrections = corrections.slice(-100);
+      }
+
+      // Save corrections
+      console.log(`[AI Training] Saving correction for orgId: ${req.orgId}`);
+      console.log(`[AI Training] Total corrections to save: ${corrections.length}`);
+      console.log(`[AI Training] New correction:`, newCorrection);
+      
+      const setting = await storage.upsertAISetting({
+        category: 'training_corrections',
+        key: 'corrections',
+        value: JSON.stringify(corrections),
+        orgId: req.orgId,
+      });
+
+      console.log(`[AI Training] ✅ Correction saved successfully. Setting ID: ${setting.id}`);
+      console.log(`[AI Training] Setting value length: ${setting.value.length} characters`);
+
+      res.json({
+        success: true,
+        correction: newCorrection,
+        totalCorrections: corrections.length,
+        setting,
+      });
+    } catch (error: any) {
+      console.error("[AI Training] ❌ Error saving correction:", error);
+      console.error("[AI Training] Error stack:", error.stack);
+      res.status(500).json({ error: "Failed to save correction", message: error.message });
+    }
+  });
+
+  // Get all corrections
+  app.get("/api/ai-training/corrections", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      // CRITICAL: Ensure corrections are scoped to the current organization
+      console.log(`[AI Training] Fetching corrections for orgId: ${req.orgId}`);
+      const correctionsSettings = await storage.getAISettings('training_corrections', req.orgId);
+      const correctionsData = correctionsSettings.find(s => s.key === 'corrections')?.value;
+      
+      let corrections: any[] = [];
+      if (correctionsData) {
+        try {
+          corrections = JSON.parse(correctionsData);
+          console.log(`[AI Training] Loaded ${corrections.length} corrections for orgId: ${req.orgId}`);
+        } catch (e) {
+          console.error('[AI Training] Error parsing corrections:', e);
+        }
+      } else {
+        console.log(`[AI Training] No corrections found for orgId: ${req.orgId}`);
+      }
+
+      res.json(corrections);
+    } catch (error: any) {
+      console.error("[AI Training] Error fetching corrections:", error);
+      res.status(500).json({ error: "Failed to fetch corrections", message: error.message });
+    }
+  });
+
+  // ===== AUTO-PILOT ROUTES =====
+
+  // Parse array setting: supports both JSON arrays and comma-separated strings (as saved by AIAgentSettings)
+  const parseArraySetting = (value: string | undefined, defaultVal: string[]): string[] => {
+    if (!value || typeof value !== "string") return defaultVal;
+    const trimmed = value.trim();
+    if (!trimmed) return defaultVal;
+    if (trimmed.startsWith("[")) {
+      try { return JSON.parse(trimmed); } catch { return trimmed.split(",").map(s => s.trim()).filter(Boolean); }
+    }
+    return trimmed.split(",").map(s => s.trim()).filter(Boolean);
+  };
+
+  // Get auto-pilot status
+  app.get("/api/ai-autopilot/status", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const autoPilotSettings = await storage.getAISettings("automation", req.orgId);
+      const autoPilotMode = autoPilotSettings.find(s => s.key === "auto_pilot_mode")?.value === "true";
+      
+      res.json({
+        enabled: autoPilotMode,
+        settings: {
+          businessHoursOnly: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_enabled")?.value === "true",
+          businessHoursStart: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_start")?.value || "09:00",
+          businessHoursEnd: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_end")?.value || "17:00",
+          businessDays: parseArraySetting(
+            autoPilotSettings.find(s => s.key === "auto_pilot_business_days")?.value,
+            ["monday", "tuesday", "wednesday", "thursday", "friday"]
+          ),
+          allowedQuestionTypes: parseArraySetting(
+            autoPilotSettings.find(s => s.key === "auto_pilot_question_types")?.value,
+            ["availability", "pricing", "general"]
+          ),
+          minConfidenceLevel: autoPilotSettings.find(s => s.key === "auto_pilot_min_confidence")?.value || "high",
+        }
+      });
+    } catch (error: any) {
+      console.error("[Auto-Pilot] Error fetching status:", error);
+      res.status(500).json({ error: "Failed to fetch auto-pilot status", message: error.message });
+    }
+  });
+
+  // Toggle auto-pilot on/off
+  app.post("/api/ai-autopilot/toggle", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { enabled } = req.body;
+      await storage.upsertAISetting({
+        category: "automation",
+        key: "auto_pilot_mode",
+        value: enabled ? "true" : "false",
+        orgId: req.orgId,
+      });
+      
+      res.json({ enabled, message: `Auto-pilot ${enabled ? 'enabled' : 'disabled'}` });
+    } catch (error: any) {
+      console.error("[Auto-Pilot] Error toggling:", error);
+      res.status(500).json({ error: "Failed to toggle auto-pilot", message: error.message });
+    }
+  });
+
+  // Get unreplied leads (leads with incoming messages that haven't been replied to)
+  app.get("/api/ai-autopilot/unreplied-leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const result = await db.execute(sql`
+        WITH latest_incoming AS (
+          SELECT DISTINCT ON (c.lead_id)
+            c.lead_id,
+            c.id as conversation_id,
+            c.message,
+            c.created_at,
+            c.channel,
+            c.external_id
+          FROM conversations c
+          INNER JOIN leads l ON c.lead_id = l.id
+          WHERE l.org_id = ${req.orgId}
+            AND (c.type = 'received' OR c.type = 'incoming')
+          ORDER BY c.lead_id, c.created_at DESC
+        ),
+        latest_outgoing AS (
+          SELECT DISTINCT ON (c.lead_id)
+            c.lead_id,
+            c.created_at
+          FROM conversations c
+          INNER JOIN leads l ON c.lead_id = l.id
+          WHERE l.org_id = ${req.orgId}
+            AND (c.type = 'outgoing' OR c.type = 'sent')
+          ORDER BY c.lead_id, c.created_at DESC
+        )
+        SELECT 
+          l.*,
+          li.conversation_id,
+          li.message as last_incoming_message,
+          li.created_at as last_incoming_at,
+          li.channel,
+          li.external_id,
+          CASE 
+            WHEN lo.created_at IS NULL THEN true
+            WHEN li.created_at > lo.created_at THEN true
+            ELSE false
+          END as needs_reply
+        FROM leads l
+        INNER JOIN latest_incoming li ON l.id = li.lead_id
+        LEFT JOIN latest_outgoing lo ON l.id = lo.lead_id
+        WHERE l.org_id = ${req.orgId}
+          AND (lo.created_at IS NULL OR li.created_at > lo.created_at)
+          AND (l.ai_enabled IS NULL OR l.ai_enabled = true)
+        ORDER BY li.created_at DESC
+        LIMIT 50
+      `);
+      
+      const leads = result.rows.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        source: row.source,
+        propertyId: row.property_id,
+        propertyName: row.property_name,
+        lastIncomingMessage: row.last_incoming_message,
+        lastIncomingAt: row.last_incoming_at,
+        channel: row.channel,
+        conversationId: row.conversation_id,
+        externalId: row.external_id,
+        metadata: row.metadata,
+      }));
+      
+      res.json(leads);
+    } catch (error: any) {
+      console.error("[Auto-Pilot] Error fetching unreplied leads:", error);
+      res.status(500).json({ error: "Failed to fetch unreplied leads", message: error.message });
+    }
+  });
+
+  // Process one unreplied lead (generate and send AI reply)
+  app.post("/api/ai-autopilot/process-lead/:leadId", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const leadId = req.params.leadId;
+      
+      // Get lead details
+      const lead = await storage.getLead(leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Check if AI is enabled for this lead
+      if (lead.aiEnabled === false) {
+        return res.status(403).json({ 
+          error: "AI is disabled for this lead",
+          aiEnabled: false 
+        });
+      }
+
+      // Get conversations for this lead
+      const conversations = await storage.getConversationsByLeadId(leadId, req.orgId);
+      
+      // Find the most recent incoming message
+      const incomingMessage = conversations
+        .filter((c: any) => c.type === 'incoming' || c.type === 'received')
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
+      if (!incomingMessage) {
+        return res.status(400).json({ error: "No incoming message to reply to" });
+      }
+
+      // Get user and organization information
+      const user = req.user;
+      const userName = user?.name || user?.email?.split('@')[0] || 'Property Manager';
+      const userEmail = user?.email || '';
+      const organization = await storage.getOrganization(req.orgId);
+      const orgName = organization?.name || 'Our Property Management';
+
+      // Get property details if lead has one
+      let property = null;
+      let propertyUnits: any[] = [];
+      let allPropertiesWithUnits: any[] = [];
+      
+      const messageLower = incomingMessage.message.toLowerCase();
+      const isAskingAboutAvailableProperties = 
+        messageLower.includes('other properties') ||
+        messageLower.includes('other property') ||
+        messageLower.includes('any other') ||
+        messageLower.includes('what properties') ||
+        messageLower.includes('which properties') ||
+        messageLower.includes('available properties') ||
+        messageLower.includes('available property') ||
+        messageLower.includes('what listings') ||
+        messageLower.includes('which listings') ||
+        messageLower.includes('other listings') ||
+        messageLower.includes('more properties') ||
+        messageLower.includes('more property') ||
+        messageLower.includes('do you have') && (messageLower.includes('property') || messageLower.includes('listing'));
+
+      if (isAskingAboutAvailableProperties) {
+        allPropertiesWithUnits = await storage.getPropertiesWithListedUnits(req.orgId, { includeAll: false });
+        allPropertiesWithUnits = allPropertiesWithUnits
+          .map(prop => ({
+            ...prop,
+            listedUnits: prop.listedUnits.filter((unit: any) => unit.isListed && unit.status === 'not_occupied')
+          }))
+          .filter(prop => prop.listedUnits.length > 0);
+      } else if (lead.propertyId) {
+        property = await storage.getProperty(lead.propertyId, req.orgId);
+        if (property) {
+          propertyUnits = await storage.getAllUnitsByProperty(property.id, req.orgId);
+          propertyUnits = propertyUnits.filter(unit => 
+            unit.isListed && 
+            unit.status === 'not_occupied' && 
+            unit.bookingEnabled === true
+          );
+        }
+      }
+
+      // Get lead notes
+      const leadNotes = await storage.getNotesByLeadId(leadId);
+
+      // Get personality settings
+      const personalitySettingsAutoPilot = await storage.getAISettings('personality', req.orgId);
+      
+      // Use V2 AI reply generator (RAG + Tools + Structured Outputs)
+      const structuredResponse = await generateAIReplyV2(openai, {
+        orgId: req.orgId,
+        leadMessage: incomingMessage.message,
+        leadId: lead.id,
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          propertyId: lead.propertyId,
+          propertyName: lead.propertyName,
+          source: lead.source,
+          status: lead.status,
+        },
+        conversations,
+        isPracticeMode: false,
+        personalitySettings: {
+          friendliness: personalitySettingsAutoPilot.find(s => s.key === 'friendliness')?.value,
+          formality: personalitySettingsAutoPilot.find(s => s.key === 'formality')?.value,
+          responseLength: personalitySettingsAutoPilot.find(s => s.key === 'response_length')?.value,
+          urgency: personalitySettingsAutoPilot.find(s => s.key === 'urgency')?.value,
+          warmth: personalitySettingsAutoPilot.find(s => s.key === 'warmth')?.value,
+          communicationStyle: personalitySettingsAutoPilot.find(s => s.key === 'communication_style')?.value,
+        }
+      });
+      
+      const aiReplyContent = structuredResponse.answer;
+      
+      // Log structured response metadata
+      console.log('[Auto-Pilot] V2 Response:', {
+        confidence: structuredResponse.confidence,
+        needsHuman: structuredResponse.needsHuman,
+        sourcesCount: structuredResponse.sources.length,
+        toolResultsCount: structuredResponse.toolResults?.length || 0
+      });
+
+      // Send the reply based on channel
+      console.log(`[Auto-Pilot] [Process Lead] Starting message send for lead ${leadId} (${lead.name}), channel: ${incomingMessage.channel || 'email'}`);
+      let sent = false;
+      let conversation: any = null;
+
+      if (incomingMessage.channel === 'facebook') {
+        // For Facebook, create message as pending - timed job will send it
+        console.log(`[Auto-Pilot] [Process Lead] Creating Facebook message as pending (timed job will send it)...`);
+        conversation = await storage.createConversation({
+          leadId: lead.id,
+          type: 'outgoing',
+          channel: 'facebook',
+          message: aiReplyContent,
+          aiGenerated: true,
+          sourceIntegration: 'facebook',
+          deliveryStatus: 'pending',
+        });
+        console.log(`[Auto-Pilot] [Process Lead] ✅ Created conversation ID: ${conversation.id} with deliveryStatus: 'pending'`);
+        
+        // Mark as sent for activity log purposes (message will be sent by timed job)
+        sent = true;
+      } else if (incomingMessage.channel === 'email' || !incomingMessage.channel) {
+        // For email, try to send via Gmail or Outlook
+        console.log(`[Auto-Pilot] [Process Lead] Attempting to send email message...`);
+        const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
+        const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+        
+        const gmailTokens = gmailConfig?.config as any;
+        const outlookTokens = outlookConfig?.config as any;
+        
+        if (gmailTokens?.access_token && lead.email) {
+          console.log(`[Auto-Pilot] [Process Lead] Sending via Gmail...`);
+          const { sendReply } = await import("./gmail");
+          await sendReply(gmailTokens, {
+            to: lead.email,
+            subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+            body: aiReplyContent,
+            threadId: (incomingMessage as any).threadId || undefined,
+            inReplyTo: incomingMessage.externalId || undefined,
+            references: incomingMessage.externalId || undefined,
+          });
+          sent = true;
+          console.log(`[Auto-Pilot] [Process Lead] ✅ Gmail message sent successfully`);
+        } else if (outlookTokens?.access_token && lead.email) {
+          console.log(`[Auto-Pilot] [Process Lead] Sending via Outlook...`);
+          const { sendOutlookEmail } = await import("./outlook");
+          await sendOutlookEmail(outlookTokens.access_token, {
+            to: lead.email,
+            subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+            body: aiReplyContent,
+            inReplyTo: incomingMessage.externalId || undefined,
+            references: incomingMessage.externalId || undefined,
+          });
+          sent = true;
+          console.log(`[Auto-Pilot] [Process Lead] ✅ Outlook message sent successfully`);
+        } else {
+          console.warn(`[Auto-Pilot] [Process Lead] ⚠️ Cannot send email: missing access token or lead email`);
+        }
+
+        if (sent) {
+          // Record conversation - NO pending reply creation for auto-pilot
+          console.log(`[Auto-Pilot] [Process Lead] ✅ Email sent successfully - creating conversation with deliveryStatus: 'sent'`);
+          conversation = await storage.createConversation({
+            leadId: lead.id,
+            type: 'outgoing',
+            channel: 'email',
+            message: aiReplyContent,
+            aiGenerated: true,
+            deliveryStatus: 'sent',
+          });
+          console.log(`[Auto-Pilot] [Process Lead] ✅ Created conversation ID: ${conversation.id} with deliveryStatus: 'sent'`);
+        }
+      }
+
+      // For non-Facebook channels, if sending failed, create a pending reply for manual review
+      // Facebook messages are always created as pending and will be sent by the timed job
+      if (!sent && incomingMessage.channel !== 'facebook') {
+        // If we couldn't send, still create the conversation and pending reply for manual review
+        console.log(`[Auto-Pilot] [Process Lead] ⚠️ Message send FAILED - creating conversation and pending reply for manual review`);
+        conversation = await storage.createConversation({
+          leadId: lead.id,
+          type: 'outgoing',
+          channel: incomingMessage.channel || 'email',
+          message: aiReplyContent,
+          aiGenerated: true,
+        });
+
+        const leadEmail = lead.email || (lead.source === 'facebook' 
+          ? `facebook-${lead.externalId || lead.id}@facebook.local` 
+          : `lead-${lead.id}@local`);
+        
+        console.log(`[Auto-Pilot] [Process Lead] 📝 Creating pending reply because send failed (conversation ID: ${conversation.id})`);
+        const pendingReply = await storage.createPendingReply({
+          orgId: req.orgId,
+          leadId: lead.id,
+          leadName: lead.name,
+          leadEmail: leadEmail,
+          subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
+          content: aiReplyContent,
+          originalMessage: incomingMessage.message,
+          channel: incomingMessage.channel || 'email',
+          status: 'pending',
+          metadata: {
+            sentViaAutoPilot: true,
+            conversationId: conversation.id,
+            sendFailed: true,
+          } as any,
+        });
+        console.log(`[Auto-Pilot] [Process Lead] ✅ Created pending reply ID: ${pendingReply.id} (send failed)`);
+      } else {
+        const statusMessage = incomingMessage.channel === 'facebook' 
+          ? 'Message queued as pending (will be sent by timed job)' 
+          : 'Message sent successfully';
+        console.log(`[Auto-Pilot] [Process Lead] ✅ ${statusMessage} - NO pending reply created (conversation ID: ${conversation?.id})`);
+      }
+
+      // Save activity log to database (this endpoint is always auto-pilot)
+      // Gracefully handle if table doesn't exist yet
+      try {
+        await storage.createAutopilotActivityLog(req.orgId, {
+          leadId: lead.id,
+          leadName: lead.name,
+          leadMessage: incomingMessage.message,
+          aiReply: aiReplyContent,
+          sent,
+          channel: incomingMessage.channel || 'email',
+          conversationId: conversation?.id || undefined,
+          metadata: {
+            sentViaAutoPilot: true,
+            sendFailed: !sent && incomingMessage.channel !== 'facebook', // Facebook messages are queued, not failed
+          } as any,
+        });
+      } catch (logError: any) {
+        // Don't fail the request if activity log save fails
+        console.warn("[Auto-Pilot] Failed to save activity log (non-critical):", logError.message);
+      }
+
+      res.json({
+        success: true,
+        leadId: lead.id,
+        leadName: lead.name,
+        leadMessage: incomingMessage.message,
+        aiReply: aiReplyContent,
+        sent,
+        channel: incomingMessage.channel || 'email',
+        conversationId: conversation?.id,
+      });
+    } catch (error: any) {
+      console.error("[Auto-Pilot] Error processing lead:", error);
+      res.status(500).json({ error: "Failed to process lead", message: error.message });
+    }
+  });
+
+  // Get auto-pilot activity logs
+  app.get("/api/ai-autopilot/activity-logs", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getAutopilotActivityLogs(req.orgId, limit);
+      res.json(logs);
+    } catch (error: any) {
+      // Gracefully handle if table doesn't exist yet
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        console.warn("[Auto-Pilot] autopilot_activity_logs table does not exist yet, returning empty array");
+        return res.json([]);
+      }
+      console.error("[Auto-Pilot] Error fetching activity logs:", error);
+      res.status(500).json({ error: "Failed to fetch activity logs", message: error.message });
+    }
+  });
+
+  // Get auto-pilot metrics/KPIs
+  app.get("/api/ai-autopilot/metrics", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      // Get all activity logs for this org
+      const allLogs = await storage.getAutopilotActivityLogs(req.orgId, 10000); // Get a large number to calculate metrics
+      
+      console.log(`[Auto-Pilot Metrics] Fetched ${allLogs.length} activity logs for org ${req.orgId}`);
+      
+      // Filter to only sent messages
+      const sentLogs = allLogs.filter(log => log.sent === true);
+      const failedLogs = allLogs.filter(log => log.sent === false);
+      
+      console.log(`[Auto-Pilot Metrics] Found ${sentLogs.length} sent messages, ${failedLogs.length} failed messages`);
+      
+      // Log breakdown by channel for debugging
+      const sentByChannel = sentLogs.reduce((acc: any, log) => {
+        acc[log.channel] = (acc[log.channel] || 0) + 1;
+        return acc;
+      }, {});
+      const failedByChannel = failedLogs.reduce((acc: any, log) => {
+        acc[log.channel] = (acc[log.channel] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log(`[Auto-Pilot Metrics] Sent by channel:`, sentByChannel);
+      console.log(`[Auto-Pilot Metrics] Failed by channel:`, failedByChannel);
+      
+      // Calculate total messages sent
+      const totalMessagesSent = sentLogs.length;
+      
+      // Calculate messages sent today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const messagesSentToday = sentLogs.filter(log => {
+        const logDate = new Date(log.createdAt);
+        logDate.setHours(0, 0, 0, 0);
+        return logDate.getTime() === today.getTime();
+      }).length;
+      
+      console.log(`[Auto-Pilot Metrics] Messages sent today: ${messagesSentToday}`);
+      
+      // Calculate average response time (time from lead message to AI reply)
+      // We need to get the conversation timestamps for this
+      let totalResponseTime = 0;
+      let responseTimeCount = 0;
+      
+      for (const log of sentLogs.slice(0, 100)) { // Limit to last 100 for performance
+        try {
+          // Get conversations for this lead to find the incoming message timestamp
+          const conversations = await storage.getConversationsByLeadId(log.leadId, req.orgId);
+          
+          // Find the incoming message that matches this log's lead message
+          const incomingMessage = conversations
+            .filter((c: any) => (c.type === 'incoming' || c.type === 'received') && c.message === log.leadMessage)
+            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+          
+          if (incomingMessage && log.createdAt) {
+            const messageTime = new Date(incomingMessage.createdAt).getTime();
+            const replyTime = new Date(log.createdAt).getTime();
+            const responseTime = replyTime - messageTime; // milliseconds
+            
+            if (responseTime > 0 && responseTime < 7 * 24 * 60 * 60 * 1000) { // Valid response time (less than 7 days)
+              totalResponseTime += responseTime;
+              responseTimeCount++;
+            }
+          }
+        } catch (err) {
+          // Skip if we can't get conversations for this lead
+          continue;
+        }
+      }
+      
+      const avgResponseTimeMinutes = responseTimeCount > 0 
+        ? Math.round(totalResponseTime / responseTimeCount / (1000 * 60)) 
+        : 0;
+      
+      // Calculate average inquiry to tour time
+      // Get all leads that have both an inquiry and a scheduled tour
+      let totalInquiryToTourTime = 0;
+      let inquiryToTourCount = 0;
+      
+      try {
+        const allLeads = await storage.getAllLeads(req.orgId);
+        
+        for (const lead of allLeads.slice(0, 100)) { // Limit to last 100 for performance
+          try {
+            // Get first conversation (inquiry)
+            const conversations = await storage.getConversationsByLeadId(lead.id, req.orgId);
+            const firstInquiry = conversations
+              .filter((c: any) => c.type === 'incoming' || c.type === 'received')
+              .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+            
+            if (firstInquiry) {
+              // Get first scheduled showing for this lead
+              const showings = await storage.getShowingsByLead(lead.id, req.orgId);
+              const firstScheduledShowing = showings
+                .filter((s: any) => s.status === 'scheduled' || s.status === 'confirmed')
+                .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+              
+              if (firstScheduledShowing && firstScheduledShowing.scheduledDate) {
+                const inquiryTime = new Date(firstInquiry.createdAt).getTime();
+                const showingDate = new Date(firstScheduledShowing.scheduledDate).getTime();
+                const inquiryToTourTime = showingDate - inquiryTime; // milliseconds
+                
+                if (inquiryToTourTime > 0 && inquiryToTourTime < 90 * 24 * 60 * 60 * 1000) { // Valid time (less than 90 days)
+                  totalInquiryToTourTime += inquiryToTourTime;
+                  inquiryToTourCount++;
+                }
+              }
+            }
+          } catch (err) {
+            // Skip if we can't get data for this lead
+            continue;
+          }
+        }
+      } catch (err) {
+        console.error("[Auto-Pilot] Error calculating inquiry to tour time:", err);
+      }
+      
+      const avgInquiryToTourDays = inquiryToTourCount > 0
+        ? Math.round((totalInquiryToTourTime / inquiryToTourCount) / (1000 * 60 * 60 * 24) * 10) / 10 // Round to 1 decimal
+        : 0;
+      
+      res.json({
+        totalMessagesSent,
+        messagesSentToday,
+        avgResponseTimeMinutes,
+        avgInquiryToTourDays,
+        totalMessagesAttempted: allLogs.length,
+        totalMessagesFailed: failedLogs.length,
+        sentByChannel,
+        failedByChannel,
+      });
+    } catch (error: any) {
+      // Gracefully handle if table doesn't exist yet
+      if (error?.code === '42P01' || error?.message?.includes('does not exist')) {
+        console.warn("[Auto-Pilot] autopilot_activity_logs table does not exist yet, returning zero metrics");
+        return res.json({
+          totalMessagesSent: 0,
+          messagesSentToday: 0,
+          avgResponseTimeMinutes: 0,
+          avgInquiryToTourDays: 0,
+        });
+      }
+      console.error("[Auto-Pilot] Error fetching metrics:", error);
+      res.status(500).json({ error: "Failed to fetch metrics", message: error.message });
     }
   });
 
@@ -6493,17 +8823,78 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const approvedLeads = stats.byStatus.approved || 0;
       const conversionRate = totalLeads > 0 ? Math.round((approvedLeads / totalLeads) * 100) : 0;
       
-      // Calculate average response time (mock for now)
-      const avgResponseTime = "2.3 min";
+      // New leads (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const newLeads = allLeads.filter(lead => {
+        if (!lead.createdAt) return false;
+        const createdAt = new Date(lead.createdAt);
+        return createdAt >= thirtyDaysAgo;
+      }).length;
       
-      // Get active properties count
-      const properties = await storage.getAllProperties(req.orgId);
-      
+      // Leads by property (inquired about each property)
+      const propMap = new Map<string, { name: string; count: number }>();
+      const propertiesList = await storage.getAllProperties(req.orgId);
+      for (const p of propertiesList) propMap.set(p.id, { name: p.name, count: 0 });
+      propMap.set("unassigned", { name: "Unassigned", count: 0 });
+      for (const lead of allLeads) {
+        const pid = lead.propertyId || "unassigned";
+        let entry = propMap.get(pid);
+        if (!entry) {
+          entry = { name: lead.propertyName || (pid === "unassigned" ? "Unassigned" : "Unknown"), count: 0 };
+          propMap.set(pid, entry);
+        }
+        entry.count += 1;
+      }
+      const leadsByProperty = Array.from(propMap.entries())
+        .map(([propertyId, v]) => ({ propertyId, propertyName: v.name, leadCount: v.count }))
+        .filter(x => x.leadCount > 0)
+        .sort((a, b) => b.leadCount - a.leadCount);
+
+      // Response rate (outgoing / incoming messages)
+      const [incomingRes, outgoingRes] = await Promise.all([
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(conversations)
+          .innerJoin(leads, eq(conversations.leadId, leads.id))
+          .where(and(eq(leads.orgId, req.orgId), or(eq(conversations.type, 'incoming'), eq(conversations.type, 'received')))),
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(conversations)
+          .innerJoin(leads, eq(conversations.leadId, leads.id))
+          .where(and(eq(leads.orgId, req.orgId), or(eq(conversations.type, 'outgoing'), eq(conversations.type, 'sent')))),
+      ]);
+      const totalIncoming = incomingRes[0]?.count ?? 0;
+      const totalOutgoing = outgoingRes[0]?.count ?? 0;
+      const responseRate = totalIncoming > 0 ? Math.round((totalOutgoing / totalIncoming) * 100) : 0;
+
+      // Booked tours (confirmed/approved/completed showings)
+      const bookedRes = await db.select({ count: sql<number>`count(*)::int` })
+        .from(showings)
+        .where(and(
+          eq(showings.orgId, req.orgId),
+          or(eq(showings.status, 'confirmed'), eq(showings.status, 'approved'), eq(showings.status, 'completed'))
+        ));
+      const bookedTours = bookedRes[0]?.count ?? 0;
+
+      // Lead to Tour rate (unique leads with booked showing / total leads)
+      const tourLeads = await db.selectDistinct({ leadId: showings.leadId })
+        .from(showings)
+        .innerJoin(leads, eq(showings.leadId, leads.id))
+        .where(and(
+          eq(leads.orgId, req.orgId),
+          isNotNull(showings.leadId),
+          or(eq(showings.status, 'confirmed'), eq(showings.status, 'approved'), eq(showings.status, 'completed'))
+        ));
+      const leadsWithTourCount = tourLeads.length;
+      const leadToTourRate = totalLeads > 0 ? Math.round((leadsWithTourCount / totalLeads) * 100) : 0;
+
       res.json({
         totalLeads,
         conversionRate: `${conversionRate}%`,
-        avgResponseTime,
-        activeProperties: properties.length,
+        newLeads,
+        leadsByProperty,
+        responseRate,
+        bookedTours,
+        leadToTourRate: `${leadToTourRate}%`,
         byStatus: stats.byStatus,
         bySource: stats.bySource,
       });
@@ -6512,20 +8903,96 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/analytics/trends", isAuthenticated, async (req, res) => {
+  app.get("/api/analytics/trends", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
-      // Mock trend data for now
-      const trends = [
-        { month: "Jan", leads: 45 },
-        { month: "Feb", leads: 52 },
-        { month: "Mar", leads: 48 },
-        { month: "Apr", leads: 61 },
-        { month: "May", leads: 55 },
-        { month: "Jun", leads: 67 },
-      ];
+      const period = (req.query.period as string) || "month";
+      const orgId = req.orgId;
+      if (!orgId) return res.status(401).json({ error: "Unauthorized" });
+
+      const getStartOfWeek = (d: Date) => {
+        const copy = new Date(d);
+        const day = copy.getDay();
+        const diff = copy.getDate() - day + (day === 0 ? -6 : 1);
+        copy.setDate(diff);
+        copy.setHours(0, 0, 0, 0);
+        return copy;
+      };
+
+      const getWeekKey = (d: Date) => {
+        const start = getStartOfWeek(new Date(d));
+        return `Week of ${start.toLocaleString("default", { month: "short", day: "numeric", year: "2-digit" })}`;
+      };
+
+      let bucketKeys: string[] = [];
+      let startDate: Date;
+
+      if (period === "week") {
+        const weeksBack = 12;
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - weeksBack * 7);
+        startDate = getStartOfWeek(startDate);
+
+        for (let i = 0; i < weeksBack; i++) {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + i * 7);
+          bucketKeys.push(getWeekKey(d));
+        }
+      } else {
+        const monthsBack = period === "year" ? 12 : 6;
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - monthsBack);
+        startDate.setDate(1);
+        startDate.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < monthsBack; i++) {
+          const d = new Date(startDate);
+          d.setMonth(d.getMonth() + i);
+          bucketKeys.push(d.toLocaleString("default", { month: "short", year: "2-digit" }));
+        }
+      }
+
+      const leadBuckets: Record<string, number> = {};
+      const tourBuckets: Record<string, number> = {};
+      bucketKeys.forEach(k => { leadBuckets[k] = 0; tourBuckets[k] = 0; });
+
+      const leadsRows = await db.select({ createdAt: leads.createdAt })
+        .from(leads)
+        .where(and(eq(leads.orgId, orgId), gte(leads.createdAt, startDate)));
+
+      for (const row of leadsRows) {
+        const d = new Date(row.createdAt as any);
+        const key = period === "week" ? getWeekKey(d) : d.toLocaleString("default", { month: "short", year: "2-digit" });
+        if (leadBuckets[key] !== undefined) leadBuckets[key]++;
+      }
+
+      const startDateStr = startDate.toISOString().slice(0, 10);
+      const showingsRows = await db.select({ scheduledDate: showings.scheduledDate })
+        .from(showings)
+        .innerJoin(leads, eq(showings.leadId, leads.id))
+        .where(and(
+          eq(leads.orgId, orgId),
+          sql`${showings.scheduledDate} >= ${startDateStr}`,
+          or(eq(showings.status, 'confirmed'), eq(showings.status, 'approved'), eq(showings.status, 'completed'))
+        ));
+
+      for (const row of showingsRows) {
+        const sd = row.scheduledDate as string;
+        if (!sd) continue;
+        const d = new Date(sd + "T12:00:00");
+        const key = period === "week" ? getWeekKey(d) : d.toLocaleString("default", { month: "short", year: "2-digit" });
+        if (tourBuckets[key] !== undefined) tourBuckets[key]++;
+      }
+
+      const trends = bucketKeys.map(p => ({
+        period: p,
+        leads: leadBuckets[p] ?? 0,
+        tours: tourBuckets[p] ?? 0,
+      }));
+
       res.json(trends);
     } catch (error) {
-      res.status(500).json({ error: "Failed to fetch trends" });
+      console.error("[Analytics Trends] Error:", error);
+      res.json([]);
     }
   });
 
@@ -6537,7 +9004,7 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       // Get recent AI-generated conversations
       const activities = [];
       for (const lead of conversations.slice(0, 5)) {
-        const convos = await storage.getConversationsByLeadId(lead.id);
+        const convos = await storage.getConversationsByLeadId(lead.id, req.orgId);
         const aiConvos = convos.filter(c => c.aiGenerated).slice(0, 1);
         
         for (const convo of aiConvos) {
@@ -6564,6 +9031,22 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     try {
       // Use the authenticated user's ID for Gmail OAuth
       const userId = req.user.id;
+      
+      // Store the return URL and user ID in session so we can redirect back after OAuth
+      // This ensures we can still identify the user even if session is lost during OAuth redirect
+      const returnUrl = req.query.returnUrl || '/integrations';
+      if (req.session) {
+        (req.session as any).gmailOAuthReturnUrl = returnUrl;
+        (req.session as any).gmailOAuthUserId = userId;
+        req.session.save((err) => {
+          if (err) {
+            console.error("[Gmail OAuth] Error saving session:", err);
+          }
+        });
+      }
+      console.log("[Gmail OAuth] Storing return URL in session:", returnUrl);
+      console.log("[Gmail OAuth] Storing user ID in session:", userId);
+      
       console.log("[Gmail OAuth] Generating auth URL for user:", userId);
       const authUrl = getGmailAuthUrl(userId);
       console.log("[Gmail OAuth] Generated auth URL:", authUrl);
@@ -6576,22 +9059,101 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     }
   });
 
-  app.get("/api/integrations/gmail/callback", isAuthenticated, async (req, res) => {
+  app.get("/api/integrations/gmail/callback", async (req, res) => {
     try {
       const { code, state: userId } = req.query;
       
       if (!code) {
-        return res.status(400).send("Authorization code missing");
+        const host = req.get('host') || '';
+        const isProduction = host.includes('lead2lease.ai');
+        const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(':5000');
+        
+        let redirectUrl: string;
+        if (isLocalhost) {
+          const protocol = req.protocol || 'http';
+          redirectUrl = `${protocol}://${host}/app/integrations?gmail=error&reason=no_code`;
+        } else if (isProduction) {
+          redirectUrl = `https://app.lead2lease.ai/integrations?gmail=error&reason=no_code`;
+        } else {
+          const protocol = req.protocol || 'https';
+          redirectUrl = `${protocol}://${host}/integrations?gmail=error&reason=no_code`;
+        }
+        return res.redirect(redirectUrl);
+      }
+
+      // Get user ID from state parameter, session, or authenticated user
+      let authenticatedUserId = null;
+      if (req.isAuthenticated() && req.user) {
+        authenticatedUserId = req.user.id;
+      } else if (userId) {
+        authenticatedUserId = userId as string;
+      } else if (req.session && (req.session as any).gmailOAuthUserId) {
+        authenticatedUserId = (req.session as any).gmailOAuthUserId;
+      }
+
+      if (!authenticatedUserId) {
+        console.error("[Gmail OAuth] No user ID found in state, session, or authenticated user");
+        const host = req.get('host') || '';
+        const isProduction = host.includes('lead2lease.ai');
+        const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(':5000');
+        
+        let redirectUrl: string;
+        if (isLocalhost) {
+          const protocol = req.protocol || 'http';
+          redirectUrl = `${protocol}://${host}/app/integrations?gmail=error&reason=not_authenticated`;
+        } else if (isProduction) {
+          redirectUrl = `https://app.lead2lease.ai/integrations?gmail=error&reason=not_authenticated`;
+        } else {
+          const protocol = req.protocol || 'https';
+          redirectUrl = `${protocol}://${host}/integrations?gmail=error&reason=not_authenticated`;
+        }
+        return res.redirect(redirectUrl);
       }
 
       // Exchange code for tokens
       const tokens = await getGmailTokensFromCode(code as string);
 
-      // Note: This route needs orgId but Gmail OAuth callback doesn't have attachOrgContext
-      // For now, we need to get the user's orgId manually
-      const membership = await storage.getUserOrganization(req.user.id);
+      // Get the user's orgId
+      const membership = await storage.getUserOrganization(authenticatedUserId);
       if (!membership) {
-        return res.redirect("/integrations?gmail=error&reason=no_org");
+        // Get the return URL from session for error case
+        let returnPath = '/integrations?gmail=error&reason=no_org';
+        if (req.session && (req.session as any).gmailOAuthReturnUrl) {
+          returnPath = (req.session as any).gmailOAuthReturnUrl;
+          if (!returnPath.includes('gmail=')) {
+            returnPath += (returnPath.includes('?') ? '&' : '?') + 'gmail=error&reason=no_org';
+          }
+          delete (req.session as any).gmailOAuthReturnUrl;
+        }
+        
+        // Construct redirect URL for no org error - ALWAYS redirect to app domain
+        const host = req.get('host') || '';
+        const isProduction = host.includes('lead2lease.ai');
+        const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(':5000');
+        
+        let baseUrl: string;
+        if (isLocalhost) {
+          const protocol = req.protocol || 'http';
+          baseUrl = `${protocol}://${host}`;
+          if (!returnPath.startsWith('/app')) {
+            returnPath = '/app' + (returnPath.startsWith('/') ? returnPath : '/' + returnPath);
+          }
+        } else if (isProduction) {
+          baseUrl = 'https://app.lead2lease.ai';
+          if (returnPath.startsWith('/app')) {
+            returnPath = returnPath.replace('/app', '');
+          }
+        } else {
+          const protocol = req.protocol || 'https';
+          baseUrl = `${protocol}://${host}`;
+        }
+        
+        if (!returnPath.startsWith('/')) {
+          returnPath = '/' + returnPath;
+        }
+        
+        const redirectUrl = `${baseUrl}${returnPath}`;
+        return res.redirect(redirectUrl);
       }
       
       // Store tokens in integrationConfig
@@ -6608,11 +9170,96 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         orgId: membership.orgId,
       });
 
-      // Redirect back to integrations page with success message
-      res.redirect("/integrations?gmail=connected");
+      // Get the return URL from session, or default to /integrations
+      let returnPath = '/integrations?gmail=connected';
+      if (req.session && (req.session as any).gmailOAuthReturnUrl) {
+        returnPath = (req.session as any).gmailOAuthReturnUrl;
+        // Add the gmail=connected query param if not already present
+        if (!returnPath.includes('gmail=')) {
+          returnPath += (returnPath.includes('?') ? '&' : '?') + 'gmail=connected';
+        }
+        // Clear it from session after use
+        delete (req.session as any).gmailOAuthReturnUrl;
+        delete (req.session as any).gmailOAuthUserId;
+      }
+      
+      // Construct full redirect URL - ALWAYS redirect to app domain, never marketing domain
+      const host = req.get('host') || '';
+      const isProduction = host.includes('lead2lease.ai');
+      const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(':5000');
+      
+      let baseUrl: string;
+      if (isLocalhost) {
+        // Local development - use localhost with /app prefix
+        const protocol = req.protocol || 'http';
+        baseUrl = `${protocol}://${host}`;
+        // Ensure returnPath has /app prefix for localhost
+        if (!returnPath.startsWith('/app')) {
+          returnPath = '/app' + (returnPath.startsWith('/') ? returnPath : '/' + returnPath);
+        }
+      } else if (isProduction) {
+        // Production - ALWAYS use app.lead2lease.ai, never the marketing domain
+        baseUrl = 'https://app.lead2lease.ai';
+        // Remove /app prefix if present since app.lead2lease.ai is already the app domain
+        if (returnPath.startsWith('/app')) {
+          returnPath = returnPath.replace('/app', '');
+        }
+      } else {
+        // Other environments - use request host
+        const protocol = req.protocol || 'https';
+        baseUrl = `${protocol}://${host}`;
+      }
+      
+      // Ensure the path starts with /
+      if (!returnPath.startsWith('/')) {
+        returnPath = '/' + returnPath;
+      }
+      
+      const redirectUrl = `${baseUrl}${returnPath}`;
+      console.log("[Gmail OAuth] Successfully connected, redirecting to:", redirectUrl);
+      res.redirect(redirectUrl);
     } catch (error) {
       console.error("Gmail OAuth error:", error);
-      res.redirect("/integrations?gmail=error");
+      // Get the return URL from session for error case
+      let returnPath = '/integrations?gmail=error';
+      if (req.session && (req.session as any).gmailOAuthReturnUrl) {
+        returnPath = (req.session as any).gmailOAuthReturnUrl;
+        if (!returnPath.includes('gmail=')) {
+          returnPath += (returnPath.includes('?') ? '&' : '?') + 'gmail=error';
+        }
+        delete (req.session as any).gmailOAuthReturnUrl;
+        delete (req.session as any).gmailOAuthUserId;
+      }
+      
+      // Construct redirect URL for error - ALWAYS redirect to app domain
+      const host = req.get('host') || '';
+      const isProduction = host.includes('lead2lease.ai');
+      const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1') || host.includes(':5000');
+      
+      let baseUrl: string;
+      if (isLocalhost) {
+        const protocol = req.protocol || 'http';
+        baseUrl = `${protocol}://${host}`;
+        if (!returnPath.startsWith('/app')) {
+          returnPath = '/app' + (returnPath.startsWith('/') ? returnPath : '/' + returnPath);
+        }
+      } else if (isProduction) {
+        baseUrl = 'https://app.lead2lease.ai';
+        if (returnPath.startsWith('/app')) {
+          returnPath = returnPath.replace('/app', '');
+        }
+      } else {
+        const protocol = req.protocol || 'https';
+        baseUrl = `${protocol}://${host}`;
+      }
+      
+      if (!returnPath.startsWith('/')) {
+        returnPath = '/' + returnPath;
+      }
+      
+      const redirectUrl = `${baseUrl}${returnPath}`;
+      console.log("[Gmail OAuth] Error occurred, redirecting to:", redirectUrl);
+      res.redirect(redirectUrl);
     }
   });
 
@@ -7215,13 +9862,11 @@ Return ONLY valid JSON. Leave fields empty string "" or null if not found in the
             createdAt: emailTimestamp,
           });
 
-          // Generate AI reply ONLY for testing lead (infinimoji@gmail.com)
-          if (leadToUse.email.toLowerCase().includes('infinimoji@gmail.com')) {
-            syncProgressTracker.addLog('info', `🤖 Generating AI reply for ${leadToUse.name}...`);
+          // Generate AI reply for all leads
+          syncProgressTracker.addLog('info', `🤖 Generating AI reply for ${leadToUse.name}...`);
             
-            // Get thread ID and message ID for proper email threading
+            // Get thread ID for proper email threading
             const threadId = fullMessage.threadId;
-            const messageId = headers.find((h: any) => h.name === "Message-ID")?.value;
 
             // Get calendar availability context
             const availabilityContext = await getAvailabilityContext();
@@ -7256,13 +9901,52 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
             const aiReplyContent = replyCompletion.choices[0].message.content || "";
 
-            // Check if auto-pilot mode is enabled
+            // Check if auto-pilot mode is enabled and apply rules
             const autoPilotSettings = await storage.getAISettings("automation", req.orgId);
             const autoPilotMode = autoPilotSettings.find(s => s.key === "auto_pilot_mode")?.value === "true";
-
+            
+            let shouldAutoSend = false;
+            let autoPilotDecision: { shouldAutoSend: boolean; reason: string; confidence: string } | null = null;
+            let messageAnalysis: { questionType: string; confidence: string; reasoning: string } | null = null;
+            
             if (autoPilotMode) {
-              // Auto-pilot: Send email immediately
+              // Import auto-pilot rules
+              const { analyzeMessageForAutoPilot, shouldAutoSend: shouldAutoSendCheck } = await import("./autoPilotRules");
+              
+              // Analyze the incoming message
+              messageAnalysis = await analyzeMessageForAutoPilot(emailBody, openai);
+              
+              // Get organization for timezone
+              const organization = await storage.getOrganization(req.orgId);
+              
+              // Build auto-pilot settings object
+              const autoPilotConfig: any = {
+                enabled: true,
+                businessHoursOnly: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_enabled")?.value === "true",
+                businessHoursStart: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_start")?.value || "09:00",
+                businessHoursEnd: autoPilotSettings.find(s => s.key === "auto_pilot_business_hours_end")?.value || "17:00",
+                businessDays: parseArraySetting(
+                  autoPilotSettings.find(s => s.key === "auto_pilot_business_days")?.value,
+                  ["monday", "tuesday", "wednesday", "thursday", "friday"]
+                ),
+                allowedQuestionTypes: parseArraySetting(
+                  autoPilotSettings.find(s => s.key === "auto_pilot_question_types")?.value,
+                  ["availability", "pricing", "general"]
+                ),
+                minConfidenceLevel: (autoPilotSettings.find(s => s.key === "auto_pilot_min_confidence")?.value || "high") as "high" | "medium" | "low",
+                timezone: organization?.timezone || "America/Chicago",
+              };
+              
+              // Check if should auto-send
+              autoPilotDecision = shouldAutoSendCheck(autoPilotConfig, messageAnalysis);
+              shouldAutoSend = autoPilotDecision.shouldAutoSend;
+            }
+
+            if (shouldAutoSend && autoPilotDecision) {
+              // Auto-pilot: Send email immediately (rules passed)
               syncProgressTracker.addLog('info', `✈️ Auto-pilot mode: Sending reply to ${leadToUse.name}...`);
+              syncProgressTracker.addLog('info', `   Reason: ${autoPilotDecision.reason}`);
+              syncProgressTracker.addLog('info', `   Confidence: ${messageAnalysis?.confidence || "medium"}`);
               
               await sendReply(tokens, {
                 to: leadToUse.email,
@@ -7273,37 +9957,34 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 references: messageId || undefined,
               });
 
-              // Record conversation
+              // Record conversation - NO pending reply creation for auto-pilot
               await storage.createConversation({
                 leadId: leadToUse.id,
                 type: 'outgoing',
                 channel: 'email',
                 message: aiReplyContent,
                 aiGenerated: true,
+                deliveryStatus: 'sent',
               });
 
-              // Create pending reply marked as sent (for record keeping)
-              await storage.createPendingReply({
-                leadId: leadToUse.id,
-                leadName: leadToUse.name,
-                leadEmail: leadToUse.email,
-                subject: subject,
-                content: aiReplyContent,
-                originalMessage: emailBody,
-                channel: 'email',
-                status: 'sent',
-                threadId: threadId || undefined,
-                inReplyTo: messageId || undefined,
-                references: messageId || undefined,
-              });
-
-              syncProgressTracker.addLog('success', `✅ AI reply sent automatically to ${leadToUse.name}`);
+              syncProgressTracker.addLog('success', `✅ AI reply sent automatically to ${leadToUse.name} (${autoPilotDecision.reason})`);
             } else {
-              // Manual approval mode: Create pending reply
+              // Manual approval mode (co-pilot) or auto-pilot blocked: Create pending reply
+              const blockedReason = autoPilotMode && !shouldAutoSend 
+                ? `Auto-pilot blocked: ${autoPilotDecision?.reason || "Rules not met"}` 
+                : "Co-pilot mode (requires approval)";
+              syncProgressTracker.addLog('info', `📋 ${blockedReason} - Creating pending reply for ${leadToUse.name}`);
+              
+              // Use fallback email for Facebook leads that don't have an email
+              const leadEmailForPending = leadToUse.email || (leadToUse.source === 'facebook' 
+                ? `facebook-${leadToUse.externalId || leadToUse.id}@facebook.local` 
+                : `lead-${leadToUse.id}@local`);
+              
               await storage.createPendingReply({
+                orgId: req.orgId,
                 leadId: leadToUse.id,
                 leadName: leadToUse.name,
-                leadEmail: leadToUse.email,
+                leadEmail: leadEmailForPending,
                 subject: subject,
                 content: aiReplyContent,
                 originalMessage: emailBody,
@@ -7312,11 +9993,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
                 threadId: threadId || undefined,
                 inReplyTo: messageId || undefined,
                 references: messageId || undefined,
+                metadata: {
+                  originalContent: aiReplyContent,
+                  editedByUser: false,
+                  sentViaAutoPilot: false,
+                  autoPilotBlocked: autoPilotMode && !shouldAutoSend,
+                  autoPilotReason: autoPilotDecision?.reason,
+                  confidenceLevel: messageAnalysis?.confidence,
+                  questionType: messageAnalysis?.questionType,
+                } as any,
               });
 
               syncProgressTracker.addLog('success', `✅ AI reply generated for ${leadToUse.name} (pending approval)`);
             }
-          }
 
           // Track created/updated leads
           if (!existingLead) {
@@ -7629,7 +10318,14 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         
         console.log('[Messenger] Stored conversation for lead:', lead.id);
         
-        // TODO: Generate AI response if auto-respond enabled
+        // Load AI training/settings before responding (must be read prior to any reply)
+        const aiTrainingSettings = await storage.getAISettings(
+          "ai_training",
+          config.orgId
+        );
+        console.log("[Messenger] Loaded AI training settings:", aiTrainingSettings);
+
+        // TODO: Generate AI response if auto-respond enabled (use aiTrainingSettings for prompt/context)
         // For now, just acknowledge receipt
       }
       
@@ -7723,6 +10419,1054 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     } catch (error) {
       console.error("Error disconnecting Messenger:", error);
       res.status(500).json({ error: "Failed to disconnect Messenger" });
+    }
+  });
+
+  // ===== FACEBOOK MARKETPLACE INTEGRATION (PERSISTENT SESSION) =====
+  
+  /**
+   * GET /api/integrations/facebook/status
+   * Get Facebook Marketplace integration status (server-persisted)
+   * Returns: { connected: boolean, lastVerifiedAt?: string, lastError?: string, accountIdentifier?: string }
+   */
+  app.get("/api/integrations/facebook/status", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Facebook Status NEW] ===== GET STATUS REQUEST =====');
+      console.log('[Facebook Status NEW] OrgId:', req.orgId);
+      console.log('[Facebook Status NEW] User:', req.user?.id);
+      
+      if (!req.orgId) {
+        console.error('[Facebook Status NEW] ❌ No orgId');
+        return res.status(400).json({ error: 'No organization context' });
+      }
+      
+      const { getFacebookMarketplaceStatus } = await import('./facebookMarketplaceService');
+      const status = await getFacebookMarketplaceStatus(req.orgId);
+      
+      console.log('[Facebook Status NEW] ✅ Status result:', JSON.stringify(status, null, 2));
+      console.log('[Facebook Status NEW] ===== END GET STATUS =====');
+      
+      res.json(status);
+    } catch (error: any) {
+      console.error('[Facebook Status NEW] ❌ Error:', error);
+      res.status(500).json({ error: 'Failed to get status', message: error.message });
+    }
+  });
+
+  /**
+   * POST /api/integrations/facebook/connect
+   * Connect to Facebook Marketplace (runs Playwright login and saves session)
+   * Body: { email: string, password: string }
+   * Returns: { success: boolean, error?: string, accountIdentifier?: string }
+   */
+  app.post("/api/integrations/facebook/connect", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Facebook Connect NEW] ===== CONNECT REQUEST =====');
+      console.log('[Facebook Connect NEW] OrgId:', req.orgId);
+      console.log('[Facebook Connect NEW] User:', req.user?.id);
+      console.log('[Facebook Connect NEW] Email:', req.body.email);
+      
+      if (!req.orgId) {
+        console.error('[Facebook Connect NEW] ❌ No orgId');
+        return res.status(400).json({ error: 'No organization context' });
+      }
+      
+      let email = req.body.email;
+      let password = req.body.password;
+
+      if (!email || !password) {
+        console.error('[Facebook Connect NEW] ❌ Missing credentials');
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+      
+      // Password validation
+      if (password.length < 6) {
+        console.error('[Facebook Connect NEW] ❌ Password too short');
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      
+      console.log('[Facebook Connect NEW] Starting Playwright connection...');
+      const { connectFacebookMarketplace } = await import('./facebookMarketplaceService');
+      const result = await connectFacebookMarketplace(req.orgId, email, password);
+      
+      console.log('[Facebook Connect NEW] Connection result:', JSON.stringify(result, null, 2));
+      
+      if (result.success) {
+        let credentialsInKeyVault = false;
+        try {
+          const { storeFacebookCredentials } = await import('./facebookAuthSecrets.service');
+          if (req.user?.id) {
+            await storeFacebookCredentials(req.user.id, req.orgId, email, password);
+            credentialsInKeyVault = true;
+          }
+        } catch (kvErr: any) {
+          console.error('[Facebook Connect NEW] Key Vault store failed:', kvErr?.message);
+        }
+        await storage.upsertIntegrationConfig({
+          service: 'facebook-marketplace',
+          orgId: req.orgId,
+          config: {
+            connected: true,
+            accountIdentifier: result.accountIdentifier,
+            lastVerifiedAt: new Date().toISOString(),
+            credentialsInKeyVault,
+          },
+          isActive: true,
+        });
+        // Zero out credentials in-memory after use (never return to client or logs)
+        email = '';
+        password = '';
+        console.log('[Facebook Connect NEW] ✅ Connection successful');
+        console.log('[Facebook Connect NEW] ===== END CONNECT =====');
+        res.json({ success: true, accountIdentifier: result.accountIdentifier });
+      } else {
+        console.error('[Facebook Connect NEW] ❌ Connection failed:', result.error);
+        console.log('[Facebook Connect NEW] ===== END CONNECT =====');
+        res.status(401).json({ success: false, error: result.error });
+      }
+    } catch (error: any) {
+      console.error('[Facebook Connect NEW] ❌ Exception:', error);
+      console.log('[Facebook Connect NEW] ===== END CONNECT =====');
+      res.status(500).json({ error: 'Connection failed', message: error.message });
+    }
+  });
+
+  /**
+   * POST /api/integrations/facebook/verify
+   * Verify Facebook Marketplace session (checks if storageState is still valid)
+   * Returns: { success: boolean, error?: string }
+   */
+  app.post("/api/integrations/facebook/verify", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      if (!req.orgId) {
+        return res.status(400).json({ error: 'No organization context' });
+      }
+      
+      const { verifyFacebookMarketplace } = await import('./facebookMarketplaceService');
+      const result = await verifyFacebookMarketplace(req.orgId);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error('[Facebook Verify] Error:', error);
+      res.status(500).json({ error: 'Verification failed', message: error.message });
+    }
+  });
+
+  /**
+   * POST /api/integrations/facebook/disconnect
+   * Disconnect Facebook Marketplace (deletes storageState and updates status)
+   * Returns: { success: boolean }
+   */
+  app.post("/api/integrations/facebook/disconnect", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      if (!req.orgId) {
+        return res.status(400).json({ error: 'No organization context' });
+      }
+      const { deleteFacebookCredentials } = await import('./facebookAuthSecrets.service');
+      if (req.user?.id) {
+        await deleteFacebookCredentials(req.user.id, req.orgId);
+      }
+      const { disconnectFacebookMarketplace } = await import('./facebookMarketplaceService');
+      await disconnectFacebookMarketplace(req.orgId);
+      await storage.upsertIntegrationConfig({
+        service: 'facebook-marketplace',
+        orgId: req.orgId,
+        config: {},
+        isActive: false,
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Facebook Disconnect] Error:', error);
+      res.status(500).json({ error: 'Disconnect failed', message: error.message });
+    }
+  });
+  
+  // ===== LEGACY FACEBOOK MARKETPLACE ROUTES (deprecated, kept for backward compatibility) =====
+  
+  // Get Facebook Marketplace integration status (LEGACY)
+  app.get("/api/integrations/facebook-marketplace", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Facebook Marketplace GET LEGACY] ===== Fetching config =====');
+      console.log('[Facebook Marketplace GET LEGACY] ⚠️  WARNING: Using LEGACY endpoint. Use /api/integrations/facebook/status for persistent sessions.');
+      console.log('[Facebook Marketplace GET LEGACY] User ID:', req.user?.id);
+      console.log('[Facebook Marketplace GET LEGACY] Org ID from context:', req.orgId);
+      console.log('[Facebook Marketplace GET LEGACY] User currentOrgId:', req.user?.currentOrgId);
+      
+      // Ensure we have an orgId
+      if (!req.orgId) {
+        console.error('[Facebook Marketplace GET] ❌ No orgId in request context');
+        return res.json({ connected: false, isActive: false, error: 'No organization context' });
+      }
+      
+      const config = await storage.getIntegrationConfig("facebook-marketplace", req.orgId);
+      
+      console.log('[Facebook Marketplace GET] Config found:', !!config);
+      if (config) {
+        console.log('[Facebook Marketplace GET] Config details:', {
+          id: config.id,
+          service: config.service,
+          orgId: config.orgId,
+          isActive: config.isActive,
+          hasEmail: !!(config.config as any)?.email,
+          hasPassword: !!(config.config as any)?.password,
+          updatedAt: config.updatedAt,
+        });
+        
+        // Verify orgId matches
+        if (config.orgId !== req.orgId) {
+          console.error('[Facebook Marketplace GET] ❌ OrgId mismatch! Config orgId:', config.orgId, 'Request orgId:', req.orgId);
+          return res.json({ connected: false, isActive: false, error: 'Organization mismatch' });
+        }
+      } else {
+        console.log('[Facebook Marketplace GET] No config found for orgId:', req.orgId);
+        // Debug: Check if config exists for other orgs
+        const allConfigs = await db.select().from(integrationConfig).where(eq(integrationConfig.service, "facebook-marketplace"));
+        console.log('[Facebook Marketplace GET] All facebook-marketplace configs in DB:', allConfigs.map(c => ({ id: c.id, orgId: c.orgId, isActive: c.isActive })));
+      }
+      
+      // Check if config exists and is active
+      if (!config) {
+        console.log('[Facebook Marketplace GET] No config found - returning: { connected: false, isActive: false }');
+        return res.json({ connected: false, isActive: false });
+      }
+      
+      console.log('[Facebook Marketplace GET] Config found - isActive:', config.isActive);
+      
+      if (!config.isActive) {
+        console.log('[Facebook Marketplace GET] Config exists but isActive is false - returning: { connected: false, isActive: false }');
+        return res.json({ connected: false, isActive: false });
+      }
+      
+      const marketplaceConfig = config.config as any;
+      const credentialsInKeyVault = marketplaceConfig?.credentialsInKeyVault === true;
+
+      // Connected if we have session/connection; credentials may be in Key Vault (never returned)
+      const hasStoredCredentials = credentialsInKeyVault
+        || (!!marketplaceConfig?.email && !!marketplaceConfig?.password);
+      if (!hasStoredCredentials) {
+        console.log('[Facebook Marketplace GET] Config exists but credentials missing (and not in Key Vault)');
+        return res.json({ connected: false, isActive: false });
+      }
+
+      // Never return actual email/password to UI or API
+      const response = {
+        connected: true,
+        email: 'Saved (encrypted)',
+        id: config.id,
+        isActive: config.isActive,
+      };
+      
+      console.log('[Facebook Marketplace GET] ✅ Returning success response:', JSON.stringify(response, null, 2));
+      console.log('[Facebook Marketplace GET] ===== Config fetch complete =====');
+      
+      return res.json(response);
+    } catch (err: any) {
+      console.error('[Facebook Marketplace GET] ❌ Error fetching status:', err);
+      console.error('[Facebook Marketplace GET] Error stack:', err?.stack);
+      return res.json({ connected: false, isActive: false, error: err?.message });
+    }
+  });
+
+  // Test Facebook Marketplace connection (LEGACY)
+  app.post("/api/integrations/facebook-marketplace/test", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Facebook Marketplace Test LEGACY] ===== TEST CONNECTION =====');
+      console.log('[Facebook Marketplace Test LEGACY] ⚠️  WARNING: Using LEGACY endpoint. Use /api/integrations/facebook/connect for persistent sessions.');
+      
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      // Use dynamic import for Playwright (ES module)
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({ headless: false }); // Show browser window so user can see the test
+      const page = await browser.newPage();
+      
+      try {
+        // Use the exact same login logic as the main Playwright script
+        // Helper function for random delay (2-3 seconds)
+        const randomDelay = () => Math.floor(Math.random() * 1000) + 2000;
+        
+        console.log('[Facebook Marketplace Test] Starting Facebook navigation and login...');
+        console.log(`[Facebook Marketplace Test] Using email: ${email ? email.substring(0, 5) + '***' : 'NOT SET'}`);
+        console.log(`[Facebook Marketplace Test] Password set: ${password ? 'YES' : 'NO'}`);
+        
+        console.log('[Facebook Marketplace Test] Navigating to Facebook...');
+        await page.goto('https://www.facebook.com/');
+        await page.waitForTimeout(randomDelay());
+        
+        console.log('[Facebook Marketplace Test] Filling login form...');
+        await page.getByTestId('royal-email').fill(email);
+        await page.waitForTimeout(randomDelay());
+        await page.getByTestId('royal-pass').fill(password);
+        await page.waitForTimeout(randomDelay());
+        
+        console.log('[Facebook Marketplace Test] Clicking login button...');
+        const loginUrlBefore = page.url();
+        await page.getByTestId('royal-login-button').click();
+        
+        // Wait for login to complete - wait for navigation away from login page OR for elements that appear after login
+        console.log('[Facebook Marketplace Test] Waiting for login to complete...');
+        try {
+          // Wait for either URL change OR for elements that appear after login (like the main feed or shortcuts)
+          await Promise.race([
+            page.waitForURL((url) => !url.pathname.includes('/login') && url.hostname.includes('facebook.com'), { timeout: 30000 }),
+            page.waitForSelector('div[role="main"], [aria-label="Shortcuts"], [aria-label="Navigation"]', { timeout: 30000 }),
+            page.waitForLoadState('networkidle', { timeout: 30000 }),
+          ]);
+          console.log('[Facebook Marketplace Test] Login successful, current URL:', page.url());
+        } catch (error) {
+          // If URL didn't change, check if we're still on login page or if login failed
+          const currentUrl = page.url();
+          if (currentUrl.includes('/login') || currentUrl === loginUrlBefore) {
+            console.error('[Facebook Marketplace Test] Login may have failed - still on login page');
+            // Check for error messages
+            try {
+              const errorElement = await page.locator('[role="alert"], ._4rbf, [data-testid="error"]').first();
+              if (await errorElement.isVisible({ timeout: 2000 }).catch(() => false)) {
+                const errorText = await errorElement.textContent();
+                await browser.close();
+                return res.status(401).json({ error: `Facebook login failed: ${errorText}` });
+              }
+            } catch (e) {
+              // No error element found, continue anyway
+            }
+            await browser.close();
+            return res.status(401).json({ error: `Login timeout - URL did not change from login page. Current URL: ${currentUrl}` });
+          }
+          console.log('[Facebook Marketplace Test] Login appears successful (URL changed or elements loaded)');
+        }
+        
+        await page.waitForTimeout(randomDelay());
+        
+        // Handle any popups/dialogs that appear after login (try multiple common popup patterns)
+        console.log('[Facebook Marketplace Test] Checking for post-login popups/dialogs...');
+        const popupSelectors = [
+          'button[aria-label="Close"]',
+          'div[role="dialog"] button:has-text("Close")',
+          'div[role="dialog"] button:has-text("Not Now")',
+          'div[role="dialog"] button:has-text("Skip")',
+          '[aria-label="Close"]',
+          'button:has-text("Close")',
+        ];
+        
+        for (const selector of popupSelectors) {
+          try {
+            const popupButton = page.locator(selector).first();
+            if (await popupButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+              await popupButton.click();
+              await page.waitForTimeout(randomDelay());
+              console.log(`[Facebook Marketplace Test] Closed popup using selector: ${selector}`);
+              break; // Only close one popup
+            }
+          } catch (error) {
+            // Continue trying other selectors
+          }
+        }
+        
+        // Wait a bit more for any remaining dialogs to settle
+        await page.waitForTimeout(randomDelay());
+        
+        // Navigate to Marketplace - try multiple ways to find it
+        console.log('[Facebook Marketplace Test] Navigating to Marketplace...');
+        try {
+          // Try the shortcuts menu first
+          await page.getByLabel('Shortcuts').getByRole('link', { name: 'Marketplace' }).click({ timeout: 5000 });
+          console.log('[Facebook Marketplace Test] Clicked Marketplace from shortcuts menu');
+        } catch (error) {
+          console.log('[Facebook Marketplace Test] Shortcuts menu not found, trying direct navigation...');
+          // Fallback: Try direct navigation or search
+          try {
+            await page.goto('https://www.facebook.com/marketplace');
+            console.log('[Facebook Marketplace Test] Navigated directly to Marketplace');
+          } catch (navError) {
+            console.log('[Facebook Marketplace Test] Direct navigation failed, searching for Marketplace link...');
+            // Try finding Marketplace link in different ways
+            const marketplaceLink = page.getByRole('link', { name: /marketplace/i }).first();
+            if (await marketplaceLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+              await marketplaceLink.click();
+              console.log('[Facebook Marketplace Test] Found and clicked Marketplace link');
+            } else {
+              await browser.close();
+              return res.status(401).json({ error: 'Could not find Marketplace link - login may have failed' });
+            }
+          }
+        }
+        await page.waitForTimeout(randomDelay());
+        console.log('[Facebook Marketplace Test] Current URL after Marketplace navigation:', page.url());
+        await page.waitForTimeout(randomDelay());
+        
+        // Handle login popup if it appears when navigating to Marketplace
+        console.log('[Facebook Marketplace Test] Checking for login popup...');
+        try {
+          const emailField = page.getByRole('textbox', { name: 'Email or phone number' });
+          if (await emailField.isVisible({ timeout: 3000 }).catch(() => false)) {
+            console.log('[Facebook Marketplace Test] Login popup detected, filling credentials...');
+            await emailField.fill(email);
+            await page.waitForTimeout(randomDelay());
+            await page.locator('#login_popup_cta_form').getByRole('textbox', { name: 'Password' }).click();
+            await page.waitForTimeout(randomDelay());
+            await page.locator('#login_popup_cta_form').getByRole('textbox', { name: 'Password' }).fill(password);
+            await page.waitForTimeout(randomDelay());
+            await page.getByRole('button', { name: 'Log in to Facebook' }).click();
+            await page.waitForTimeout(randomDelay());
+            console.log('[Facebook Marketplace Test] Login popup handled successfully');
+          }
+        } catch (error) {
+          console.log('[Facebook Marketplace Test] No login popup found or already logged in, continuing...');
+        }
+        
+        // Wait a bit more for the page to fully load after handling popup
+        await page.waitForTimeout(randomDelay());
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+          console.log('[Facebook Marketplace Test] Network idle timeout, continuing anyway...');
+        });
+        
+        // Final verification - check if we can see Marketplace content
+        const finalUrl = page.url();
+        console.log('[Facebook Marketplace Test] Final URL:', finalUrl);
+        
+        // Check for CAPTCHA/checkpoint
+        if (finalUrl.includes('/captcha') || finalUrl.includes('/checkpoint') || finalUrl.includes('/challenge')) {
+          console.log('[Facebook Marketplace Test] ❌ CAPTCHA/checkpoint detected - login failed');
+          await browser.close();
+          return res.status(401).json({ error: 'Login failed: Facebook is showing a CAPTCHA or security checkpoint. This usually means invalid credentials or suspicious login activity.' });
+        }
+        
+        // Check if we're on login page
+        if (finalUrl.includes('/login')) {
+          console.log('[Facebook Marketplace Test] ❌ Still on login page - login failed');
+          await browser.close();
+          return res.status(401).json({ error: 'Login failed: Still on login page after Marketplace navigation' });
+        }
+        
+        // Verify we can see Marketplace elements - use more flexible checks
+        console.log('[Facebook Marketplace Test] Checking for Marketplace indicators...');
+        const marketplaceIndicators = [
+          'a[href*="/marketplace/create"]',
+          'a[href*="/marketplace/sell"]',
+          'a[href*="marketplace"]',
+          '[aria-label*="Marketplace"]',
+          '[aria-label*="marketplace"]',
+          'div:has-text("Sell Something")',
+          'div:has-text("Create new listing")',
+          'div:has-text("Sell")',
+          'div[role="main"]',
+          'main',
+          '[role="main"]',
+        ];
+        
+        let foundMarketplaceIndicator = false;
+        for (const selector of marketplaceIndicators) {
+          try {
+            if (await page.locator(selector).first().isVisible({ timeout: 3000 }).catch(() => false)) {
+              foundMarketplaceIndicator = true;
+              console.log('[Facebook Marketplace Test] ✅ Found Marketplace indicator:', selector);
+              break;
+            }
+          } catch (e) {
+            // Continue checking
+          }
+        }
+        
+        // If no specific indicators found, check if we're on a Marketplace URL and page has loaded
+        if (!foundMarketplaceIndicator) {
+          const isMarketplaceUrl = finalUrl.includes('/marketplace') || finalUrl.includes('facebook.com/marketplace');
+          
+          if (isMarketplaceUrl) {
+            // Check if page has any content loaded (not just a blank page)
+            try {
+              const hasContent = await page.evaluate(() => {
+                return document.body && document.body.innerText && document.body.innerText.length > 100;
+              });
+              
+              if (hasContent) {
+                console.log('[Facebook Marketplace Test] ✅ On Marketplace URL with content loaded - considering login successful');
+                foundMarketplaceIndicator = true;
+              } else {
+                console.log('[Facebook Marketplace Test] ⚠️ On Marketplace URL but page appears empty');
+              }
+            } catch (error) {
+              console.log('[Facebook Marketplace Test] ⚠️ Could not check page content');
+            }
+          }
+        }
+        
+        if (!foundMarketplaceIndicator) {
+          console.log('[Facebook Marketplace Test] ❌ No Marketplace indicators found - login failed');
+          console.log('[Facebook Marketplace Test] Final URL:', finalUrl);
+          await browser.close();
+          return res.status(401).json({ error: 'Login failed: Could not verify successful login on Marketplace page' });
+        }
+        
+        console.log('[Facebook Marketplace Test] ✅ Login successful');
+        await browser.close();
+        res.json({ success: true, message: 'Connection test successful' });
+      } catch (error: any) {
+        await browser.close();
+        console.error('[Facebook Marketplace Test] Error:', error.message);
+        res.status(500).json({ error: error.message || 'Test failed' });
+      }
+    } catch (error: any) {
+      console.error('[Facebook Marketplace] Test error:', error);
+      res.status(500).json({ error: error.message || 'Failed to test connection' });
+    }
+  });
+
+  // Configure Facebook Marketplace integration (LEGACY)
+  app.post("/api/integrations/facebook-marketplace/configure", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log('[Facebook Marketplace Configure LEGACY] ===== CONFIGURE =====');
+      const { allowHardLoginFallback, storeFacebookCredentials } = await import('./facebookAuthSecrets.service');
+      const keyVault = await import('./keyVault');
+
+      const { email, password } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const existingConfig = await storage.getIntegrationConfig("facebook-marketplace", req.orgId);
+      const existingPassword = existingConfig?.config && typeof existingConfig.config === 'object' && 'password' in existingConfig.config
+        ? (existingConfig.config as any).password
+        : null;
+      const passwordToStore = password || existingPassword;
+
+      if (!passwordToStore) {
+        return res.status(400).json({ error: 'Password is required for initial setup' });
+      }
+
+      if (!req.orgId) {
+        return res.status(400).json({ error: 'No organization context' });
+      }
+
+      let credentialsInKeyVault = false;
+      if (keyVault.isKeyVaultConfigured() && req.user?.id) {
+        try {
+          await storeFacebookCredentials(req.user.id, req.orgId, email, passwordToStore);
+          credentialsInKeyVault = true;
+        } catch (kvErr: any) {
+          console.error('[Facebook Marketplace Configure] Key Vault store failed:', kvErr?.message);
+          if (!allowHardLoginFallback()) {
+            return res.status(400).json({ error: 'Key Vault is required for storing credentials. Configure KEY_VAULT_URI or set ALLOW_HARD_LOGIN_FALLBACK.' });
+          }
+        }
+      } else if (!allowHardLoginFallback()) {
+        return res.status(400).json({ error: 'Key Vault is required. Configure KEY_VAULT_URI or set ALLOW_HARD_LOGIN_FALLBACK.' });
+      }
+
+      const configToSave: Record<string, unknown> = credentialsInKeyVault
+        ? { credentialsInKeyVault: true }
+        : { email, password: passwordToStore };
+      const savedConfig = await storage.upsertIntegrationConfig({
+        service: 'facebook-marketplace',
+        config: configToSave,
+        isActive: true,
+        orgId: req.orgId,
+      });
+
+      console.log('[Facebook Marketplace Configure] ✅ Config saved:', { id: savedConfig.id, orgId: savedConfig.orgId, credentialsInKeyVault });
+      res.json({ success: true, message: 'Facebook Marketplace configured successfully' });
+    } catch (error) {
+      console.error('[Facebook Marketplace] Configuration error:', error);
+      res.status(500).json({ error: 'Failed to configure Facebook Marketplace' });
+    }
+  });
+
+  // Disconnect Facebook Marketplace integration
+  app.post("/api/integrations/facebook-marketplace/disconnect", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const { deleteFacebookCredentials } = await import('./facebookAuthSecrets.service');
+      const { disconnectFacebookMarketplace } = await import('./facebookMarketplaceService');
+      if (req.user?.id && req.orgId) {
+        await deleteFacebookCredentials(req.user.id, req.orgId);
+      }
+      if (req.orgId) {
+        await disconnectFacebookMarketplace(req.orgId);
+      }
+      await storage.upsertIntegrationConfig({
+        service: "facebook-marketplace",
+        config: {},
+        isActive: false,
+        orgId: req.orgId!,
+      });
+      console.log('[Facebook Marketplace] Disconnected and credentials removed for org:', req.orgId);
+      res.json({ success: true, message: "Facebook Marketplace disconnected successfully" });
+    } catch (error) {
+      console.error("Error disconnecting Facebook Marketplace:", error);
+      res.status(500).json({ error: "Failed to disconnect Facebook Marketplace" });
+    }
+  });
+
+  // Run Facebook send message script (uses auth manager: session-first, Key Vault fallback)
+  app.post("/api/integrations/facebook-marketplace/run-send-message", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    const { spawn } = await import('child_process');
+    const { getStorageStatePathForSpawnedProcess } = await import('./facebookAuthManager');
+
+    console.log(`[Facebook Send Message] ===== SEND MESSAGE REQUEST RECEIVED =====`);
+    console.log(`[Facebook Send Message] Org ID: ${req.orgId}`);
+    console.log(`[Facebook Send Message] User: ${req.user?.email || 'unknown'}`);
+    console.log(`[Facebook Send Message] Timestamp: ${new Date().toISOString()}`);
+
+    try {
+      if (!req.orgId) {
+        return res.status(400).json({ error: 'No organization context' });
+      }
+
+      const auth = await getStorageStatePathForSpawnedProcess(req.orgId);
+      if (!auth) {
+        return res.status(400).json({
+          error: 'Facebook authentication failed. Please reconnect in Settings > Integrations.',
+        });
+      }
+
+      let baseURL = process.env.PLAYWRIGHT_BASE_URL;
+      if (!baseURL) {
+        const serverPort = process.env.PORT || '5000';
+        baseURL = `http://localhost:${serverPort}`;
+      }
+
+      const { allowHardLoginFallback, getFacebookCredentialsForOrg } = await import('./facebookAuthSecrets.service');
+      let kvCreds: { email: string; password: string } | null = null;
+      if (allowHardLoginFallback()) {
+        kvCreds = await getFacebookCredentialsForOrg(req.orgId, 'facebook-send-message-fallback').catch(() => null);
+      }
+
+      const env: Record<string, string> = {
+        ...process.env,
+        PLAYWRIGHT_STORAGE_STATE_PATH: auth.path,
+        PLAYWRIGHT_BASE_URL: baseURL,
+        PLAYWRIGHT_SKIP_WEBSERVER: 'true',
+        FACEBOOK_LISTING_SECRET_TOKEN: process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret',
+        PLAYWRIGHT_HEADLESS: 'false',
+        FACEBOOK_SEND_MESSAGE_ORG_ID: req.orgId,
+      };
+      if (kvCreds?.email && kvCreds?.password) {
+        env.FACEBOOK_EMAIL = kvCreds.email;
+        env.FACEBOOK_PASSWORD = kvCreds.password;
+        console.log('[Facebook Send Message] Key Vault creds passed for fallback (if storageState fails)');
+      }
+      
+      console.log(`[Facebook Send Message] Environment variables set`);
+
+      const testFile = 'tests/facebook.send.message.spec.ts';
+      const command = 'npx';
+      const args = [
+        'playwright',
+        'test',
+        testFile,
+        '--project=chromium',
+        '--headed', // REQUIRED: Show browser window - do not remove this flag
+        '--workers=1', // Single worker for stability
+      ];
+
+      console.log(`[Facebook Send Message] Spawning process with command: ${command}`);
+      console.log(`[Facebook Send Message] Arguments: ${JSON.stringify(args)}`);
+      console.log(`[Facebook Send Message] Test file: ${testFile}`);
+
+      // Start the process and return immediately (run in background)
+      // IMPORTANT: Always run in headed mode (visible browser) when triggered from UI
+      // shell: true required on Windows for npx; use false on Unix to avoid DEP0190
+      const playwrightProcess = spawn(command, args, {
+        env,
+        detached: false,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: process.platform === 'win32',
+      });
+
+      console.log(`[Facebook Send Message] ✅ Process spawned successfully`);
+      console.log(`[Facebook Send Message] Process PID: ${playwrightProcess.pid}`);
+
+      let stdout = '';
+      let stderr = '';
+
+      // Capture output
+      if (playwrightProcess.stdout) {
+        playwrightProcess.stdout.on('data', (data) => {
+          const output = data.toString();
+          stdout += output;
+          const lines = output.split('\n').filter(line => line.trim());
+          lines.forEach(line => {
+            console.log(`[Facebook Send Message PID ${playwrightProcess.pid}] STDOUT: ${line}`);
+          });
+        });
+      }
+
+      if (playwrightProcess.stderr) {
+        playwrightProcess.stderr.on('data', (data) => {
+          const output = data.toString();
+          stderr += output;
+          const lines = output.split('\n').filter(line => line.trim());
+          lines.forEach(line => {
+            console.log(`[Facebook Send Message PID ${playwrightProcess.pid}] STDERR: ${line}`);
+          });
+        });
+      }
+
+      playwrightProcess.on('exit', (code, signal) => {
+        auth.cleanup().catch(() => {});
+        console.log(`[Facebook Send Message] ===== PROCESS EXITED =====`);
+        console.log(`[Facebook Send Message] PID: ${playwrightProcess.pid}`);
+        console.log(`[Facebook Send Message] Exit code: ${code}`);
+        console.log(`[Facebook Send Message] Signal: ${signal || 'none'}`);
+        if (code === 0) {
+          console.log(`[Facebook Send Message] ✅ Process completed successfully`);
+        } else {
+          console.error(`[Facebook Send Message] ❌ Process exited with error code ${code}`);
+          if (stdout) {
+            console.error(`[Facebook Send Message] Last 50 lines of stdout:`, stdout.split('\n').slice(-50).join('\n'));
+          }
+          if (stderr) {
+            console.error(`[Facebook Send Message] Last 50 lines of stderr:`, stderr.split('\n').slice(-50).join('\n'));
+          }
+        }
+        console.log(`[Facebook Send Message] =========================`);
+      });
+
+      playwrightProcess.on('error', (error) => {
+        auth.cleanup().catch(() => {});
+        console.error(`[Facebook Send Message] ===== PROCESS ERROR =====`);
+        console.error(`[Facebook Send Message] PID: ${playwrightProcess.pid}`);
+        console.error(`[Facebook Send Message] Error name: ${error.name}`);
+        console.error(`[Facebook Send Message] Error message: ${error.message}`);
+        console.error(`[Facebook Send Message] Error stack:`, error.stack);
+        console.error(`[Facebook Send Message] ========================`);
+      });
+
+      // Return immediately with process info
+      res.json({ 
+        success: true, 
+        message: "Facebook send message script started",
+        pid: playwrightProcess.pid 
+      });
+    } catch (error: any) {
+      console.error(`[Facebook Send Message] ❌ Error starting script:`, error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message || "Failed to start send message script" 
+      });
+    }
+  });
+
+  app.post("/api/integrations/facebook-marketplace/run-message-polling", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    const { spawn } = await import('child_process');
+    const { getStorageStatePathForSpawnedProcess } = await import('./facebookAuthManager');
+
+    console.log(`[Facebook Message Polling] ===== POLLING REQUEST RECEIVED =====`);
+    console.log(`[Facebook Message Polling] Org ID: ${req.orgId}`);
+    console.log(`[Facebook Message Polling] User: ${req.user?.email || 'unknown'}`);
+    console.log(`[Facebook Message Polling] Timestamp: ${new Date().toISOString()}`);
+
+    try {
+      if (!req.orgId) {
+        return res.status(400).json({ error: 'No organization context' });
+      }
+
+      const existingProcess = facebookPollingProcesses.get(req.orgId);
+      if (existingProcess) {
+        console.log(`[Facebook Message Polling] ⚠️  Process already running for org ${req.orgId} (PID: ${existingProcess.pid})`);
+        return res.status(409).json({
+          success: false,
+          error: "Polling is already running for this organization",
+          pid: existingProcess.pid
+        });
+      }
+
+      const auth = await getStorageStatePathForSpawnedProcess(req.orgId);
+      if (!auth) {
+        return res.status(400).json({
+          error: 'Facebook authentication failed. Please reconnect in Settings > Integrations.',
+        });
+      }
+
+      let baseURL = process.env.PLAYWRIGHT_BASE_URL;
+      if (!baseURL) {
+        const serverPort = process.env.PORT || '5000';
+        baseURL = `http://localhost:${serverPort}`;
+      }
+
+      // Pass Key Vault creds for fallback login when storageState fails in spawned process (headed vs headless mismatch)
+      const { allowHardLoginFallback, getFacebookCredentialsForOrg } = await import('./facebookAuthSecrets.service');
+      let kvCreds: { email: string; password: string } | null = null;
+      if (allowHardLoginFallback()) {
+        kvCreds = await getFacebookCredentialsForOrg(req.orgId, 'facebook-message-polling-fallback').catch(() => null);
+      }
+
+      const env: Record<string, string> = {
+        ...process.env,
+        PLAYWRIGHT_STORAGE_STATE_PATH: auth.path,
+        PLAYWRIGHT_BASE_URL: baseURL,
+        PLAYWRIGHT_SKIP_WEBSERVER: 'true',
+        FACEBOOK_LISTING_SECRET_TOKEN: process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret',
+        PLAYWRIGHT_HEADLESS: 'false',
+        FACEBOOK_POLLING_ORG_ID: req.orgId,
+      };
+      if (kvCreds?.email && kvCreds?.password) {
+        env.FACEBOOK_EMAIL = kvCreds.email;
+        env.FACEBOOK_PASSWORD = kvCreds.password;
+        console.log('[Facebook Message Polling] Key Vault creds passed for fallback (if storageState fails)');
+      }
+      
+      console.log(`[Facebook Message Polling] Setting FACEBOOK_POLLING_ORG_ID: ${req.orgId}`);
+
+      console.log(`[Facebook Message Polling] Environment variables set:`);
+      console.log(`[Facebook Message Polling]   - PLAYWRIGHT_BASE_URL: ${env.PLAYWRIGHT_BASE_URL}`);
+      console.log(`[Facebook Message Polling]   - PLAYWRIGHT_HEADLESS: ${env.PLAYWRIGHT_HEADLESS}`);
+      console.log(`[Facebook Message Polling]   - FACEBOOK_LISTING_SECRET_TOKEN: ${env.FACEBOOK_LISTING_SECRET_TOKEN ? '***set***' : 'NOT SET'}`);
+
+      const testFile = 'tests/facebook.message.polling.spec.ts';
+      const command = 'npx';
+      const args = [
+        'playwright',
+        'test',
+        testFile,
+        '--project=chromium',
+        '--headed', // REQUIRED: Show browser window
+        '--workers=1', // Single worker for stability
+      ];
+
+      console.log(`[Facebook Message Polling] Spawning process with command: ${command}`);
+      console.log(`[Facebook Message Polling] Arguments: ${JSON.stringify(args)}`);
+      console.log(`[Facebook Message Polling] Test file: ${testFile}`);
+      console.log(`[Facebook Message Polling] Shell: true`);
+      console.log(`[Facebook Message Polling] Detached: false`);
+      console.log(`[Facebook Message Polling] Stdio: ['ignore', 'pipe', 'pipe']`);
+
+      // Start the process and return immediately (run in background)
+      // IMPORTANT: Always run in headed mode (visible browser) when triggered from UI
+      // shell: true required on Windows for npx; use false on Unix to avoid DEP0190
+      const playwrightProcess = spawn(command, args, {
+        env,
+        detached: false,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        shell: process.platform === 'win32',
+      });
+
+      console.log(`[Facebook Message Polling] ✅ Process spawned successfully`);
+      console.log(`[Facebook Message Polling] Process PID: ${playwrightProcess.pid}`);
+      console.log(`[Facebook Message Polling] Process killed: ${playwrightProcess.killed}`);
+      console.log(`[Facebook Message Polling] Process signal: ${playwrightProcess.signalCode || 'none'}`);
+
+      let stdout = '';
+      let stderr = '';
+
+      console.log(`[Facebook Message Polling] Setting up stdout/stderr handlers...`);
+
+      // Capture output
+      if (playwrightProcess.stdout) {
+        playwrightProcess.stdout.on('data', (data) => {
+          const output = data.toString();
+          stdout += output;
+          const lines = output.split('\n').filter(line => line.trim());
+          lines.forEach(line => {
+            console.log(`[Facebook Message Polling PID ${playwrightProcess.pid}] STDOUT: ${line}`);
+          });
+        });
+        console.log(`[Facebook Message Polling] ✅ Stdout handler attached`);
+      } else {
+        console.log(`[Facebook Message Polling] ⚠️  Stdout is null - output may not be captured`);
+      }
+
+      if (playwrightProcess.stderr) {
+        playwrightProcess.stderr.on('data', (data) => {
+          const output = data.toString();
+          stderr += output;
+          const lines = output.split('\n').filter(line => line.trim());
+          lines.forEach(line => {
+            console.error(`[Facebook Message Polling PID ${playwrightProcess.pid}] STDERR: ${line}`);
+          });
+        });
+        console.log(`[Facebook Message Polling] ✅ Stderr handler attached`);
+      } else {
+        console.log(`[Facebook Message Polling] ⚠️  Stderr is null - errors may not be captured`);
+      }
+
+      playwrightProcess.on('close', (code, signal) => {
+        auth.cleanup().catch(() => {});
+        facebookPollingProcesses.delete(req.orgId);
+
+        console.log(`[Facebook Message Polling] ===== PROCESS CLOSED =====`);
+        console.log(`[Facebook Message Polling] PID: ${playwrightProcess.pid}`);
+        console.log(`[Facebook Message Polling] Exit code: ${code}`);
+        console.log(`[Facebook Message Polling] Signal: ${signal || 'none'}`);
+
+        if (code === 0) {
+          console.log(`[Facebook Message Polling] ✅ Process completed successfully`);
+        } else {
+          console.error(`[Facebook Message Polling] ❌ Process exited with error code ${code}`);
+          if (stdout) {
+            console.error(`[Facebook Message Polling] Last 50 lines of stdout:`, stdout.split('\n').slice(-50).join('\n'));
+          }
+          if (stderr) {
+            console.error(`[Facebook Message Polling] Last 50 lines of stderr:`, stderr.split('\n').slice(-50).join('\n'));
+          }
+        }
+        console.log(`[Facebook Message Polling] =========================`);
+      });
+
+      playwrightProcess.on('error', (error) => {
+        auth.cleanup().catch(() => {});
+        facebookPollingProcesses.delete(req.orgId);
+        console.error(`[Facebook Message Polling] ===== PROCESS ERROR =====`);
+        console.error(`[Facebook Message Polling] PID: ${playwrightProcess.pid}`);
+        console.error(`[Facebook Message Polling] Error name: ${error.name}`);
+        console.error(`[Facebook Message Polling] Error message: ${error.message}`);
+        console.error(`[Facebook Message Polling] Error stack:`, error.stack);
+        console.error(`[Facebook Message Polling] ========================`);
+      });
+
+      // Log when process spawns successfully
+      playwrightProcess.on('spawn', () => {
+        console.log(`[Facebook Message Polling] ✅ Process spawned event fired`);
+      });
+
+      // Store process reference for stopping later
+      if (playwrightProcess.pid) {
+        facebookPollingProcesses.set(req.orgId, {
+          process: playwrightProcess,
+          pid: playwrightProcess.pid,
+          startedAt: new Date()
+        });
+        console.log(`[Facebook Message Polling] ✅ Stored process reference for org ${req.orgId} (PID: ${playwrightProcess.pid})`);
+        console.log(`[Facebook Message Polling] Total running processes: ${facebookPollingProcesses.size}`);
+      } else {
+        console.error(`[Facebook Message Polling] ❌ WARNING: Process spawned but PID is undefined!`);
+      }
+
+      console.log(`[Facebook Message Polling] ===== SENDING RESPONSE TO CLIENT =====`);
+      console.log(`[Facebook Message Polling] Success: true`);
+      console.log(`[Facebook Message Polling] PID: ${playwrightProcess.pid || 'undefined'}`);
+      console.log(`[Facebook Message Polling] ======================================`);
+
+      // Return immediately with process info
+      res.json({ 
+        success: true, 
+        message: "Facebook message polling started",
+        pid: playwrightProcess.pid 
+      });
+    } catch (error: any) {
+      console.error("Error starting Facebook message polling:", error);
+      res.status(500).json({ error: "Failed to start Facebook message polling", message: error.message });
+    }
+  });
+
+  // Stop Facebook message polling
+  app.post("/api/integrations/facebook-marketplace/stop-message-polling", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const processInfo = facebookPollingProcesses.get(req.orgId);
+      
+      if (!processInfo) {
+        return res.status(404).json({ 
+          success: false,
+          error: "No active polling process found for this organization" 
+        });
+      }
+
+      const { process, pid } = processInfo;
+      
+      console.log(`[Facebook Message Polling] Stopping process for org ${req.orgId} (PID: ${pid})`);
+      
+      // Kill the process and all its children
+      try {
+        // On Windows, use taskkill; on Unix, use kill
+        if (require('os').platform() === 'win32') {
+          // Windows: kill process tree
+          const { exec } = await import('child_process');
+          exec(`taskkill /PID ${pid} /T /F`, (error) => {
+            if (error) {
+              console.error(`[Facebook Message Polling] Error killing process tree:`, error);
+            } else {
+              console.log(`[Facebook Message Polling] Successfully killed process tree (PID: ${pid})`);
+            }
+          });
+        } else {
+          // Unix: kill process and children
+          if (process && typeof process.kill === 'function') {
+            process.kill('SIGTERM');
+            // Force kill after 5 seconds if still running
+            setTimeout(() => {
+              try {
+                if (process && !process.killed && typeof process.kill === 'function') {
+                  process.kill('SIGKILL');
+                  console.log(`[Facebook Message Polling] Force killed process (PID: ${pid})`);
+                }
+              } catch (forceKillError) {
+                console.error(`[Facebook Message Polling] Error force killing:`, forceKillError);
+              }
+            }, 5000);
+          } else {
+            // Fallback: use system kill command
+            const { exec } = await import('child_process');
+            exec(`kill -TERM ${pid}`, (error) => {
+              if (error) {
+                console.error(`[Facebook Message Polling] Error killing process:`, error);
+              }
+            });
+          }
+        }
+      } catch (killError: any) {
+        console.error(`[Facebook Message Polling] Error killing process:`, killError);
+        // Try to remove from tracking anyway
+        facebookPollingProcesses.delete(req.orgId);
+        return res.status(500).json({ 
+          success: false,
+          error: "Failed to stop process", 
+          message: killError.message 
+        });
+      }
+
+      // Remove from tracking
+      facebookPollingProcesses.delete(req.orgId);
+      
+      console.log(`[Facebook Message Polling] Process stopped successfully (PID: ${pid})`);
+      
+      res.json({ 
+        success: true, 
+        message: "Facebook message polling stopped",
+        pid: pid
+      });
+    } catch (error: any) {
+      console.error("Error stopping Facebook message polling:", error);
+      res.status(500).json({ error: "Failed to stop Facebook message polling", message: error.message });
+    }
+  });
+
+  // Check if polling is running
+  app.get("/api/integrations/facebook-marketplace/polling-status", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const processInfo = facebookPollingProcesses.get(req.orgId);
+      
+      if (!processInfo) {
+        return res.json({ 
+          isRunning: false,
+          pid: null,
+          startedAt: null
+        });
+      }
+
+      // Check if process is still alive
+      const isAlive = processInfo.process && !processInfo.process.killed;
+      
+      if (!isAlive) {
+        // Process is dead, remove from tracking
+        facebookPollingProcesses.delete(req.orgId);
+        return res.json({ 
+          isRunning: false,
+          pid: null,
+          startedAt: null
+        });
+      }
+
+      res.json({ 
+        isRunning: true,
+        pid: processInfo.pid,
+        startedAt: processInfo.startedAt
+      });
+    } catch (error: any) {
+      console.error("Error checking polling status:", error);
+      res.status(500).json({ error: "Failed to check polling status", message: error.message });
     }
   });
 
@@ -8025,10 +11769,10 @@ Return JSON with:
     }
   });
 
-  app.post("/api/pending-replies", isAuthenticated, async (req, res) => {
+  app.post("/api/pending-replies", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const validatedData = insertPendingReplySchema.parse(req.body);
-      const reply = await storage.createPendingReply(validatedData);
+      const reply = await storage.createPendingReply({ ...validatedData, orgId: req.orgId });
       res.status(201).json(reply);
     } catch (error) {
       res.status(400).json({ error: "Invalid pending reply data" });
@@ -8042,24 +11786,59 @@ Return JSON with:
         return res.status(404).json({ error: "Pending reply not found" });
       }
 
-      // Get Gmail integration for sending
-      const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
-      const tokens = gmailConfig?.config as any;
-
-      if (!tokens?.access_token) {
-        return res.status(400).json({ error: "Gmail not connected" });
-      }
-
       // Send the email
       if (reply.channel === 'email') {
-        await sendReply(tokens, {
-          to: reply.leadEmail,
-          subject: reply.subject,
-          body: reply.content,
-          threadId: reply.threadId || undefined,
-          inReplyTo: reply.inReplyTo || undefined,
-          references: reply.references || undefined,
-        });
+        const requestedIntegration = req.body.integration; // 'gmail' or 'outlook'
+        
+        // Get integration configs
+        const gmailConfig = await storage.getIntegrationConfig("gmail", req.orgId);
+        const outlookConfig = await storage.getIntegrationConfig("outlook", req.orgId);
+        
+        const gmailTokens = gmailConfig?.config as any;
+        const outlookTokens = outlookConfig?.config as any;
+
+        // Use requested integration if specified and available, otherwise fall back to auto-select
+        if (requestedIntegration === 'gmail' && gmailTokens?.access_token) {
+          // Send via Gmail
+          await sendReply(gmailTokens, {
+            to: reply.leadEmail,
+            subject: reply.subject,
+            body: reply.content,
+            threadId: reply.threadId || undefined,
+            inReplyTo: reply.inReplyTo || undefined,
+            references: reply.references || undefined,
+          });
+        } else if (requestedIntegration === 'outlook' && outlookTokens?.access_token) {
+          // Send via Outlook
+          await sendOutlookEmail(outlookTokens.access_token, {
+            to: reply.leadEmail,
+            subject: reply.subject,
+            body: reply.content,
+            inReplyTo: reply.inReplyTo || undefined,
+            references: reply.references || undefined,
+          });
+        } else if (gmailTokens?.access_token) {
+          // Fallback: Try Gmail first
+          await sendReply(gmailTokens, {
+            to: reply.leadEmail,
+            subject: reply.subject,
+            body: reply.content,
+            threadId: reply.threadId || undefined,
+            inReplyTo: reply.inReplyTo || undefined,
+            references: reply.references || undefined,
+          });
+        } else if (outlookTokens?.access_token) {
+          // Fallback: Try Outlook
+          await sendOutlookEmail(outlookTokens.access_token, {
+            to: reply.leadEmail,
+            subject: reply.subject,
+            body: reply.content,
+            inReplyTo: reply.inReplyTo || undefined,
+            references: reply.references || undefined,
+          });
+        } else {
+          return res.status(400).json({ error: "No email integration connected (Gmail or Outlook required)" });
+        }
 
         // Record conversation
         await storage.createConversation({
@@ -8068,6 +11847,7 @@ Return JSON with:
           channel: 'email',
           message: reply.content,
           aiGenerated: true,
+          sourceIntegration: requestedIntegration || (gmailTokens?.access_token ? 'gmail' : 'outlook'),
         });
 
         // Update reply status
@@ -8083,6 +11863,65 @@ Return JSON with:
     }
   });
 
+  app.patch("/api/pending-replies/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const reply = await storage.getPendingReply(req.params.id, req.orgId);
+      if (!reply) {
+        return res.status(404).json({ error: "Pending reply not found" });
+      }
+
+      const updates: any = {};
+      if (req.body.content !== undefined) {
+        updates.content = req.body.content;
+      }
+      if (req.body.subject !== undefined) {
+        updates.subject = req.body.subject;
+      }
+
+      // Track edits - get original content from metadata
+      const metadata = reply.metadata as any || {};
+      const originalContent = metadata.originalContent || reply.content;
+      const isEdited = req.body.content !== undefined && req.body.content !== originalContent;
+      
+      if (isEdited && req.body.content !== undefined) {
+        // Update metadata to track edit
+        updates.metadata = {
+          ...metadata,
+          originalContent: originalContent,
+          editedByUser: true,
+          editedAt: new Date().toISOString(),
+          finalContent: req.body.content,
+        } as any;
+      }
+
+      const updated = await storage.updatePendingReply(req.params.id, updates, req.orgId);
+      if (!updated) {
+        return res.status(404).json({ error: "Pending reply not found" });
+      }
+
+      // Log edit if content was changed
+      if (isEdited) {
+        const { logAIAction } = await import("./auditLogging");
+        const lead = await storage.getLead(reply.leadId, req.orgId);
+        await logAIAction(req, {
+          actionType: "ai_reply_edited",
+          leadId: reply.leadId,
+          leadName: lead?.name || reply.leadName,
+          pendingReplyId: reply.id,
+          channel: reply.channel,
+          editedByUser: true,
+          originalContent: originalContent,
+          finalContent: req.body.content,
+        });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Failed to update pending reply:", error);
+      res.status(500).json({ error: "Failed to update pending reply" });
+    }
+  });
+
   app.delete("/api/pending-replies/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const deleted = await storage.deletePendingReply(req.params.id, req.orgId);
@@ -8095,21 +11934,201 @@ Return JSON with:
     }
   });
 
+  // Regenerate AI reply with feedback
+  app.post("/api/pending-replies/:id/regenerate", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const reply = await storage.getPendingReply(req.params.id, req.orgId);
+      if (!reply) {
+        return res.status(404).json({ error: "Pending reply not found" });
+      }
+
+      const feedback = req.body.feedback || ""; // e.g., "shorter", "more friendly", "add pricing details"
+
+      // Get lead details
+      const lead = await storage.getLead(reply.leadId, req.orgId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Get user information
+      const user = req.user;
+      const userName = user?.name || user?.email?.split('@')[0] || 'Property Manager';
+      const userEmail = user?.email || '';
+      
+      // Get organization information
+      const organization = await storage.getOrganization(req.orgId);
+      const orgName = organization?.name || 'Our Property Management';
+
+      // Get conversations for this lead
+      const conversations = await storage.getConversationsByLeadId(reply.leadId, req.orgId);
+      
+      // Find the most recent incoming message
+      const incomingMessage = conversations
+        .filter((c: any) => c.type === 'incoming' || c.type === 'received')
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+      
+      if (!incomingMessage) {
+        return res.status(400).json({ error: "No incoming message to reply to" });
+      }
+
+      // Get personality settings (for old endpoint - not used in V2)
+      const personalitySettingsOld = await storage.getAISettings('personality', req.orgId);
+      const friendliness = personalitySettingsOld.find(s => s.key === 'friendliness')?.value || 'professional';
+      const formality = personalitySettingsOld.find(s => s.key === 'formality')?.value || 'professional';
+      const responseLength = personalitySettingsOld.find(s => s.key === 'response_length')?.value || 'detailed';
+      const urgency = personalitySettingsOld.find(s => s.key === 'urgency')?.value || 'moderate';
+      const warmth = personalitySettingsOld.find(s => s.key === 'warmth')?.value || 'moderate';
+      const communicationStyle = personalitySettingsOld.find(s => s.key === 'communication_style')?.value || 'informational';
+
+      // Build personality instructions (same as in ai-reply endpoint)
+      let personalityInstructions = '';
+      if (friendliness === 'friendly') {
+        personalityInstructions += 'Write in a warm, approachable, and friendly tone. Use casual language and show enthusiasm. ';
+      } else {
+        personalityInstructions += 'Write in a professional and businesslike tone. Maintain a respectful and courteous demeanor. ';
+      }
+      if (formality === 'conversational') {
+        personalityInstructions += 'Use conversational language with contractions and a more relaxed style. ';
+      } else {
+        personalityInstructions += 'Use formal language with proper grammar and structure. Avoid contractions. ';
+      }
+      if (responseLength === 'short') {
+        personalityInstructions += 'Keep responses concise (2-3 short paragraphs maximum). Get to the point quickly. ';
+      } else {
+        personalityInstructions += 'Provide detailed, thorough responses (3-4 paragraphs). Include comprehensive information. ';
+      }
+      if (urgency === 'high') {
+        personalityInstructions += 'Create a sense of urgency and timeliness. Encourage quick action. Use phrases like "limited availability" or "act soon". ';
+      } else if (urgency === 'low') {
+        personalityInstructions += 'Maintain a relaxed, no-pressure approach. Avoid creating urgency. ';
+      } else {
+        personalityInstructions += 'Balance urgency with professionalism. Mention availability naturally without being pushy. ';
+      }
+      if (warmth === 'high') {
+        personalityInstructions += 'Show genuine warmth and care. Use empathetic language and show personal interest. ';
+      } else if (warmth === 'low') {
+        personalityInstructions += 'Keep responses factual and straightforward. Maintain professional distance. ';
+      } else {
+        personalityInstructions += 'Show appropriate warmth while remaining professional. Be personable but not overly casual. ';
+      }
+      if (communicationStyle === 'sales-assist') {
+        personalityInstructions += 'Adopt a sales-assist approach: highlight benefits, create excitement, guide toward application/showing, and overcome objections. ';
+      } else {
+        personalityInstructions += 'Adopt an informational approach: provide clear information, answer questions thoroughly, and let the lead decide without pressure. ';
+      }
+
+      // Determine length instruction based on feedback
+      const feedbackLower = feedback?.toLowerCase() || '';
+      let lengthInstruction = '- Keep it concise (3-4 paragraphs).';
+      if (feedbackLower.includes('shorter') || feedbackLower.includes('concise') || feedbackLower.includes('brief')) {
+        lengthInstruction = '- Make the response SHORTER and more concise than the previous version. Aim for 1-2 paragraphs if possible.';
+      } else if (feedbackLower.includes('longer') || feedbackLower.includes('detailed') || (feedbackLower.includes('more') && feedbackLower.includes('detail'))) {
+        lengthInstruction = '- Make the response LONGER and more detailed than the previous version. Include more information.';
+      }
+
+      // Build regenerate prompt with feedback
+      const regeneratePrompt = `You are a professional property manager responding to a rental inquiry.
+
+PERSONALITY & TONE REQUIREMENTS (apply these consistently):
+${personalityInstructions}
+
+YOUR INFORMATION (use this to sign the email):
+- Your Name: ${userName}
+- Company/Organization: ${orgName}
+${userEmail ? `- Email: ${userEmail}` : ''}
+
+LEAD INFORMATION:
+- Name: ${lead.name}
+- Status: ${lead.status}
+- Property Interested In: ${lead.propertyName || 'our property'}
+- Move-in Date: ${lead.moveInDate || 'Not specified'}
+- Their Message: ${incomingMessage.message}
+
+PREVIOUS AI RESPONSE (for reference):
+${reply.content}
+
+${feedback ? `\nFEEDBACK FOR REGENERATION:
+${feedback}
+
+IMPORTANT: Pay special attention to this feedback and incorporate it into your regenerated response. If the feedback requests changes to length (shorter, longer, more concise, etc.), prioritize that feedback over any default length instructions below.` : '\nPlease regenerate the response with the same information but potentially improved wording or structure.'}
+
+Write a friendly, professional email response that:
+1. Thanks them for their interest
+2. Confirms receipt of their inquiry
+3. Briefly addresses their specific questions or needs
+4. Mentions next steps (viewing, application, etc.)
+5. Signs off warmly with YOUR REAL NAME (${userName}) and company/organization (${orgName})
+
+CRITICAL REQUIREMENTS - YOU MUST FOLLOW THESE:
+- ALWAYS ground your answers in the ACTUAL database values provided above - DO NOT make up property details, rent amounts, amenities, or policies
+- Sign the email with the EXACT name: "${userName}" - NO PLACEHOLDERS
+- Use the EXACT organization name: "${orgName}" - NO PLACEHOLDERS
+- DO NOT use bracketed placeholders like [Your Name], [Company], [Your Contact Information], etc.
+- The signature should look professional, for example:
+  "Best regards,
+  ${userName}
+  ${orgName}${userEmail ? `\n${userEmail}` : ''}"
+${lengthInstruction}
+
+Write only the email body, no subject line.`;
+
+      const regenerateCompletion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: regeneratePrompt }],
+        temperature: 0.7,
+      });
+
+      const regeneratedContent = regenerateCompletion.choices[0].message.content || "";
+      
+      if (!regeneratedContent) {
+        console.error("[Regenerate] Empty content from OpenAI");
+        return res.status(500).json({ error: "Failed to generate reply content" });
+      }
+
+      // Update the pending reply with new content
+      try {
+        const updated = await storage.updatePendingReply(req.params.id, { content: regeneratedContent }, req.orgId);
+        if (!updated) {
+          console.error("[Regenerate] updatePendingReply returned undefined", { replyId: req.params.id, orgId: req.orgId });
+          return res.status(404).json({ error: "Failed to update pending reply" });
+        }
+
+        res.json({ 
+          message: "Reply regenerated successfully",
+          pendingReply: updated 
+        });
+      } catch (updateError: any) {
+        console.error("[Regenerate] Error updating pending reply:", updateError);
+        throw updateError;
+      }
+    } catch (error: any) {
+      console.error("Error regenerating AI reply:", error);
+      console.error("Error details:", {
+        message: error?.message,
+        stack: error?.stack,
+        replyId: req.params.id,
+        feedback: req.body.feedback
+      });
+      res.status(500).json({ 
+        error: "Failed to regenerate AI reply",
+        message: error?.message || "An unexpected error occurred"
+      });
+    }
+  });
+
   app.post("/api/scan-unanswered-leads", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       
-      // Find all leads from infinimoji@gmail.com that haven't been replied to
+      // Find all leads that haven't been replied to
       const allLeads = await storage.getAllLeads(req.orgId);
-      const testLeads = allLeads.filter(lead => 
-        lead.email.toLowerCase().includes('infinimoji@gmail.com')
-      );
 
       const generatedReplies = [];
 
-      for (const lead of testLeads) {
+      for (const lead of allLeads) {
         // Check if this lead already has an outgoing reply
-        const conversations = await storage.getConversationsByLeadId(lead.id);
+        const conversations = await storage.getConversationsByLeadId(lead.id, req.orgId);
         const hasOutgoingReply = conversations.some((c: any) => c.type === 'outgoing');
         
         if (hasOutgoingReply) {
@@ -8162,11 +12181,17 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
         const aiReplyContent = replyCompletion.choices[0].message.content || "";
 
+        // Use fallback email for Facebook leads that don't have an email
+        const leadEmailForPending = lead.email || (lead.source === 'facebook' 
+          ? `facebook-${lead.externalId || lead.id}@facebook.local` 
+          : `lead-${lead.id}@local`);
+
         // Create pending reply for review
         await storage.createPendingReply({
+          orgId: req.orgId,
           leadId: lead.id,
           leadName: lead.name,
-          leadEmail: lead.email,
+          leadEmail: leadEmailForPending,
           subject: `Re: Inquiry about ${lead.propertyName || 'our property'}`,
           content: aiReplyContent,
           originalMessage: incomingMessage.message,
@@ -8307,6 +12332,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       res.status(500).json({ error: "Failed to delete Zillow integration" });
     }
   });
+
+  // ===== API CONNECTOR (External REST API for PMS/integrators) =====
+  app.use("/api/integrations/api-connector", createInternalRoutes(isAuthenticated, attachOrgContext));
+  app.use("/api/integrations/api/v1", v1Router);
 
   // ===== ZILLOW LISTINGS ROUTES =====
   app.get("/api/zillow/listings", isAuthenticated, attachOrgContext, async (req: any, res) => {
@@ -8538,79 +12567,36 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
   // ===== DEMO REQUEST ROUTES (PUBLIC) =====
   // Create a new demo request (no authentication required)
-  // Quick email collection endpoint for landing page
-  app.post("/api/demo-email-quick", async (req, res) => {
-    try {
-      const { email } = req.body;
-      
-      if (!email || typeof email !== 'string' || !email.includes('@')) {
-        return res.status(400).json({ 
-          message: "Valid email address is required" 
-        });
-      }
-
-      // Save email to database with minimal required fields (will be updated later when user fills full form)
-      const quickDemoRequest = await storage.createDemoRequest({
-        email: email,
-        firstName: "Pending", // Will be updated when user completes full form
-        lastName: "Form Completion",
-        phone: "0000000000", // Placeholder, will be updated
-        countryCode: "+1",
-        company: null,
-        unitsUnderManagement: "Pending",
-        managedOrOwned: "Pending",
-        hqLocation: "Pending",
-        currentTools: null,
-        agreeTerms: true,
-        agreeMarketing: false,
-        isCurrentCustomer: false,
-      });
-      
-      // Send quick email notification to support@lead2lease.ai
-      try {
-        await sendQuickEmailNotification(email);
-        console.log("[Quick Demo Email] Email notification sent to support@lead2lease.ai for:", email);
-      } catch (emailError: any) {
-        console.error("[Quick Demo Email] Failed to send email notification:", emailError.message);
-        // Don't fail the request if email sending fails
-      }
-      
-      res.status(201).json({ 
-        success: true, 
-        email: email,
-        id: quickDemoRequest.id 
-      });
-    } catch (error: any) {
-      console.error("[Quick Demo Email] Error saving quick email:", error);
-      res.status(400).json({ 
-        message: "Failed to save email", 
-        error: error.message 
-      });
-    }
-  });
-
   app.post("/api/demo-requests", async (req, res) => {
     try {
-      const validatedData = insertDemoRequestSchema.parse(req.body);
-      
-      // Check if there's an existing demo request with the same email that has placeholder data
-      // This happens when user provided email on landing page and is now completing the full form
-      const existingRequest = await storage.getDemoRequestByEmail(validatedData.email);
-      let demoRequest: DemoRequest;
-      
-      if (existingRequest && existingRequest.firstName === "Pending" && existingRequest.lastName === "Form Completion") {
-        // Update existing placeholder demo request with full data
-        const updated = await storage.updateDemoRequest(existingRequest.id, validatedData);
-        if (!updated) {
-          throw new Error("Failed to update existing demo request");
-        }
-        demoRequest = updated;
-        console.log("[Demo Request] Updated existing placeholder demo request for:", validatedData.email);
-      } else {
-        // Create new demo request
-        demoRequest = await storage.createDemoRequest(validatedData);
-        console.log("[Demo Request] Created new demo request for:", validatedData.email);
-      }
+      const { acquisition_context: acquisitionContext, ...bodyWithoutAcquisition } = req.body;
+      const validatedData = insertDemoRequestSchema.parse(bodyWithoutAcquisition);
+      const { normalizeAcquisitionContext } = await import("./acquisition");
+      const normalized = normalizeAcquisitionContext(
+        acquisitionContext,
+        {
+          source: req.query.utm_source as string,
+          medium: req.query.utm_medium as string,
+          campaign: req.query.utm_campaign as string,
+          term: req.query.utm_term as string,
+          content: req.query.utm_content as string,
+        },
+        req.query.landing_page as string || req.path
+      );
+      const demoRequest = await storage.createDemoRequest({
+        ...validatedData,
+        ...(normalized && {
+          initialOffer: normalized.initialOffer,
+          acquisitionContextJson: normalized.acquisitionContextJson,
+          firstTouchTs: normalized.firstTouchTs,
+          landingPage: normalized.landingPage,
+          utmSource: normalized.utmSource,
+          utmMedium: normalized.utmMedium,
+          utmCampaign: normalized.utmCampaign,
+          utmTerm: normalized.utmTerm,
+          utmContent: normalized.utmContent,
+        }),
+      });
       
       // Automatically create/update sales prospect from this demo request
       try {
@@ -8621,10 +12607,10 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         // Don't fail the demo request if prospect creation fails
       }
       
-      // Send email notification to support@lead2lease.ai with all lead information
+      // Send email notification to lead2leaseai@gmail.com
       try {
-        await sendDemoRequestNotification(demoRequest);
-        console.log("[Demo Request] Email notification sent to support@lead2lease.ai for:", demoRequest.email);
+        await sendDemoRequestNotification(demoRequest.email);
+        console.log("[Demo Request] Email notification sent for:", demoRequest.email);
       } catch (emailError: any) {
         console.error("[Demo Request] Failed to send email notification:", emailError.message);
         // Don't fail the demo request if email sending fails
@@ -9930,12 +13916,22 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       const validated = updateSchema.parse(req.body);
       
-      // Sync listing status with booking status - they must stay in sync
-      // If booking was created from a listing, both must be on or both off
-      if (unit.createdFromListingId) {
-        const listing = await storage.getListing(unit.createdFromListingId, req.orgId);
+      // Sync bookingEnabled with listing acceptBookings - they must stay in sync
+      // Check if unit has an associated listing
+      const listing = await storage.getListingByUnit(unitId, req.orgId);
+      
+      if (listing) {
+        // Sync acceptBookings with bookingEnabled
+        if ('bookingEnabled' in validated && validated.bookingEnabled !== undefined) {
+          if (listing.acceptBookings !== validated.bookingEnabled) {
+            await storage.updateListing(listing.id, { acceptBookings: validated.bookingEnabled }, req.orgId);
+            console.log(`[Unit Scheduling] Synced listing ${listing.id} acceptBookings to ${validated.bookingEnabled} due to unit ${unitId} bookingEnabled change`);
+          }
+        }
         
-        if (listing) {
+        // Sync listing status with booking status - they must stay in sync
+        // If booking was created from a listing, both must be on or both off
+        if (unit.createdFromListingId) {
           // If turning on booking and listing is not active, require confirmation
           if (validated.bookingEnabled === true && listing.status !== 'active' && !validated.turnOnListing) {
             // Return a special response indicating that turning on booking will also turn on listing
@@ -10128,9 +14124,15 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     try {
       const { propertyId } = req.params;
       
+      console.log(`[Property Booking Toggle API] ===== Toggle request received =====`);
+      console.log(`[Property Booking Toggle API] Property ID: ${propertyId}`);
+      console.log(`[Property Booking Toggle API] Org ID: ${req.orgId}`);
+      console.log(`[Property Booking Toggle API] Request body:`, req.body);
+      
       // Verify property belongs to org
       const property = await storage.getProperty(propertyId, req.orgId);
       if (!property) {
+        console.error(`[Property Booking Toggle API] ❌ Property not found: ${propertyId}`);
         return res.status(404).json({ message: "Property not found" });
       }
 
@@ -10140,9 +14142,12 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       });
 
       const { bookingEnabled } = toggleSchema.parse(req.body);
+      console.log(`[Property Booking Toggle API] Setting bookingEnabled to: ${bookingEnabled}`);
+      
       const updated = await storage.togglePropertyBooking(propertyId, bookingEnabled, req.orgId);
       
       if (!updated) {
+        console.log(`[Property Booking Toggle API] No existing settings found, creating new settings...`);
         // Create settings if they don't exist
         const settings = await storage.createPropertySchedulingSettings({
           propertyId,
@@ -10153,15 +14158,19 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
           leadTime: 120,
           assignedMembers: [],
         });
+        console.log(`[Property Booking Toggle API] ✅ Created new settings with bookingEnabled=${bookingEnabled}`);
         return res.json(settings);
       }
 
+      console.log(`[Property Booking Toggle API] ✅ Successfully toggled property booking to ${bookingEnabled}`);
+      console.log(`[Property Booking Toggle API] ===== Toggle request complete =====`);
       res.json(updated);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error(`[Property Booking Toggle API] ❌ Validation error:`, error.errors);
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
-      console.error("[Property Booking Toggle] Error:", error);
+      console.error("[Property Booking Toggle API] ❌ Error:", error);
       res.status(500).json({ message: "Failed to toggle property booking" });
     }
   });
@@ -11956,15 +15965,27 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
     try {
       const listings = await storage.getAllListings(req.orgId);
       
-      // Enrich listings with property and unit details
-      const enrichedListings = await Promise.all(listings.map(async (listing) => {
-        const property = await storage.getProperty(listing.propertyId, req.orgId);
-        const unit = await storage.getPropertyUnit(listing.unitId, req.orgId);
-        return {
-          ...listing,
-          property,
-          unit,
-        };
+      // OPTIMIZED: Fetch all properties and units in parallel, then map (avoids N+1 queries)
+      const propertyIdsSet = new Set(listings.map(l => l.propertyId));
+      const unitIdsSet = new Set(listings.map(l => l.unitId));
+      const propertyIds = Array.from(propertyIdsSet);
+      const unitIds = Array.from(unitIdsSet);
+      
+      // Fetch all properties and units in parallel
+      const [propertiesArray, unitsArray] = await Promise.all([
+        Promise.all(propertyIds.map(id => storage.getProperty(id, req.orgId))),
+        Promise.all(unitIds.map(id => storage.getPropertyUnit(id, req.orgId))),
+      ]);
+      
+      // Create lookup maps for O(1) access
+      const propertiesMap = new Map(propertiesArray.filter(p => p).map(p => [p!.id, p!]));
+      const unitsMap = new Map(unitsArray.filter(u => u).map(u => [u!.id, u!]));
+      
+      // Enrich listings using the maps (no additional queries)
+      const enrichedListings = listings.map((listing) => ({
+        ...listing,
+        property: propertiesMap.get(listing.propertyId) || null,
+        unit: unitsMap.get(listing.unitId) || null,
       }));
       
       res.json(enrichedListings);
@@ -11987,6 +16008,43 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
   });
 
   // Get a single listing
+  // Get listing data for Facebook posting (internal endpoint, uses secret token)
+  app.get("/api/listings/:id/for-facebook", async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const secretToken = req.query.secretToken as string;
+      const orgId = req.query.orgId as string;
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      if (!orgId) {
+        return res.status(400).json({ message: "orgId query parameter is required" });
+      }
+      
+      const listing = await storage.getListing(id, orgId);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      // Enrich listing with property and unit details (for Facebook listing integration)
+      const property = await storage.getProperty(listing.propertyId, orgId);
+      const unit = await storage.getPropertyUnit(listing.unitId, orgId);
+      
+      res.json({
+        ...listing,
+        property,
+        unit,
+      });
+    } catch (error: any) {
+      console.error("[Listings] Error fetching listing for Facebook:", error);
+      res.status(500).json({ message: "Failed to fetch listing", error: error.message });
+    }
+  });
+
   app.get("/api/listings/:id", isAuthenticated, attachOrgContext, async (req: any, res) => {
     try {
       const { id } = req.params;
@@ -11994,10 +16052,151 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       if (!listing) {
         return res.status(404).json({ message: "Listing not found" });
       }
-      res.json(listing);
+      
+      // Enrich listing with property and unit details (for Facebook listing integration)
+      const property = await storage.getProperty(listing.propertyId, req.orgId);
+      const unit = await storage.getPropertyUnit(listing.unitId, req.orgId);
+      
+      res.json({
+        ...listing,
+        property,
+        unit,
+      });
     } catch (error: any) {
       console.error("[Listings] Error fetching listing:", error);
       res.status(500).json({ message: "Failed to fetch listing", error: error.message });
+    }
+  });
+
+  // Import Facebook listings that were polled in (not created in Lead2Lease)
+  app.post("/api/listings/import-facebook", isAuthenticated, attachOrgContext, async (req: any, res) => {
+    try {
+      console.log("[Listings] Starting Facebook listings import for org:", req.orgId);
+      
+      // Get all leads with Facebook listing IDs in metadata
+      const allLeads = await storage.getAllLeads(req.orgId);
+      const facebookListingIds = new Set<string>();
+      
+      allLeads.forEach(lead => {
+        if (lead.metadata) {
+          try {
+            const metadata = typeof lead.metadata === 'string' 
+              ? JSON.parse(lead.metadata) 
+              : lead.metadata;
+            if (metadata?.facebookListingId) {
+              facebookListingIds.add(metadata.facebookListingId);
+            }
+          } catch (e) {
+            // Skip invalid metadata
+          }
+        }
+      });
+      
+      console.log(`[Listings] Found ${facebookListingIds.size} unique Facebook listing IDs from leads`);
+      
+      if (facebookListingIds.size === 0) {
+        return res.json({ 
+          success: true, 
+          message: "No Facebook listings found to import",
+          imported: 0,
+          skipped: 0
+        });
+      }
+      
+      // Get all existing listings to check which Facebook listing IDs already have listings
+      const existingListings = await storage.getAllListings(req.orgId);
+      const existingFacebookListingIds = new Set(
+        existingListings
+          .filter(l => l.facebookListingId)
+          .map(l => l.facebookListingId!)
+      );
+      
+      // Filter to only listing IDs that don't have listings yet
+      const listingIdsToImport = Array.from(facebookListingIds).filter(
+        id => !existingFacebookListingIds.has(id)
+      );
+      
+      console.log(`[Listings] ${listingIdsToImport.length} Facebook listings need to be imported`);
+      
+      if (listingIdsToImport.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "All Facebook listings already imported",
+          imported: 0,
+          skipped: facebookListingIds.size
+        });
+      }
+      
+      // Get or create "Facebook Imported Listings" property
+      const allProperties = await storage.getAllProperties(req.orgId);
+      let facebookProperty = allProperties.find(p => p.name === "Facebook Imported Listings");
+      
+      if (!facebookProperty) {
+        console.log("[Listings] Creating 'Facebook Imported Listings' property");
+        facebookProperty = await storage.createProperty({
+          orgId: req.orgId,
+          name: "Facebook Imported Listings",
+          address: "Imported from Facebook Marketplace",
+          description: "Listings imported from Facebook Marketplace that were not created in Lead2Lease",
+          units: listingIdsToImport.length,
+          occupancy: 0,
+          monthlyRevenue: "0",
+        });
+      }
+      
+      // Create listings for each Facebook listing ID
+      let imported = 0;
+      let errors = 0;
+      
+      for (const facebookListingId of listingIdsToImport) {
+        try {
+          // Create a placeholder unit for this Facebook listing
+          const unit = await storage.createPropertyUnit({
+            propertyId: facebookProperty.id,
+            orgId: req.orgId,
+            unitNumber: `FB-${facebookListingId}`,
+            bedrooms: 0, // Placeholder - required field
+            bathrooms: "0", // Placeholder - required field
+            monthlyRent: undefined,
+            deposit: undefined,
+            squareFeet: undefined,
+            isListed: true,
+            status: 'not_occupied',
+            bookingEnabled: false, // Don't enable booking for imported listings
+          });
+          
+          // Create listing with Facebook listing ID
+          const listing = await storage.createListing({
+            orgId: req.orgId,
+            propertyId: facebookProperty.id,
+            unitId: unit.id,
+            title: `Facebook Listing ${facebookListingId}`,
+            description: "This listing was imported from Facebook Marketplace. It was not created in Lead2Lease.",
+            status: 'active',
+            preQualifyEnabled: false,
+            acceptBookings: false, // Don't accept bookings for imported listings
+            facebookListingId: facebookListingId,
+            facebookListedAt: new Date(),
+          });
+          
+          imported++;
+          console.log(`[Listings] ✅ Imported Facebook listing ${facebookListingId}`);
+        } catch (error: any) {
+          errors++;
+          console.error(`[Listings] ❌ Failed to import Facebook listing ${facebookListingId}:`, error.message);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Imported ${imported} Facebook listings`,
+        imported,
+        skipped: facebookListingIds.size - listingIdsToImport.length,
+        errors,
+      });
+    } catch (error: any) {
+      console.error("[Listings] Error importing Facebook listings:", error);
+      res.status(500).json({ message: "Failed to import Facebook listings", error: error.message });
     }
   });
 
@@ -12018,41 +16217,82 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
 
       const listing = await storage.createListing(validationResult.data);
       
-      // Auto-create booking event type for the unit when listing is created
-      try {
-        const { propertyId, unitId } = validationResult.data;
-        
-        // 1. Ensure property-level booking settings exist (create if not)
-        let propertySettings = await storage.getPropertySchedulingSettings(propertyId, req.orgId);
-        if (!propertySettings) {
-          // Create default property scheduling settings
-          const property = await storage.getProperty(propertyId, req.orgId);
-          propertySettings = await storage.createPropertySchedulingSettings({
-            orgId: req.orgId,
-            propertyId,
-            eventName: `${property?.name || 'Property'} Showing`,
-            bookingMode: "one_to_one",
-            eventDuration: 30,
-            bufferTime: 15,
-            leadTime: 120,
-            assignedMembers: [],
+      const { propertyId, unitId } = validationResult.data;
+
+      if (validationResult.data.acceptBookings !== false) {
+        // acceptBookings ON: enable unit-level booking, ensure property settings exist
+        try {
+          // 1. Ensure property-level booking settings exist (create if not)
+          let propertySettings = await storage.getPropertySchedulingSettings(propertyId, req.orgId);
+          if (!propertySettings) {
+            const property = await storage.getProperty(propertyId, req.orgId);
+            propertySettings = await storage.createPropertySchedulingSettings({
+              orgId: req.orgId,
+              propertyId,
+              eventName: `${property?.name || 'Property'} Showing`,
+              bookingMode: "one_to_one",
+              eventDuration: 30,
+              bufferTime: 15,
+              leadTime: 120,
+              assignedMembers: [],
+              bookingEnabled: true,
+            });
+            console.log(`[Listings] Auto-created property scheduling settings for property ${propertyId}`);
+          }
+          
+          // 2. Enable unit-level booking and mark as listed
+          await storage.updatePropertyUnit(unitId, {
             bookingEnabled: true,
-          });
-          console.log(`[Listings] Auto-created property scheduling settings for property ${propertyId}`);
+            isListed: true,
+            bookingTypeDeleted: false,
+            createdFromListingId: listing.id,
+          }, req.orgId);
+          console.log(`[Listings] Auto-enabled booking for unit ${unitId} from listing ${listing.id} (acceptBookings=true)`);
+          
+        } catch (bookingError: any) {
+          console.error("[Listings] Warning: Failed to auto-create booking event type:", bookingError);
         }
-        
-        // 2. Update unit to enable booking and track that it was created from this listing
-        await storage.updatePropertyUnit(unitId, {
-          bookingEnabled: true,
-          isListed: true,
-          bookingTypeDeleted: false, // Clear any previous deletion flag
-          createdFromListingId: listing.id, // Now listing.id is available after creation
-        }, req.orgId);
-        console.log(`[Listings] Auto-enabled booking for unit ${unitId} from listing ${listing.id}`);
-        
-      } catch (bookingError: any) {
-        // Log but don't fail the listing creation - the listing is still valid
-        console.error("[Listings] Warning: Failed to auto-create booking event type:", bookingError);
+      } else {
+        // acceptBookings OFF: explicitly disable unit-level booking (no booking type)
+        try {
+          await storage.updatePropertyUnit(unitId, {
+            bookingEnabled: false,
+            isListed: true, // Unit is listed, but bookings are disabled
+          }, req.orgId);
+          console.log(`[Listings] Disabled booking for unit ${unitId} (acceptBookings=false)`);
+        } catch (err: any) {
+          console.error("[Listings] Warning: Failed to disable booking for unit:", err);
+        }
+      }
+      
+      // Trigger Facebook Marketplace listing if requested
+      if (req.body.listToFacebook) {
+        try {
+          // Check if listing already has a Facebook listing ID - skip if it exists
+          const existingListing = await storage.getListing(listing.id, req.orgId);
+          if (existingListing?.facebookListingId) {
+            console.log(`[Listings] Listing ${listing.id} already has Facebook listing ID: ${existingListing.facebookListingId}. Skipping Facebook posting.`);
+          } else {
+            const { triggerFacebookListing } = await import('./facebookListing');
+            console.log(`[Listings] Starting Facebook Marketplace listing process for listing ${listing.id}...`);
+            // Trigger asynchronously - run in background but capture output for visibility
+            triggerFacebookListing(listing.id, req.orgId, false).then(({ promise }) => {
+              if (promise) {
+                promise.then(() => {
+                  console.log(`[Listings] ✅ Facebook Marketplace listing completed successfully for listing ${listing.id}`);
+                }).catch((error) => {
+                  console.error(`[Listings] ❌ Facebook Marketplace listing failed for ${listing.id}:`, error);
+                });
+              }
+            }).catch((error) => {
+              console.error(`[Listings] Warning: Failed to trigger Facebook Marketplace listing for ${listing.id}:`, error);
+            });
+            console.log(`[Listings] Facebook Marketplace listing process started in background for listing ${listing.id} (check logs for progress)`);
+          }
+        } catch (facebookError: any) {
+          // Log but don't fail the listing creation
+          console.error(`[Listings] Warning: Failed to import or trigger Facebook listing service for ${listing.id}:`, facebookError);
+        }
       }
       
       res.status(201).json(listing);
@@ -12062,6 +16302,1245 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         return res.status(400).json({ message: "A listing already exists for this unit" });
       }
       res.status(500).json({ message: "Failed to create listing", error: error.message });
+    }
+  });
+
+  // Update Facebook listing ID (called by Playwright script after posting)
+  // Uses secret token instead of auth since it's called from an internal script
+  app.patch("/api/listings/:id/facebook", async (req: any, res) => {
+    const startTime = Date.now();
+    console.log(`[Listings/Facebook] 📥 Received PATCH request at ${new Date().toISOString()}`);
+    console.log(`[Listings/Facebook] Request params:`, { id: req.params.id });
+    console.log(`[Listings/Facebook] Request body keys:`, Object.keys(req.body || {}));
+    
+    try {
+      const { id } = req.params;
+      const { facebookListingId, orgId, secretToken } = req.body;
+      
+      console.log(`[Listings/Facebook] Processing request for listing ${id}, orgId: ${orgId}`);
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        console.error(`[Listings/Facebook] ❌ Invalid secret token`);
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      if (!facebookListingId || !orgId) {
+        console.error(`[Listings/Facebook] ❌ Missing required fields - facebookListingId: ${!!facebookListingId}, orgId: ${!!orgId}`);
+        return res.status(400).json({ message: "facebookListingId and orgId are required" });
+      }
+      
+      // Extract just the ID from URL if full URL is provided
+      // Handles: "https://www.facebook.com/marketplace/item/638680695215754"
+      // Handles: "/marketplace/item/25783820144571387/"
+      // Handles: "/item/25783820144571387/"
+      // Handles: "25783820144571387" (already just an ID)
+      let extractedId = facebookListingId;
+      
+      // Try pattern: /item/123456 or /marketplace/item/123456
+      const urlMatch = facebookListingId.match(/(?:marketplace\/)?item\/(\d+)/);
+      if (urlMatch && urlMatch[1]) {
+        extractedId = urlMatch[1];
+        console.log(`[Listings] Extracted ID from URL pattern: ${extractedId}`);
+      } else if (facebookListingId.includes('/')) {
+        // If it's a URL but doesn't match the pattern, try to extract the last numeric part
+        const parts = facebookListingId.split('/').filter(p => p && /^\d+$/.test(p));
+        if (parts.length > 0) {
+          extractedId = parts[parts.length - 1]; // Get the last numeric part
+          console.log(`[Listings] Extracted ID from URL parts: ${extractedId}`);
+        } else {
+          // Last resort: try to extract any number from the string
+          const numberMatch = facebookListingId.match(/(\d{10,})/); // At least 10 digits (Facebook IDs are long)
+          if (numberMatch && numberMatch[1]) {
+            extractedId = numberMatch[1];
+            console.log(`[Listings] Extracted ID using number pattern: ${extractedId}`);
+          }
+        }
+      }
+      
+      // Validate that we have a numeric ID
+      if (!/^\d+$/.test(extractedId)) {
+        console.error(`[Listings] Invalid Facebook listing ID format: ${extractedId}`);
+        return res.status(400).json({ message: `Invalid Facebook listing ID format: ${extractedId}` });
+      }
+      
+      console.log(`[Listings/Facebook] Final extracted Facebook listing ID: ${extractedId}`);
+      
+      console.log(`[Listings/Facebook] 💾 Saving to database...`);
+      const listing = await storage.updateListing(id, {
+        facebookListingId: extractedId,
+        facebookListedAt: new Date(),
+      }, orgId);
+      
+      const duration = Date.now() - startTime;
+      
+      if (!listing) {
+        console.error(`[Listings/Facebook] ❌ Listing not found: ${id} (took ${duration}ms)`);
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      console.log(`[Listings/Facebook] ✅ Successfully updated Facebook listing ID for listing ${id}: ${extractedId} (took ${duration}ms)`);
+      console.log(`[Listings/Facebook] Updated listing data:`, { 
+        id: listing.id, 
+        facebookListingId: listing.facebookListingId,
+        facebookListedAt: listing.facebookListedAt 
+      });
+      
+      res.json(listing);
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      console.error(`[Listings/Facebook] ❌ Error updating Facebook listing ID (took ${duration}ms):`, error);
+      console.error(`[Listings/Facebook] Error stack:`, error.stack);
+      res.status(500).json({ message: "Failed to update Facebook listing ID", error: error.message });
+    }
+  });
+
+  // Internal endpoint for Facebook message polling: Find or create lead by Facebook profile ID
+  // Uses secret token instead of auth since it's called from an internal script
+  app.post("/api/leads/for-facebook", async (req: any, res) => {
+    try {
+      const { profileId, orgId, secretToken, name, email, phone, facebookListingId } = req.body;
+      
+      console.log(`[Leads/Facebook] Processing request for profile ID: ${profileId}, orgId: ${orgId}`);
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        console.error(`[Leads/Facebook] ❌ Invalid secret token`);
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      if (!profileId || !orgId) {
+        console.error(`[Leads/Facebook] ❌ Missing required fields - profileId: ${!!profileId}, orgId: ${!!orgId}`);
+        return res.status(400).json({ message: "profileId and orgId are required" });
+      }
+      
+      // Try to find existing lead by externalId (profile ID)
+      let lead = await storage.getLeadByExternalId(profileId, orgId);
+      
+      // Look up property/unit from Facebook listing ID if provided
+      let propertyIdFromListing: string | undefined;
+      let unitIdFromListing: string | undefined;
+      
+      if (facebookListingId) {
+        const unit = await storage.getUnitByFacebookListingId(facebookListingId, orgId);
+        if (unit) {
+          propertyIdFromListing = unit.propertyId;
+          unitIdFromListing = unit.id;
+          console.log(`[Leads/Facebook] 🔍 Mapped listing ID to property: ${unit.propertyId}, unit: ${unit.id}`);
+        } else {
+          console.log(`[Leads/Facebook] ⚠️  No unit found for Facebook listing ID: ${facebookListingId}`);
+        }
+      }
+      
+      if (lead) {
+        console.log(`[Leads/Facebook] ✅ Found existing lead: ${lead.id}`);
+        // Update metadata and property/unit if listing ID provided
+        if (facebookListingId) {
+          const metadata = (lead.metadata as any) || {};
+          const updates: any = {};
+          
+          if (!metadata.facebookListingId || metadata.facebookListingId !== facebookListingId) {
+            metadata.facebookListingId = facebookListingId;
+            if (unitIdFromListing) {
+              metadata.unitId = unitIdFromListing;
+            }
+            updates.metadata = metadata;
+          }
+          
+          // Set propertyId if we found it from listing and lead doesn't have one
+          if (propertyIdFromListing && !lead.propertyId) {
+            updates.propertyId = propertyIdFromListing;
+            console.log(`[Leads/Facebook] Setting propertyId from listing: ${propertyIdFromListing}`);
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            lead = await storage.updateLead(lead.id, updates, orgId);
+            console.log(`[Leads/Facebook] Updated lead with listing context:`, updates);
+          }
+        }
+      } else {
+        console.log(`[Leads/Facebook] Creating new lead for profile ID: ${profileId}`);
+        // Create new lead
+        const leadData: any = {
+          name: name || `Facebook User ${profileId}`,
+          email: email || null,
+          phone: phone || null,
+          source: 'facebook',
+          externalId: profileId,
+          orgId,
+          propertyId: propertyIdFromListing || null,  // Set propertyId from listing if found
+          metadata: {
+            facebookProfileId: profileId,
+            ...(facebookListingId && { facebookListingId }),
+            ...(unitIdFromListing && { unitId: unitIdFromListing }),
+          },
+        };
+        
+        lead = await storage.createLead(leadData);
+        console.log(`[Leads/Facebook] ✅ Created new lead: ${lead.id} with propertyId: ${propertyIdFromListing || 'none'}`);
+      }
+      
+      res.json(lead);
+    } catch (error: any) {
+      console.error(`[Leads/Facebook] ❌ Error:`, error);
+      res.status(500).json({ message: "Failed to find or create lead", error: error.message });
+    }
+  });
+
+  // Internal endpoint to get organization ID for a user (for Facebook message polling)
+  // Uses secret token instead of auth since it's called from an internal script
+  app.get("/api/orgs/default", async (req: any, res) => {
+    try {
+      const secretToken = req.query.secretToken as string;
+      const userEmail = req.query.userEmail as string;
+      
+      // Validate secret token (optional - if no token, still return org for convenience)
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken && secretToken !== expectedToken) {
+        console.error(`[Orgs/Facebook] ❌ Invalid secret token`);
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      // If user email is provided, get that user's organization
+      if (userEmail) {
+        const user = await db.select().from(users).where(eq(users.email, userEmail)).limit(1);
+        
+        if (user.length === 0) {
+          return res.status(404).json({ message: `User with email ${userEmail} not found` });
+        }
+        
+        const userId = user[0].id;
+        
+        // Get user's organization - prefer currentOrgId, otherwise first membership
+        if (user[0].currentOrgId) {
+          const org = await db.select({ id: organizations.id, name: organizations.name })
+            .from(organizations)
+            .where(and(
+              eq(organizations.id, user[0].currentOrgId),
+              isNull(organizations.deletedAt)
+            ))
+            .limit(1);
+          
+          if (org.length > 0) {
+            console.log(`[Orgs/Facebook] ✅ Returning user's current org: ${org[0].id} (from currentOrgId)`);
+            return res.json({ orgId: org[0].id, name: org[0].name });
+          }
+        }
+        
+        // Fallback to first membership
+        const membership = await db.select({
+          orgId: memberships.orgId,
+          orgName: organizations.name,
+        })
+        .from(memberships)
+        .innerJoin(organizations, eq(memberships.orgId, organizations.id))
+        .where(and(
+          eq(memberships.userId, userId),
+          isNull(organizations.deletedAt)
+        ))
+        .limit(1);
+        
+        if (membership.length > 0) {
+          console.log(`[Orgs/Facebook] ✅ Returning user's org: ${membership[0].orgId} (from membership)`);
+          return res.json({ orgId: membership[0].orgId, name: membership[0].orgName });
+        }
+        
+        return res.status(404).json({ message: `User ${userEmail} has no organization` });
+      }
+      
+      // If no user email provided, get first organization from database (fallback)
+      const result = await db.select({ id: organizations.id, name: organizations.name })
+        .from(organizations)
+        .where(isNull(organizations.deletedAt))
+        .limit(1);
+      
+      if (result.length === 0) {
+        return res.status(404).json({ message: "No organizations found" });
+      }
+      
+      console.log(`[Orgs/Facebook] ✅ Returning first org (fallback): ${result[0].id}`);
+      res.json({ orgId: result[0].id, name: result[0].name });
+    } catch (error: any) {
+      console.error(`[Orgs/Facebook] ❌ Error:`, error);
+      res.status(500).json({ message: "Failed to get organization", error: error.message });
+    }
+  });
+
+  // Internal endpoint to check if a conversation exists and get its last message
+  // Used by polling script to optimize processing
+  app.post("/api/facebook-messages/check-conversation", async (req: any, res) => {
+    try {
+      const { secretToken, conversationId, orgId } = req.body;
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      if (!conversationId) {
+        return res.status(400).json({ message: "conversationId is required" });
+      }
+      
+      // Find lead with this conversation ID in metadata
+      // If orgId is provided, filter by it; otherwise search across all orgs
+      let leadsWithConversation;
+      if (orgId) {
+        leadsWithConversation = await db.execute(sql`
+          SELECT id, metadata, org_id
+          FROM leads
+          WHERE org_id = ${orgId}
+            AND metadata->>'facebookConversationId' = ${conversationId}
+          LIMIT 1
+        `);
+      } else {
+        // Search across all orgs (conversationId should be unique per org, but we search all to be safe)
+        leadsWithConversation = await db.execute(sql`
+          SELECT id, metadata, org_id
+          FROM leads
+          WHERE metadata->>'facebookConversationId' = ${conversationId}
+          LIMIT 1
+        `);
+      }
+      
+      if (leadsWithConversation.rows.length === 0) {
+        return res.json({ exists: false });
+      }
+      
+      const leadId = leadsWithConversation.rows[0].id as string;
+      
+      // Get the last message (by timestamp) for this lead
+      const lastMessage = await db.execute(sql`
+        SELECT 
+          id,
+          message,
+          created_at,
+          type,
+          channel
+        FROM conversations
+        WHERE lead_id = ${leadId}
+          AND channel = 'facebook'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `);
+      
+      if (lastMessage.rows.length === 0) {
+        return res.json({ exists: true, hasMessages: false, leadId });
+      }
+      
+      const msg = lastMessage.rows[0] as any;
+      return res.json({
+        exists: true,
+        hasMessages: true,
+        leadId,
+        lastMessage: {
+          content: msg.message,
+          timestamp: msg.created_at,
+          type: msg.type,
+        },
+      });
+    } catch (error: any) {
+      console.error(`[Facebook Messages] Error checking conversation:`, error);
+      return res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+  });
+
+  // Internal endpoint to check if a specific message exists in the database
+  app.post("/api/facebook-messages/check-message", async (req: any, res) => {
+    try {
+      const { secretToken, leadId, messageContent, timestamp } = req.body;
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      if (!leadId || !messageContent) {
+        return res.status(400).json({ message: "leadId and messageContent are required" });
+      }
+      
+      // Check if message exists by content and optionally by timestamp
+      // Note: Timestamps are created when messages are saved to DB, not extracted from DOM
+      // So if timestamp is missing or "unknown", we only check by message content
+      const normalizedMessage = messageContent.trim().toLowerCase();
+      
+      // Validate timestamp - if it's missing, "unknown", or invalid, only check by message content
+      let messageDate: Date | null = null;
+      let isValidTimestamp = false;
+      
+      if (timestamp && timestamp !== 'unknown' && timestamp !== '' && typeof timestamp === 'string') {
+        try {
+          messageDate = new Date(timestamp);
+          // Double-check: ensure the date is valid AND can be converted to ISO string
+          if (!isNaN(messageDate.getTime())) {
+            // Test if toISOString() works without throwing
+            try {
+              messageDate.toISOString();
+              isValidTimestamp = true;
+            } catch (isoError) {
+              isValidTimestamp = false;
+              messageDate = null;
+            }
+          } else {
+            isValidTimestamp = false;
+            messageDate = null;
+          }
+        } catch (error) {
+          isValidTimestamp = false;
+          messageDate = null;
+        }
+      }
+      // If timestamp is not provided or is "unknown", isValidTimestamp remains false and we'll check by content only
+      
+      let existingMessage;
+      if (isValidTimestamp && messageDate) {
+        // Check by both content and timestamp
+        try {
+          const isoString = messageDate.toISOString();
+          existingMessage = await db.execute(sql`
+            SELECT id, message, created_at
+            FROM conversations
+            WHERE lead_id = ${leadId}
+              AND channel = 'facebook'
+              AND LOWER(TRIM(message)) = ${normalizedMessage}
+              AND DATE_TRUNC('minute', created_at) = DATE_TRUNC('minute', ${isoString}::timestamp)
+            LIMIT 1
+          `);
+        } catch (dateError) {
+          // If toISOString() fails, fall back to content-only check
+          console.log(`[Facebook Messages] Timestamp conversion failed, using content-only check: ${dateError}`);
+          existingMessage = await db.execute(sql`
+            SELECT id, message, created_at
+            FROM conversations
+            WHERE lead_id = ${leadId}
+              AND channel = 'facebook'
+              AND LOWER(TRIM(message)) = ${normalizedMessage}
+            LIMIT 1
+          `);
+        }
+      } else {
+        // If timestamp is invalid or "unknown", only check by message content
+        existingMessage = await db.execute(sql`
+          SELECT id, message, created_at
+          FROM conversations
+          WHERE lead_id = ${leadId}
+            AND channel = 'facebook'
+            AND LOWER(TRIM(message)) = ${normalizedMessage}
+          LIMIT 1
+        `);
+      }
+      
+      if (existingMessage.rows.length === 0) {
+        return res.json({ exists: false });
+      }
+      
+      return res.json({
+        exists: true,
+        messageId: existingMessage.rows[0].id,
+      });
+    } catch (error: any) {
+      console.error(`[Facebook Messages] Error checking message:`, error);
+      return res.status(500).json({ message: "Internal server error", error: error.message });
+    }
+  });
+
+  // Internal endpoint for Facebook message polling: Process conversations from scraping
+  // Accepts raw scraped data and handles all business logic (org lookup, lead creation, conversation storage)
+  // Uses secret token instead of auth since it's called from an internal script
+  app.post("/api/facebook-messages/process", async (req: any, res) => {
+    try {
+      console.log(`[Facebook Messages] 📥 Received request to process conversations`);
+      const { secretToken, conversations: conversationData, orgId: providedOrgId } = req.body;
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        console.error(`[Facebook Messages] ❌ Invalid secret token (received: ${secretToken ? 'provided' : 'missing'}, expected: ${expectedToken ? 'set' : 'default'})`);
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      console.log(`[Facebook Messages] ✅ Secret token validated`);
+      
+      if (!conversationData || !Array.isArray(conversationData)) {
+        console.error(`[Facebook Messages] ❌ Invalid request: conversations array is required`);
+        return res.status(400).json({ message: "conversations array is required" });
+      }
+      
+      console.log(`[Facebook Messages] Processing ${conversationData.length} conversations`);
+      if (providedOrgId) {
+        console.log(`[Facebook Messages] 📌 Using provided orgId: ${providedOrgId}`);
+      }
+      
+      const results = [];
+      
+      for (const conv of conversationData) {
+        let { profileId, facebookEmail, messages, listingId, conversationName, conversationId, profileName } = conv;
+        
+        console.log(`[Facebook Messages] Processing conversation:`, {
+          profileId: profileId || 'MISSING',
+          conversationId: conversationId || 'MISSING',
+          listingId: listingId || 'MISSING',
+          profileName: profileName || 'MISSING',
+          facebookEmail: facebookEmail || 'MISSING',
+        });
+        
+        // facebookEmail is required, but profileId can be missing if conversationId exists
+        if (!facebookEmail) {
+          console.log(`[Facebook Messages] ⚠️  Skipping conversation - missing required field (facebookEmail: ${!!facebookEmail})`);
+          continue;
+        }
+        
+        // messages is optional - allow empty array
+        const messageArray = messages || [];
+        
+        // Use provided orgId if available, otherwise look up from user's email
+        let orgId: string | undefined = providedOrgId;
+        
+        if (!orgId) {
+          // Fallback: Get organization from Facebook email (user's org)
+          console.log(`[Facebook Messages] 🔍 No orgId provided, looking up from user email: ${facebookEmail}`);
+        const user = await db.select().from(users).where(eq(users.email, facebookEmail)).limit(1);
+        if (user.length === 0) {
+          console.log(`[Facebook Messages] ⚠️  User ${facebookEmail} not found, skipping conversation`);
+          continue;
+        }
+        
+        const userId = user[0].id;
+        
+        // Get user's organization - prefer currentOrgId, otherwise first membership
+        if (user[0].currentOrgId) {
+          const org = await db.select({ id: organizations.id })
+            .from(organizations)
+            .where(and(eq(organizations.id, user[0].currentOrgId), isNull(organizations.deletedAt)))
+            .limit(1);
+          if (org.length > 0) {
+            orgId = org[0].id;
+          }
+        }
+        
+        if (!orgId) {
+          const membership = await db.select({ orgId: memberships.orgId })
+            .from(memberships)
+            .innerJoin(organizations, eq(memberships.orgId, organizations.id))
+            .where(and(eq(memberships.userId, userId), isNull(organizations.deletedAt)))
+            .limit(1);
+          if (membership.length > 0) {
+            orgId = membership[0].orgId;
+          }
+          }
+        } else {
+          // Validate that the provided orgId exists
+          const org = await db.select({ id: organizations.id })
+            .from(organizations)
+            .where(and(eq(organizations.id, orgId), isNull(organizations.deletedAt)))
+            .limit(1);
+          if (org.length === 0) {
+            console.log(`[Facebook Messages] ⚠️  Provided orgId ${orgId} not found or deleted, skipping conversation`);
+            continue;
+          }
+          console.log(`[Facebook Messages] ✅ Validated provided orgId: ${orgId}`);
+        }
+        
+        if (!orgId) {
+          console.log(`[Facebook Messages] ⚠️  Could not determine organization for ${facebookEmail}, skipping`);
+          continue;
+        }
+        
+        // Find lead: if profileId is missing but conversationId exists, find by conversationId
+        let lead: any = null;
+        if (!profileId && conversationId) {
+          console.log(`[Facebook Messages] 🔍 No profileId provided, but conversationId exists. Looking up lead by conversationId: ${conversationId}`);
+          const leadsWithConversation = await db.execute(sql`
+            SELECT id, external_id, metadata, org_id
+            FROM leads
+            WHERE metadata->>'facebookConversationId' = ${conversationId}
+              AND org_id = ${orgId}
+            LIMIT 1
+          `);
+          
+          if (leadsWithConversation.rows.length > 0) {
+            const leadRow = leadsWithConversation.rows[0];
+            const foundLeadId = leadRow.id as string;
+            // Fetch the full lead object from storage
+            lead = await storage.getLead(foundLeadId, orgId);
+        if (lead) {
+              // Extract profileId from the lead's externalId or metadata
+              profileId = lead.externalId || (lead.metadata as any)?.facebookProfileId || null;
+              console.log(`[Facebook Messages] ✅ Found existing lead by conversationId: ${lead.id}, profileId: ${profileId}`);
+            } else {
+              console.log(`[Facebook Messages] ⚠️  Lead ID ${foundLeadId} found but could not fetch full lead object`);
+              continue;
+            }
+          } else {
+            console.log(`[Facebook Messages] ⚠️  No lead found for conversationId ${conversationId} in org ${orgId}. Cannot save messages without profileId or existing lead.`);
+            continue;
+          }
+        }
+        
+        // If we still don't have profileId and no lead was found, skip
+        if (!profileId && !lead) {
+          console.log(`[Facebook Messages] ⚠️  Skipping conversation - missing profileId and no existing lead found by conversationId`);
+          continue;
+        }
+        
+        // Find or create lead by profile ID (if we haven't found it already)
+        if (!lead && profileId) {
+          lead = await storage.getLeadByExternalId(profileId, orgId);
+        }
+        
+        if (lead) {
+          console.log(`[Facebook Messages] Found existing lead: ${lead.id} for profileId: ${profileId || 'N/A (found by conversationId)'}`);
+          // Update lead metadata if listing ID or conversation ID is provided
+            const metadata = (lead.metadata as any) || {};
+          let metadataUpdated = false;
+          let nameUpdated = false;
+          let newName = lead.name;
+          
+          // Update name if we have a profileName and current name is a default
+          if (profileName && (lead.name === `Facebook User ${profileId}` || lead.name?.startsWith('Facebook User'))) {
+            newName = profileName;
+            nameUpdated = true;
+            console.log(`[Facebook Messages] Updating lead name from "${lead.name}" to "${profileName}"`);
+          }
+          
+          // Look up property/unit from Facebook listing ID (for existing leads too)
+          let propertyIdFromListing: string | undefined;
+          let unitIdFromListing: string | undefined;
+          
+          if (listingId) {
+            const unit = await storage.getUnitByFacebookListingId(listingId, orgId);
+            if (unit) {
+              propertyIdFromListing = unit.propertyId;
+              unitIdFromListing = unit.id;
+              console.log(`[Facebook Messages] 🔍 Mapped listing ID to property: ${unit.propertyId}, unit: ${unit.id}`);
+            }
+          }
+          
+          if (listingId && (!metadata.facebookListingId || metadata.facebookListingId !== listingId)) {
+              metadata.facebookListingId = listingId;
+              if (unitIdFromListing) {
+                metadata.unitId = unitIdFromListing;
+              }
+            metadataUpdated = true;
+            console.log(`[Facebook Messages] Updating listingId: ${listingId}`);
+            
+            // Automatically import/create listing for this Facebook listing ID if it doesn't exist
+            try {
+              const existingListings = await storage.getAllListings(orgId);
+              const listingExists = existingListings.some(l => l.facebookListingId === listingId);
+              
+              if (!listingExists) {
+                console.log(`[Facebook Messages] Auto-importing listing for Facebook listing ID: ${listingId}`);
+                // Get or create "Facebook Imported Listings" property
+                const allProperties = await storage.getAllProperties(orgId);
+                let facebookProperty = allProperties.find(p => p.name === "Facebook Imported Listings");
+                
+                if (!facebookProperty) {
+                  facebookProperty = await storage.createProperty({
+                    orgId: orgId,
+                    name: "Facebook Imported Listings",
+                    address: "Imported from Facebook Marketplace",
+                    description: "Listings imported from Facebook Marketplace that were not created in Lead2Lease",
+                    units: 1,
+                    occupancy: 0,
+                    monthlyRevenue: "0",
+                  });
+                }
+                
+                // Create placeholder unit
+                const unit = await storage.createPropertyUnit({
+                  propertyId: facebookProperty.id,
+                  orgId: orgId,
+                  unitNumber: `FB-${listingId}`,
+                  bedrooms: 0,
+                  bathrooms: "0",
+                  monthlyRent: undefined,
+                  deposit: undefined,
+                  squareFeet: undefined,
+                  isListed: true,
+                  status: 'not_occupied',
+                  bookingEnabled: false,
+                });
+                
+                // Create listing
+                await storage.createListing({
+                  orgId: orgId,
+                  propertyId: facebookProperty.id,
+                  unitId: unit.id,
+                  title: `Facebook Listing ${listingId}`,
+                  description: "This listing was imported from Facebook Marketplace. It was not created in Lead2Lease.",
+                  status: 'active',
+                  preQualifyEnabled: false,
+                  acceptBookings: false,
+                  facebookListingId: listingId,
+                  facebookListedAt: new Date(),
+                });
+                
+                console.log(`[Facebook Messages] ✅ Auto-imported listing for Facebook listing ID: ${listingId}`);
+              }
+            } catch (importError: any) {
+              console.error(`[Facebook Messages] ⚠️ Failed to auto-import listing for ${listingId}:`, importError.message);
+              // Don't fail the entire message processing if listing import fails
+            }
+          }
+          
+          if (conversationId && (!metadata.facebookConversationId || metadata.facebookConversationId !== conversationId)) {
+            metadata.facebookConversationId = conversationId;
+            metadataUpdated = true;
+            console.log(`[Facebook Messages] Updating conversationId: ${conversationId}`);
+          }
+          
+          if (profileName && (!metadata.facebookProfileName || metadata.facebookProfileName !== profileName)) {
+            metadata.facebookProfileName = profileName;
+            metadataUpdated = true;
+            console.log(`[Facebook Messages] Updating profileName: ${profileName}`);
+          }
+          
+          // Set propertyId if we found it from listing and lead doesn't have one
+          let propertyIdUpdated = false;
+          if (propertyIdFromListing && !lead.propertyId) {
+            propertyIdUpdated = true;
+            console.log(`[Facebook Messages] Setting propertyId from listing: ${propertyIdFromListing}`);
+          }
+          
+          if (metadataUpdated || nameUpdated || propertyIdUpdated) {
+            try {
+              const updateData: any = { metadata };
+              if (nameUpdated) {
+                updateData.name = newName;
+              }
+              if (propertyIdUpdated) {
+                updateData.propertyId = propertyIdFromListing;
+              }
+              lead = await storage.updateLead(lead.id, updateData, orgId) || lead;
+              console.log(`[Facebook Messages] ✅ Updated lead metadata:`, metadata);
+              // Verify the update was saved
+              const verifyLead = await storage.getLead(lead.id, orgId);
+              if (verifyLead) {
+                console.log(`[Facebook Messages] ✅ Verified lead metadata updated in database:`, verifyLead.metadata);
+        } else {
+                console.error(`[Facebook Messages] ❌ WARNING: Lead update may have failed - lead not found!`);
+              }
+            } catch (updateError: any) {
+              console.error(`[Facebook Messages] ❌ Error updating lead:`, updateError);
+              console.error(`[Facebook Messages] ❌ Update error details:`, {
+                message: updateError.message,
+                stack: updateError.stack,
+                leadId: lead.id,
+                metadata: metadata,
+              });
+              throw updateError;
+            }
+          } else {
+            console.log(`[Facebook Messages] No metadata updates needed for lead: ${lead.id}`);
+          }
+        } else {
+          // Create new lead - use profileName if available, otherwise fallback to conversationName or default
+          const leadName = profileName || conversationName || `Facebook User ${profileId}`;
+          
+          // Look up property/unit from Facebook listing ID
+          let propertyIdFromListing: string | undefined;
+          let unitIdFromListing: string | undefined;
+          
+          if (listingId) {
+            const unit = await storage.getUnitByFacebookListingId(listingId, orgId);
+            if (unit) {
+              propertyIdFromListing = unit.propertyId;
+              unitIdFromListing = unit.id;
+              console.log(`[Facebook Messages] 🔍 Mapped listing ID to property: ${unit.propertyId}, unit: ${unit.id}`);
+            } else {
+              console.log(`[Facebook Messages] ⚠️  No unit found for Facebook listing ID: ${listingId}`);
+            }
+          }
+          
+          const leadData: any = {
+            name: leadName,
+            email: null,
+            phone: null,
+            source: 'facebook',
+            externalId: profileId,
+            orgId,
+            propertyId: propertyIdFromListing || null,  // Set propertyId from listing if found
+            metadata: {
+              facebookProfileId: profileId,
+              ...(listingId && { facebookListingId: listingId }),
+              ...(conversationId && { facebookConversationId: conversationId }),
+              ...(profileName && { facebookProfileName: profileName }),
+              ...(unitIdFromListing && { unitId: unitIdFromListing }),
+            },
+          };
+          console.log(`[Facebook Messages] Creating new lead with data:`, {
+            name: leadData.name,
+            externalId: leadData.externalId,
+            source: leadData.source,
+            orgId: leadData.orgId,
+            propertyId: leadData.propertyId,
+            metadata: leadData.metadata,
+          });
+          try {
+          lead = await storage.createLead(leadData);
+            console.log(`[Facebook Messages] ✅ Created new lead: ${lead.id} with name: "${leadData.name}", propertyId: ${propertyIdFromListing || 'none'}`);
+            // Verify the lead was actually created
+            const verifyLead = await storage.getLeadByExternalId(profileId, orgId);
+            if (verifyLead) {
+              console.log(`[Facebook Messages] ✅ Verified lead exists in database: ${verifyLead.id}, metadata:`, verifyLead.metadata);
+            } else {
+              console.error(`[Facebook Messages] ❌ WARNING: Lead was created but cannot be found in database!`);
+            }
+            
+            // Automatically import/create listing for this Facebook listing ID if it doesn't exist
+            if (listingId) {
+              try {
+                const existingListings = await storage.getAllListings(orgId);
+                const listingExists = existingListings.some(l => l.facebookListingId === listingId);
+                
+                if (!listingExists) {
+                  console.log(`[Facebook Messages] Auto-importing listing for Facebook listing ID: ${listingId}`);
+                  // Get or create "Facebook Imported Listings" property
+                  const allProperties = await storage.getAllProperties(orgId);
+                  let facebookProperty = allProperties.find(p => p.name === "Facebook Imported Listings");
+                  
+                  if (!facebookProperty) {
+                    facebookProperty = await storage.createProperty({
+                      orgId: orgId,
+                      name: "Facebook Imported Listings",
+                      address: "Imported from Facebook Marketplace",
+                      description: "Listings imported from Facebook Marketplace that were not created in Lead2Lease",
+                      units: 1,
+                      occupancy: 0,
+                      monthlyRevenue: "0",
+                    });
+                  }
+                  
+                  // Create placeholder unit
+                  const unit = await storage.createPropertyUnit({
+                    propertyId: facebookProperty.id,
+                    orgId: orgId,
+                    unitNumber: `FB-${listingId}`,
+                    bedrooms: 0,
+                    bathrooms: "0",
+                    monthlyRent: undefined,
+                    deposit: undefined,
+                    squareFeet: undefined,
+                    isListed: true,
+                    status: 'not_occupied',
+                    bookingEnabled: false,
+                  });
+                  
+                  // Create listing
+                  await storage.createListing({
+                    orgId: orgId,
+                    propertyId: facebookProperty.id,
+                    unitId: unit.id,
+                    title: `Facebook Listing ${listingId}`,
+                    description: "This listing was imported from Facebook Marketplace. It was not created in Lead2Lease.",
+                    status: 'active',
+                    preQualifyEnabled: false,
+                    acceptBookings: false,
+                    facebookListingId: listingId,
+                    facebookListedAt: new Date(),
+                  });
+                  
+                  console.log(`[Facebook Messages] ✅ Auto-imported listing for Facebook listing ID: ${listingId}`);
+                }
+              } catch (importError: any) {
+                console.error(`[Facebook Messages] ⚠️ Failed to auto-import listing for ${listingId}:`, importError.message);
+                // Don't fail the entire message processing if listing import fails
+              }
+            }
+          } catch (createError: any) {
+            console.error(`[Facebook Messages] ❌ Error creating lead:`, createError);
+            console.error(`[Facebook Messages] ❌ Error details:`, {
+              message: createError.message,
+              stack: createError.stack,
+              leadData: leadData,
+            });
+            throw createError;
+          }
+        }
+        
+        // Store each message as a conversation (if messages provided)
+        // Messages can be strings (legacy) or objects with {messageId, text, timestamp, from}
+        // DEDUPLICATION: Check for duplicates by conversationId + message content + message position
+        let storedCount = 0;
+        let skippedCount = 0;
+        console.log(`[Facebook Messages] 📝 Processing ${messageArray.length} messages for lead ${lead.id}`);
+        
+        // Get the conversationId from lead metadata for position-based deduplication
+        // Note: conversationId should be set in lead metadata by now (either from creation or update above)
+        const leadConversationId = (lead.metadata as any)?.facebookConversationId || conversationId;
+        console.log(`[Facebook Messages] 📌 Using conversationId for deduplication: ${leadConversationId} (from lead metadata: ${(lead.metadata as any)?.facebookConversationId || 'none'}, from request: ${conversationId || 'none'})`);
+        
+        // Get count of existing messages for this conversation to determine starting position
+        let existingMessageCount = 0;
+        if (leadConversationId) {
+          const countResult = await db.execute(sql`
+            SELECT COUNT(*) as count
+            FROM conversations c
+            INNER JOIN leads l ON c.lead_id = l.id
+            WHERE l.metadata->>'facebookConversationId' = ${leadConversationId}
+              AND c.channel = 'facebook'
+          `);
+          const countValue = (countResult.rows[0] as any)?.count;
+          existingMessageCount = parseInt(String(countValue || '0'), 10);
+          console.log(`[Facebook Messages] 📊 Conversation ${leadConversationId} has ${existingMessageCount} existing messages`);
+        } else {
+          console.log(`[Facebook Messages] ⚠️  No conversationId available for deduplication (lead metadata: ${JSON.stringify(lead.metadata)}, request conversationId: ${conversationId})`);
+        }
+        
+        for (let msgIndex = 0; msgIndex < messageArray.length; msgIndex++) {
+          const msg = messageArray[msgIndex];
+          // Handle both string format (legacy) and object format (new)
+          let messageText: string;
+          let messageTimestamp: string | undefined;
+          let messageFrom: 'lead' | 'me' | undefined;
+          let messageId: string | undefined;
+          
+          if (typeof msg === 'string') {
+            // Legacy format: just a string
+            messageText = msg.trim();
+            messageFrom = undefined; // Unknown for legacy format
+          } else if (msg && typeof msg === 'object' && msg.text) {
+            // New format: object with text, timestamp, from, messageId
+            messageText = msg.text.trim();
+            messageTimestamp = msg.timestamp;
+            messageFrom = msg.from; // Should be 'lead' or 'me'
+            messageId = msg.messageId;
+          } else {
+            console.log(`[Facebook Messages] ⚠️  Skipping message ${msgIndex + 1}/${messageArray.length}: invalid message format`, { msg, msgType: typeof msg });
+            continue; // Skip invalid messages
+          }
+          
+          if (!messageText) {
+            console.log(`[Facebook Messages] ⚠️  Skipping message ${msgIndex + 1}/${messageArray.length}: empty message text`);
+            continue;
+          }
+          
+          // Validate messageFrom - if not set, try to infer from messageId or default to 'lead'
+          if (!messageFrom) {
+            console.log(`[Facebook Messages] ⚠️  Message ${msgIndex + 1}/${messageArray.length} has no 'from' field, defaulting to 'lead'`);
+            messageFrom = 'lead'; // Default to 'lead' if not specified
+          }
+          
+          // Ensure messageFrom is either 'lead' or 'me'
+          if (messageFrom !== 'lead' && messageFrom !== 'me') {
+            console.log(`[Facebook Messages] ⚠️  Message ${msgIndex + 1}/${messageArray.length} has invalid 'from' value: "${messageFrom}", defaulting to 'lead'`);
+            messageFrom = 'lead';
+          }
+          
+          // Use messageId if provided, otherwise generate one
+          const externalId = messageId || `${profileId}-${Date.now()}-${Math.random()}`;
+          
+          // DEDUPLICATION CHECK 1: Check for existing conversation by externalId (messageId) - SCOPED TO CURRENT LEAD
+          // For Facebook messages, we should only check for duplicates within the same lead/conversation
+          // The same messageId can exist in different conversations (e.g., "Hi, is this available?" is common)
+          const existingConversationById = await db.execute(sql`
+            SELECT id, created_at, type, lead_id, external_id
+            FROM conversations
+            WHERE external_id = ${externalId}
+              AND lead_id = ${lead.id}
+              AND channel = 'facebook'
+            LIMIT 1
+          `);
+          
+          if (existingConversationById.rows.length > 0) {
+            skippedCount++;
+            continue;
+          }
+          
+          // DEDUPLICATION CHECK 2: Check for duplicate by conversationId + message content + message position
+          // For Facebook messages, duplicates should only be checked within the same conversation
+          // Messages can have the same content if they're at different positions (e.g., position 1 and position 3)
+          // But messages at the same position cannot have the same content (they're duplicates)
+          const normalizedMessage = messageText.trim().toLowerCase();
+          
+          // Calculate the position this message will be at in the conversation
+          // Position = existing messages + messages already stored in this batch + 1
+          const messagePosition = existingMessageCount + storedCount + 1;
+          
+          if (leadConversationId) {
+            // Check if a message with the same content exists at the same position in the same conversation
+            // We need to find all messages with the same content and check their positions
+            const messagesWithSameContent = await db.execute(sql`
+              SELECT 
+                c.id,
+                c.created_at,
+                c.type,
+                c.external_id
+              FROM conversations c
+              INNER JOIN leads l ON c.lead_id = l.id
+              WHERE l.metadata->>'facebookConversationId' = ${leadConversationId}
+                AND c.channel = 'facebook'
+                AND LOWER(TRIM(c.message)) = ${normalizedMessage}
+              ORDER BY c.created_at ASC
+            `);
+            
+            if (messagesWithSameContent.rows.length > 0) {
+              // Check the position of each existing message with the same content
+              let isDuplicate = false;
+              for (const existing of messagesWithSameContent.rows) {
+                // Get the position of this existing message in the conversation
+                const existingCreatedAt = existing.created_at as Date;
+                const positionResult = await db.execute(sql`
+                  SELECT COUNT(*) as count
+                  FROM conversations c2
+                  INNER JOIN leads l2 ON c2.lead_id = l2.id
+                  WHERE l2.metadata->>'facebookConversationId' = ${leadConversationId}
+                    AND c2.channel = 'facebook'
+                    AND c2.created_at < ${existingCreatedAt.toISOString()}::timestamp
+                `);
+                
+                const positionValue = (positionResult.rows[0] as any)?.count;
+                const existingPosition = parseInt(String(positionValue || '0'), 10) + 1;
+                
+                // If same content at same position, it's a duplicate
+                // BUT: For new conversations (existingMessageCount = 0), we should be more lenient
+                // Only flag as duplicate if the existing message was created more than 1 second ago
+                // This prevents false positives from messages stored in the same batch
+                const timeDiff = existingCreatedAt ? (Date.now() - new Date(existingCreatedAt).getTime()) : Infinity;
+                const isRecentMessage = timeDiff < 1000; // Less than 1 second old
+                
+                if (existingPosition === messagePosition) {
+                  if (!isRecentMessage || existingMessageCount > 0) {
+                    // This is a duplicate (not recent or conversation has existing messages)
+                    skippedCount++;
+                    isDuplicate = true;
+                    break; // Found a duplicate, no need to check other messages
+                  }
+                  // If recent and new conversation, treat as valid (not duplicate)
+                }
+              }
+              
+              if (isDuplicate) {
+                continue; // Skip to next message in the outer loop
+              }
+            }
+          }
+          
+          // Determine type based on 'from' field: 'lead' = 'received', 'me' = 'outgoing'
+          const conversationType = messageFrom === 'me' ? 'outgoing' : 'received';
+          
+          const conversationData: any = {
+            leadId: lead.id,
+            type: conversationType,
+            channel: 'facebook',
+            message: messageText,
+            sourceIntegration: 'facebook',
+            externalId,
+          };
+          
+          // If we have a valid timestamp, we could set createdAt, but the database will use defaultNow()
+          // The deduplication check above uses the timestamp for matching, not for storage
+          
+          try {
+          const validatedData = insertConversationSchema.parse(conversationData);
+          await storage.createConversation(validatedData);
+          storedCount++;
+          } catch (storageError: any) {
+            console.error(`[Facebook Messages] ❌ Error storing message ${msgIndex + 1}/${messageArray.length}: ${storageError?.message || storageError}`);
+            skippedCount++;
+            // Continue to next message instead of throwing
+            continue;
+          }
+        }
+        
+        console.log(`[Facebook Messages] 📊 Message processing summary for lead ${lead.id}:`);
+        console.log(`[Facebook Messages]    Total messages in request: ${messageArray.length}`);
+        console.log(`[Facebook Messages]    Messages stored: ${storedCount}`);
+        console.log(`[Facebook Messages]    Messages skipped: ${skippedCount}`);
+        console.log(`[Facebook Messages]    Expected total: ${storedCount + skippedCount} (should equal ${messageArray.length})`);
+        
+        if (skippedCount > 0) {
+          console.log(`[Facebook Messages] ⚠️  Skipped ${skippedCount} duplicate messages`);
+        }
+        
+        if (storedCount + skippedCount !== messageArray.length) {
+          console.error(`[Facebook Messages] ❌ MISMATCH: stored (${storedCount}) + skipped (${skippedCount}) = ${storedCount + skippedCount}, but total messages = ${messageArray.length}`);
+          console.error(`[Facebook Messages]    This indicates ${messageArray.length - (storedCount + skippedCount)} messages were not processed (possibly due to errors)`);
+        }
+        
+        results.push({
+          profileId,
+          conversationId: conversationId || null,
+          listingId: listingId || null,
+          leadId: lead.id,
+          messagesStored: storedCount,
+        });
+        
+        console.log(`[Facebook Messages] ✅ Successfully processed conversation:`, {
+          profileId,
+          conversationId: conversationId || null,
+          listingId: listingId || null,
+          leadId: lead.id,
+        });
+      }
+      
+      console.log(`[Facebook Messages] ✅ Processed ${results.length} conversations`);
+      console.log(`[Facebook Messages] Results summary:`, {
+        totalProcessed: results.length,
+        leadsCreated: results.filter(r => r.leadId).length,
+        withProfileId: results.filter(r => r.profileId).length,
+        withListingId: results.filter(r => r.listingId).length,
+        withConversationId: results.filter(r => r.conversationId).length,
+      });
+      res.json({ processed: results.length, results });
+    } catch (error: any) {
+      console.error(`[Facebook Messages] ❌ Error:`, error);
+      console.error(`[Facebook Messages] ❌ Error stack:`, error.stack);
+      res.status(500).json({ message: "Failed to process messages", error: error.message });
+    }
+  });
+
+  // Internal endpoint to get pending Facebook messages that need to be sent
+  // Uses secret token instead of auth since it's called from an internal script
+  app.get("/api/facebook-messages/pending", async (req: any, res) => {
+    try {
+      const secretToken = req.headers['x-secret-token'] || req.query.secretToken;
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      
+      if (secretToken !== expectedToken) {
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      // Get all outgoing Facebook messages that are pending (delivery_status = 'pending')
+      // These are messages created in Lead2Lease that need to be sent via Facebook
+      // Only get messages with delivery_status = 'pending' (not NULL, not 'sent', not 'failed')
+      const result = await db.execute(sql`
+        SELECT 
+          c.id as conversation_id,
+          c.lead_id,
+          c.message,
+          c.created_at,
+          l.metadata->>'facebookConversationId' as conversation_id_from_metadata,
+          l.metadata->>'facebookProfileId' as profile_id,
+          l.name as lead_name
+        FROM conversations c
+        INNER JOIN leads l ON c.lead_id = l.id
+        WHERE c.channel = 'facebook'
+          AND c.type = 'outgoing'
+          AND c.delivery_status = 'pending'
+        ORDER BY c.created_at ASC
+        LIMIT 50
+      `);
+      
+      const messages = result.rows.map((row: any) => {
+        // Build conversation URL from conversation ID
+        const conversationId = row.conversation_id_from_metadata;
+        const conversationUrl = conversationId 
+          ? `https://www.facebook.com/messages/t/${conversationId}/`
+          : null;
+        
+        return {
+          conversationId: row.conversation_id,
+          leadId: row.lead_id,
+          leadName: row.lead_name,
+          message: row.message,
+          conversationUrl,
+          createdAt: row.created_at,
+        };
+      });
+      
+      console.log(`[Facebook Messages Pending] Found ${messages.length} pending messages to send`);
+      res.json({ messages });
+    } catch (error: any) {
+      console.error(`[Facebook Messages Pending] Error:`, error);
+      res.status(500).json({ message: "Failed to fetch pending messages", error: error.message });
+    }
+  });
+
+  // Internal endpoint to mark a Facebook message as sent
+  // Uses secret token instead of auth since it's called from an internal script
+  app.post("/api/facebook-messages/mark-sent", async (req: any, res) => {
+    try {
+      const secretToken = req.headers['x-secret-token'] || req.body.secretToken;
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      
+      if (secretToken !== expectedToken) {
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      const { conversationId, leadId } = req.body;
+      
+      if (!conversationId) {
+        return res.status(400).json({ message: "conversationId is required" });
+      }
+      
+      // Update the conversation to mark it as sent
+      await db
+        .update(conversations)
+        .set({
+          deliveryStatus: 'sent',
+          deliveryError: null,
+        })
+        .where(eq(conversations.id, conversationId));
+      
+      console.log(`[Facebook Messages Mark Sent] ✅ Marked conversation ${conversationId} as sent`);
+      res.json({ success: true, conversationId });
+    } catch (error: any) {
+      console.error(`[Facebook Messages Mark Sent] Error:`, error);
+      res.status(500).json({ message: "Failed to mark message as sent", error: error.message });
+    }
+  });
+
+  // Internal endpoint for Facebook message polling: Create conversation
+  // Uses secret token instead of auth since it's called from an internal script
+  app.post("/api/conversations/for-facebook", async (req: any, res) => {
+    try {
+      const { leadId, orgId, secretToken, type, message, externalId } = req.body;
+      
+      console.log(`[Conversations/Facebook] Processing request for leadId: ${leadId}, type: ${type}`);
+      
+      // Validate secret token
+      const expectedToken = process.env.FACEBOOK_LISTING_SECRET_TOKEN || 'facebook-listing-secret';
+      if (secretToken !== expectedToken) {
+        console.error(`[Conversations/Facebook] ❌ Invalid secret token`);
+        return res.status(401).json({ message: "Unauthorized - invalid secret token" });
+      }
+      
+      if (!leadId || !orgId || !message) {
+        console.error(`[Conversations/Facebook] ❌ Missing required fields - leadId: ${!!leadId}, orgId: ${!!orgId}, message: ${!!message}`);
+        return res.status(400).json({ message: "leadId, orgId, and message are required" });
+      }
+      
+      // Verify lead exists and belongs to org
+      const lead = await storage.getLead(leadId, orgId);
+      if (!lead) {
+        console.error(`[Conversations/Facebook] ❌ Lead not found: ${leadId}`);
+        return res.status(404).json({ message: "Lead not found" });
+      }
+      
+      // Check if conversation with this externalId already exists (deduplication)
+      if (externalId) {
+        const existingConversation = await storage.getConversationByExternalId(externalId);
+        if (existingConversation) {
+          console.log(`[Conversations/Facebook] ⚠️  Conversation with externalId ${externalId} already exists: ${existingConversation.id}`);
+          return res.json(existingConversation);
+        }
+      }
+      
+      // Create conversation - use schema validation directly
+      const conversationData: any = {
+        leadId,
+        type: type || 'received',
+        channel: 'facebook',
+        message: message.trim(),
+        sourceIntegration: 'facebook',
+        ...(externalId && { externalId }),
+      };
+      
+      // Validate with schema
+      const validatedData = insertConversationSchema.parse(conversationData);
+      
+      const conversation = await storage.createConversation(validatedData);
+      console.log(`[Conversations/Facebook] ✅ Created conversation: ${conversation.id}`);
+      
+      res.status(201).json(conversation);
+    } catch (error: any) {
+      console.error(`[Conversations/Facebook] ❌ Error:`, error);
+      res.status(500).json({ message: "Failed to create conversation", error: error.message });
     }
   });
 
@@ -12079,6 +17558,34 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
       const listing = await storage.updateListing(id, req.body, req.orgId);
       if (!listing) {
         return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      // CRITICAL: Sync acceptBookings with unit bookingEnabled - they must stay in sync
+      if ('acceptBookings' in req.body && req.body.acceptBookings !== currentListing.acceptBookings) {
+        try {
+          // Update the specific unit's bookingEnabled to match acceptBookings
+          await storage.updatePropertyUnit(listing.unitId, {
+            bookingEnabled: req.body.acceptBookings,
+          }, req.orgId);
+          console.log(`[Listings] Synced unit ${listing.unitId} bookingEnabled to ${req.body.acceptBookings} due to listing ${id} acceptBookings change`);
+          
+          // If turning OFF, also disable booking for all other units in this property
+          if (req.body.acceptBookings === false) {
+            const propertyUnits = await storage.getAllUnitsByProperty(listing.propertyId, req.orgId);
+            
+            // Disable booking for all other units that have booking enabled
+            for (const unit of propertyUnits) {
+              if (unit.id !== listing.unitId && unit.bookingEnabled) {
+                await storage.updatePropertyUnit(unit.id, {
+                  bookingEnabled: false,
+                }, req.orgId);
+                console.log(`[Listings] Auto-disabled booking for unit ${unit.id} (${unit.unitNumber}) due to listing ${id} having acceptBookings turned off`);
+              }
+            }
+          }
+        } catch (syncError: any) {
+          console.error("[Listings] Warning: Failed to sync booking for unit:", syncError);
+        }
       }
       
       // Sync booking status with listing status - they must both be on or both be off

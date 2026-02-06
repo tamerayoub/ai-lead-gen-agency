@@ -487,6 +487,7 @@ export default function UnitSchedulingDialog({
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/units", unitId, "scheduling"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties/with-listed-units"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       // CRITICAL: Only invalidate queries for THIS specific unit to prevent affecting other units
       queryClient.invalidateQueries({ queryKey: ["/api/schedule/preferences/bulk", unitId] });
       
@@ -1003,7 +1004,7 @@ export default function UnitSchedulingDialog({
             <div className="space-y-3">
               <div className="flex items-center justify-between p-5 border rounded-md bg-muted/20">
                 <div className="space-y-0.5 flex-1">
-                  <Label htmlFor="booking-enabled-unit" className="text-base">Public Booking</Label>
+                  <Label htmlFor="booking-enabled-unit" className="text-base">Enable Booking</Label>
                   <p className="text-sm text-muted-foreground">
                     Allow prospects to book showings for this unit
                   </p>

@@ -1,0 +1,297 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - banner:
+            - generic [ref=e2]:
+              - generic:
+                - button [disabled]:
+                  - img
+              - link "Facebook" [ref=e3] [cursor=pointer]:
+                - /url: /
+                - img [ref=e4]
+            - generic [ref=e12]:
+              - generic [ref=e13]:
+                - generic:
+                  - generic:
+                    - generic:
+                      - button:
+                        - img
+              - generic [ref=e15]:
+                - generic:
+                  - img
+                - combobox "Search Facebook" [ref=e16] [cursor=pointer]
+            - navigation "Facebook" [ref=e20]:
+              - list [ref=e21]:
+                - listitem [ref=e22]:
+                  - link "Home" [ref=e25] [cursor=pointer]:
+                    - /url: /
+                    - img [ref=e27]
+                - listitem [ref=e29]:
+                  - link "Friends" [ref=e32] [cursor=pointer]:
+                    - /url: /friends/
+                    - img [ref=e34]
+                - listitem [ref=e36]:
+                  - link "Reels" [ref=e39] [cursor=pointer]:
+                    - /url: /reel/?s=tab
+                    - img [ref=e41]
+                - listitem [ref=e44]:
+                  - link "Marketplace" [ref=e48] [cursor=pointer]:
+                    - /url: /marketplace/?ref=app_tab
+                    - img [ref=e50]
+            - navigation "Account Controls and Settings" [ref=e53]:
+              - button "Menu" [ref=e57] [cursor=pointer]:
+                - img [ref=e58]
+              - button "Messenger" [ref=e64] [cursor=pointer]:
+                - img [ref=e65]
+              - generic [ref=e70]:
+                - button "Notifications, 5 unread" [ref=e71] [cursor=pointer]:
+                  - img [ref=e72]
+                - button [ref=e74] [cursor=pointer]:
+                  - generic [ref=e75]:
+                    - generic [ref=e76]: Number of unread notifications
+                    - generic [ref=e77]: "5"
+              - button "Your profile" [ref=e80] [cursor=pointer]:
+                - generic [ref=e81]:
+                  - img "Your profile" [ref=e82]
+                  - img [ref=e89]
+          - generic [ref=e96]:
+            - navigation [ref=e97]:
+              - generic [ref=e98]:
+                - generic [ref=e101]:
+                  - heading [active] [level=1] [ref=e106]: Marketplace
+                  - button [ref=e109] [cursor=pointer]:
+                    - img [ref=e110]
+                - generic [ref=e122]:
+                  - generic:
+                    - img
+                  - combobox [ref=e123]
+                - generic [ref=e128]:
+                  - link [ref=e130] [cursor=pointer]:
+                    - /url: /marketplace/
+                    - generic [ref=e131]:
+                      - img [ref=e134]
+                      - generic [ref=e141]: Browse all
+                  - link [ref=e143] [cursor=pointer]:
+                    - /url: /marketplace/jobs/
+                    - generic [ref=e144]:
+                      - img [ref=e147]
+                      - generic [ref=e154]: Jobs
+                  - link [ref=e156] [cursor=pointer]:
+                    - /url: /marketplace/notifications/
+                    - generic [ref=e166]: Notifications
+                  - link [ref=e168] [cursor=pointer]:
+                    - /url: /marketplace/inbox/
+                    - generic [ref=e169]:
+                      - img [ref=e172]
+                      - generic [ref=e179]: Inbox
+                  - link [ref=e181] [cursor=pointer]:
+                    - /url: /marketplace/status/
+                    - generic [ref=e182]:
+                      - img [ref=e185]
+                      - generic [ref=e193]: Marketplace access
+                  - link [ref=e195] [cursor=pointer]:
+                    - /url: /marketplace/you/
+                    - generic [ref=e196]:
+                      - img [ref=e199]
+                      - generic [ref=e206]: Buying
+                  - link [ref=e212] [cursor=pointer]:
+                    - /url: /marketplace/you/selling/
+                    - generic [ref=e213]:
+                      - img [ref=e216]
+                      - generic [ref=e223]: Selling
+                  - link [ref=e229] [cursor=pointer]:
+                    - /url: /marketplace/create/
+                    - generic [ref=e230]:
+                      - img [ref=e231]
+                      - generic [ref=e234]: Create new listing
+                  - link [ref=e239] [cursor=pointer]:
+                    - /url: /marketplace/create/bulk/
+                    - generic [ref=e242]: Create multiple listings
+                  - generic [ref=e243]:
+                    - generic [ref=e257]: Location
+                    - button [ref=e259] [cursor=pointer]:
+                      - generic [ref=e262]:
+                        - text: Saint Paul, Minnesota
+                        - generic [ref=e263]: ·
+                        - text: Within 5 mi
+                  - generic [ref=e278]: Categories
+                  - link [ref=e281] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=546583916084032&query=Vehicles&referral_ui_component=category_menu_item
+                    - generic [ref=e282]:
+                      - img [ref=e285]
+                      - generic [ref=e292]: Vehicles
+                  - link [ref=e295] [cursor=pointer]:
+                    - /url: /marketplace/category/propertyrentals/
+                    - generic [ref=e296]:
+                      - img [ref=e299]
+                      - generic [ref=e306]: Property Rentals
+                  - link [ref=e309] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=677457442746983&query=Apparel&referral_ui_component=category_menu_item
+                    - generic [ref=e319]: Apparel
+                  - link [ref=e322] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=759201041254543&query=Classifieds&referral_ui_component=category_menu_item
+                    - generic [ref=e323]:
+                      - img [ref=e326]
+                      - generic [ref=e333]: Classifieds
+                  - link [ref=e336] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=479353692612078&query=Electronics&referral_ui_component=category_menu_item
+                    - generic [ref=e337]:
+                      - img [ref=e340]
+                      - generic [ref=e347]: Electronics
+                  - link [ref=e350] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=529595287638583&query=Entertainment&referral_ui_component=category_menu_item
+                    - generic [ref=e351]:
+                      - img [ref=e354]
+                      - generic [ref=e361]: Entertainment
+                  - link [ref=e364] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=891748581240437&query=Family&referral_ui_component=category_menu_item
+                    - generic [ref=e365]:
+                      - img [ref=e368]
+                      - generic [ref=e375]: Family
+                  - link [ref=e378] [cursor=pointer]:
+                    - /url: /marketplace/category/free/
+                    - generic [ref=e379]:
+                      - img [ref=e382]
+                      - generic [ref=e390]: Free Stuff
+                  - link [ref=e393] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=1109541402725436&query=Garden%20%26%20Outdoor&referral_ui_component=category_menu_item
+                    - generic [ref=e394]:
+                      - img [ref=e397]
+                      - generic [ref=e404]: Garden & Outdoor
+                  - link [ref=e407] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=459026188375950&query=Hobbies&referral_ui_component=category_menu_item
+                    - generic [ref=e417]: Hobbies
+                  - link [ref=e420] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=753380185098614&query=Home%20Goods&referral_ui_component=category_menu_item
+                    - generic [ref=e421]:
+                      - img [ref=e424]
+                      - generic [ref=e431]: Home Goods
+                  - link [ref=e434] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=476291743038859&query=Home%20Improvement%20Supplies&referral_ui_component=category_menu_item
+                    - generic [ref=e435]:
+                      - img [ref=e438]
+                      - generic [ref=e445]: Home Improvement Supplies
+                  - link [ref=e448] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=1270772586445798&query=Home%20Sales&referral_ui_component=category_menu_item
+                    - generic [ref=e449]:
+                      - img [ref=e452]
+                      - generic [ref=e459]: Home Sales
+                  - link [ref=e462] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=1078592699170502&query=Musical%20Instruments&referral_ui_component=category_menu_item
+                    - generic [ref=e463]:
+                      - img [ref=e466]
+                      - generic [ref=e473]: Musical Instruments
+                  - link [ref=e476] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=586894672179024&query=Office%20Supplies&referral_ui_component=category_menu_item
+                    - generic [ref=e477]:
+                      - img [ref=e480]
+                      - generic [ref=e487]: Office Supplies
+                  - link [ref=e490] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=197143151659643&query=Pet%20Supplies&referral_ui_component=category_menu_item
+                    - generic [ref=e491]:
+                      - img [ref=e494]
+                      - generic [ref=e501]: Pet Supplies
+                  - link [ref=e504] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=391335928190702&query=Sporting%20Goods&referral_ui_component=category_menu_item
+                    - generic [ref=e505]:
+                      - img [ref=e508]
+                      - generic [ref=e516]: Sporting Goods
+                  - link [ref=e519] [cursor=pointer]:
+                    - /url: /marketplace/107996279221955/search/?category_id=199404184572737&query=Toys%20%26%20Games&referral_ui_component=category_menu_item
+                    - generic [ref=e529]: Toys & Games
+            - main [ref=e531]:
+              - generic [ref=e539]:
+                - generic [ref=e547]:
+                  - generic [ref=e549]:
+                    - heading [level=2] [ref=e550]:
+                      - generic [ref=e551]: Today's picks
+                    - button [ref=e553] [cursor=pointer]:
+                      - generic [ref=e554]:
+                        - img [ref=e556]
+                        - generic [ref=e558]:
+                          - text: St Paul
+                          - generic [ref=e559]: ·
+                          - text: 5 mi
+                  - generic [ref=e561]:
+                    - link [ref=e570] [cursor=pointer]:
+                      - /url: /marketplace/item/25692156630434463/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e571]:
+                        - generic [ref=e572]:
+                          - generic [ref=e575]:
+                            - img [ref=e576]
+                            - generic [ref=e579]: Partner listing
+                          - img [ref=e585]
+                        - generic [ref=e586]:
+                          - generic [ref=e590]: $18
+                          - generic [ref=e595]: Zara Blazer
+                    - link [ref=e604] [cursor=pointer]:
+                      - /url: /marketplace/item/34029559279961117/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e605]:
+                        - generic [ref=e606]:
+                          - generic [ref=e609]:
+                            - img [ref=e610]
+                            - generic [ref=e613]: Partner listing
+                          - img [ref=e619]
+                        - generic [ref=e620]:
+                          - generic [ref=e624]: $40
+                          - generic [ref=e629]: Lululemon Joggers
+                    - link [ref=e638] [cursor=pointer]:
+                      - /url: /marketplace/item/26266504946286962/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e639]:
+                        - generic [ref=e640]:
+                          - generic [ref=e643]:
+                            - img [ref=e644]
+                            - generic [ref=e647]: Partner listing
+                          - img [ref=e653]
+                        - generic [ref=e654]:
+                          - generic [ref=e658]: $499.99
+                          - generic [ref=e663]: Joe Pesci Autographed 16x20 Photo Jsa Goodfellas 3
+                    - link [ref=e672] [cursor=pointer]:
+                      - /url: /marketplace/item/25530714696595903/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e673]:
+                        - generic [ref=e674]:
+                          - generic [ref=e677]:
+                            - img [ref=e678]
+                            - generic [ref=e681]: Partner listing
+                          - img [ref=e687]
+                        - generic [ref=e688]:
+                          - generic [ref=e692]: $310
+                          - generic [ref=e697]: Canada Goose Expedition Navy Blue Men's Fashion Parka Size M / Removable Hair
+                    - link [ref=e706] [cursor=pointer]:
+                      - /url: /marketplace/item/33509339115376754/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e707]:
+                        - generic [ref=e708]:
+                          - generic [ref=e711]:
+                            - img [ref=e712]
+                            - generic [ref=e715]: Partner listing
+                          - img [ref=e721]
+                        - generic [ref=e722]:
+                          - generic [ref=e726]: $89.99
+                          - generic [ref=e731]: Saudi Arabia Palestine 1971 Reg. "al Taif" To The W. Bank Via Beirut A Nicosia
+                    - link [ref=e740] [cursor=pointer]:
+                      - /url: /marketplace/item/33663006646677250/?ref=browse_tab&referral_code=marketplace_top_picks&referral_story_type=top_picks&__tn__=!%3AD
+                      - generic [ref=e741]:
+                        - generic [ref=e742]:
+                          - generic [ref=e745]:
+                            - img [ref=e746]
+                            - generic [ref=e749]: Partner listing
+                          - img [ref=e755]
+                        - generic [ref=e756]:
+                          - generic [ref=e760]: $49.95
+                          - generic [ref=e765]: 🛡️ Czech Resistance Propaganda Poster - Anti-nazi Art - 24x36” Premium Art
+                - status [ref=e767]:
+                  - generic [ref=e774]:
+                    - img [ref=e777]
+                    - img [ref=e786]
+                    - img [ref=e794]
+          - button "New message" [ref=e803] [cursor=pointer]:
+            - img [ref=e804]
+  - alertdialog "Push notifications request" [ref=e812]:
+    - generic [ref=e813]: To allow or block browser notifications from Facebook, go to your browser settings.
+    - button "Close" [ref=e814]
+```

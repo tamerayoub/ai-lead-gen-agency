@@ -19,6 +19,56 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Helper function to parse address string into components
+function parseAddress(address: string): { street: string; city: string; state: string; zipCode: string } {
+  if (!address) {
+    return { street: "", city: "", state: "", zipCode: "" };
+  }
+  
+  // Try to parse common address formats
+  // Format: "123 Main St, City, ST 12345" or "123 Main St, City, ST, 12345"
+  const parts = address.split(',').map(p => p.trim());
+  
+  if (parts.length >= 3) {
+    const street = parts[0];
+    const city = parts[1];
+    // Last part might be "ST 12345" or "ST, 12345"
+    const lastPart = parts[parts.length - 1];
+    const stateZipMatch = lastPart.match(/^([A-Z]{2})\s*(\d{5}(?:-\d{4})?)$/);
+    
+    if (stateZipMatch) {
+      return {
+        street,
+        city,
+        state: stateZipMatch[1],
+        zipCode: stateZipMatch[2],
+      };
+    } else if (parts.length >= 4) {
+      // Format: "123 Main St, City, ST, 12345"
+      return {
+        street,
+        city,
+        state: parts[parts.length - 2],
+        zipCode: parts[parts.length - 1],
+      };
+    }
+  }
+  
+  // If parsing fails, put everything in street
+  return {
+    street: address,
+    city: "",
+    state: "",
+    zipCode: "",
+  };
+}
+
+// Helper function to combine address components into a single string
+function combineAddress(street: string, city: string, state: string, zipCode: string): string {
+  const parts = [street, city, state, zipCode].filter(p => p.trim());
+  return parts.join(", ");
+}
+
 const formSchema = insertPropertySchema.extend({
   units: z.coerce.number().int().min(1, "Must have at least 1 unit").default(1),
   occupancy: z.coerce.number().int().min(0, "Cannot be negative").default(0),
@@ -27,6 +77,11 @@ const formSchema = insertPropertySchema.extend({
   gallery: z.array(z.string()).default([]),
   description: z.string().optional(),
   amenities: z.array(z.string()).default([]),
+  // Separate address fields for the form (not stored in DB, combined into address on submit)
+  street: z.string().min(1, "Street address is required").default(""),
+  city: z.string().min(1, "City is required").default(""),
+  state: z.string().min(2, "State is required (2 letters)").max(2, "State must be 2 letters").default(""),
+  zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "Zip code must be 5 digits or 5+4 format").default(""),
 }).refine((data) => data.occupancy <= data.units, {
   message: "Occupancy cannot exceed total units",
   path: ["occupancy"],
@@ -58,6 +113,10 @@ export default function PropertyEdit() {
     defaultValues: {
       name: "",
       address: "",
+      street: "",
+      city: "",
+      state: "",
+      zipCode: "",
       units: 1,
       occupancy: 0,
       monthlyRevenue: "0",
@@ -70,9 +129,24 @@ export default function PropertyEdit() {
 
   useEffect(() => {
     if (isEdit && property) {
+      // Use separate address fields from database if available, otherwise parse from address
+      const street = property.street || "";
+      const city = property.city || "";
+      const state = property.state || "";
+      const zipCode = property.zipCode || "";
+      
+      // If separate fields are empty, try to parse from address field
+      const parsedAddress = (!street && !city && !state && !zipCode) 
+        ? parseAddress(property.address || "")
+        : { street, city, state, zipCode };
+      
       form.reset({
         name: property.name || "",
         address: property.address || "",
+        street: parsedAddress.street,
+        city: parsedAddress.city,
+        state: parsedAddress.state,
+        zipCode: parsedAddress.zipCode,
         units: property.units || 1,
         occupancy: property.occupancy || 0,
         monthlyRevenue: property.monthlyRevenue || "0",
@@ -145,9 +219,14 @@ export default function PropertyEdit() {
       return;
     }
 
+    // Combine separate address fields back into address string for backward compatibility
+    const combinedAddress = combineAddress(values.street, values.city, values.state, values.zipCode);
+
     // Ensure all fields are included, especially coverPhoto and gallery
+    // Include the separate address fields to save them in the database
     const submitData = {
       ...values,
+      address: combinedAddress, // Also keep combined address for backward compatibility
       coverPhoto: values.coverPhoto || null,
       gallery: values.gallery || [],
     };
@@ -512,22 +591,81 @@ export default function PropertyEdit() {
                   )}
                 />
 
+                {/* Street Address */}
                 <FormField
                   control={form.control}
-                  name="address"
+                  name="street"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address *</FormLabel>
+                      <FormLabel>Street Address *</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g., 123 Main St, Minneapolis, MN 55401"
+                          placeholder="e.g., 123 Main St"
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {/* City, State, Zip Code in a grid */}
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>City *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., Minneapolis"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="state"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>State *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., MN"
+                            maxLength={2}
+                            className="uppercase"
+                            onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="zipCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Zip Code *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., 55401"
+                            maxLength={10}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField

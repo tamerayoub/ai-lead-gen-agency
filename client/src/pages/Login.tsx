@@ -13,6 +13,7 @@ import { Building2, Mail, ArrowLeft, Bot, Calendar, BarChart3, Home } from "luci
 import logo from "@/assets/lead2lease-logo-black.svg";
 import { SiGoogle, SiFacebook, SiApple } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { isDevEnvironment, isProductionApp, isProductionMarketing, getPostLoginRedirect } from "@/lib/appUrls";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -23,11 +24,13 @@ const loginSchema = z.object({
 function getHomeUrl(): string {
   if (typeof window === 'undefined') return '/';
   
-  const hostname = window.location.hostname.toLowerCase();
-  const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
+  // Dev environments - stay on current domain
+  if (isDevEnvironment()) {
+    return '/';
+  }
   
-  // In production, if on app subdomain, redirect to marketing domain
-  if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
+  // Production app subdomain - go to marketing domain
+  if (isProductionApp()) {
     return 'https://lead2lease.ai';
   }
   
@@ -126,27 +129,28 @@ export default function Login() {
       // Wait a bit for session to be fully established and subscription linking to complete
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Check if returnTo is set to checkout - if so, show message instead of redirecting
+      // PRIORITY: If returnTo is explicitly set to checkout, always go there first
+      // This allows users to purchase additional memberships even if they already have one
       console.log('[Login] Checking returnTo before membership check:', returnTo);
       if (returnTo === '/founding-partner-checkout' || returnTo === '%2Ffounding-partner-checkout') {
-        console.log('[Login] returnTo is checkout page - showing message instead of redirecting');
-        
-        // Logout the user since they don't have membership
-        try {
-          await fetch("/api/auth/logout", {
-            method: "POST",
-            credentials: "include",
-          });
-          console.log('[Login] Logged out user without membership (returnTo checkout)');
-        } catch (logoutError) {
-          console.error('[Login] Error logging out user:', logoutError);
+        console.log('[Login] returnTo is checkout page - redirecting to checkout immediately (before membership check)');
+        // Dev environments - stay on current domain
+        if (isDevEnvironment()) {
+          console.log('[Login] Dev environment, using relative checkout path');
+          setTimeout(() => {
+            window.location.replace('/founding-partner-checkout');
+          }, 50);
+        } else if (isProductionApp()) {
+          // On app subdomain, redirect to marketing domain for checkout
+          console.log('[Login] On app subdomain, redirecting to marketing domain for checkout');
+          setTimeout(() => {
+            window.location.replace('https://lead2lease.ai/founding-partner-checkout');
+          }, 50);
+        } else {
+          setTimeout(() => {
+            window.location.replace("/founding-partner-checkout");
+          }, 50);
         }
-        
-        toast({
-          title: "Access Denied",
-          description: "You are not a member. Please contact support to create an account.",
-          variant: "destructive",
-        });
         return;
       }
       
@@ -161,6 +165,7 @@ export default function Login() {
         // Check if user is part of an organization that has an active membership
         // This check works the same for both owners and non-owners since it checks the org's status
         let hasMembership = false;
+        let hasAdminRole = false;
         let retries = 0;
         const maxRetries = 5; // Increased retries to allow more time for subscription linking
         
@@ -182,9 +187,10 @@ export default function Login() {
               console.log(`[Login] membershipData.orgId:`, membershipData?.orgId);
               
               // Check if organization has active membership (works for all users in the org)
-              // Primary check: isFoundingPartner flag
+              // Primary check: isFoundingPartner flag. Only admin/owner roles can access the app.
               hasMembership = membershipData?.isFoundingPartner === true;
-              console.log(`[Login] After primary check (isFoundingPartner), hasMembership:`, hasMembership);
+              hasAdminRole = membershipData?.hasAdminRole === true;
+              console.log(`[Login] After primary check (isFoundingPartner), hasMembership:`, hasMembership, 'hasAdminRole:', hasAdminRole);
               
               // Fallback 1: Check status field
               if (!hasMembership && membershipData?.status === 'active') {
@@ -215,8 +221,19 @@ export default function Login() {
                         
                         // If org status is active, user has membership
                         if (orgStatus === 'active') {
-                          console.log('[Login] ✅ Organization has active status - granting access');
+                          console.log('[Login] ✅ Organization has active status - checking admin role');
                           hasMembership = true;
+                          // Check admin role from org list (orgData has role for current org)
+                          hasAdminRole = orgData?.role === 'admin' || orgData?.role === 'owner';
+                          if (!hasAdminRole) {
+                            try {
+                              const orgsRes = await fetch("/api/organizations", { credentials: "include" });
+                              if (orgsRes.ok) {
+                                const orgs = await orgsRes.json();
+                                hasAdminRole = Array.isArray(orgs) && orgs.some((o: { role?: string }) => o.role === 'admin' || o.role === 'owner');
+                              }
+                            } catch (_) {}
+                          }
                           break;
                         }
                         
@@ -235,9 +252,13 @@ export default function Login() {
                 }
               }
               
-              // If we found membership, break the loop
+              // Only admins/owners can access the app - hasMembership alone is not enough
+              if (hasMembership && !hasAdminRole) {
+                console.log('[Login] User has membership but no admin/owner role - cannot access app');
+                hasMembership = false; // Treat as no access
+              }
               if (hasMembership) {
-                console.log('[Login] ✅ User is part of organization with active membership');
+                console.log('[Login] ✅ User is part of organization with active membership and has admin role');
                 break;
               }
             } else if (membershipRes.status === 401) {
@@ -268,46 +289,24 @@ export default function Login() {
           retries++;
         }
         
-        // Check domain context - needed for both membership and no-membership branches
+        // Check domain context - using centralized helpers
         const hostname = window.location.hostname.toLowerCase();
-        const isProductionDomain = hostname.includes('lead2lease.ai');
-        const isAlreadyOnAppSubdomain = hostname === 'app.lead2lease.ai';
-        const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes(':5000');
+        const isDev = isDevEnvironment();
+        const isProdApp = isProductionApp();
+        const isProdMarketing = isProductionMarketing();
         
-        if (hasMembership) {
-          // User's organization has ACTIVE membership - go to app (works for both owners and non-owners)
-          console.log('[Login] ✅ User has membership - determining redirect path');
+        if (hasMembership && hasAdminRole) {
+          // User has ACTIVE membership AND admin/owner role - only admins can access the app
+          console.log('[Login] ✅ User has membership and admin role - determining redirect path');
           console.log('[Login] Hostname:', hostname);
-          console.log('[Login] isLocalhost:', isLocalhost);
-          console.log('[Login] isProductionDomain:', isProductionDomain);
-          console.log('[Login] isAlreadyOnAppSubdomain:', isAlreadyOnAppSubdomain);
+          console.log('[Login] isDevEnvironment:', isDev);
+          console.log('[Login] isProductionApp:', isProdApp);
+          console.log('[Login] isProductionMarketing:', isProdMarketing);
           console.log('[Login] hasMembership:', hasMembership);
           
-          // Show welcome message for users with membership
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully logged in.",
-          });
-          
-          let redirectPath: string;
-          if (isLocalhost) {
-            // CRITICAL: Always use relative path for localhost
-            redirectPath = "/app";
-            console.log('[Login] ✅ Localhost detected - using relative path:', redirectPath);
-          } else if (isAlreadyOnAppSubdomain) {
-            // Already on app.lead2lease.ai - just go to root (Dashboard)
-            // The app subdomain doesn't use /app prefix, routes are at /, /leads, /properties, etc.
-            redirectPath = "/";
-            console.log('[Login] ✅ Already on app.lead2lease.ai - using root path:', redirectPath);
-          } else if (isProductionDomain) {
-            // On lead2lease.ai domain but not on app subdomain - redirect to app.lead2lease.ai
-            redirectPath = "https://app.lead2lease.ai";
-            console.log('[Login] ✅ Production domain detected - using full URL:', redirectPath);
-          } else {
-            // Replit dev environment - use /app route
-            redirectPath = "/app";
-            console.log('[Login] ✅ Replit dev environment - using relative path:', redirectPath);
-          }
+          // Use centralized redirect helper
+          const redirectPath = getPostLoginRedirect();
+          console.log('[Login] ✅ Using getPostLoginRedirect:', redirectPath);
           
           console.log('[Login] 🔄 Executing redirect to app');
           console.log('[Login] Current window.location.href before redirect:', window.location.href);
@@ -318,29 +317,128 @@ export default function Login() {
           setTimeout(() => {
             window.location.replace(redirectPath);
           }, 50);
+          } else if (hasMembership && !hasAdminRole) {
+            // Has membership but not admin/owner - redirect to waitlist
+            console.log('[Login] User has membership but no admin role - redirecting to waitlist');
+            const waitlistPath = isProdApp ? 'https://app.lead2lease.ai/waitlist' : '/waitlist';
+            setTimeout(() => {
+              window.location.replace(waitlistPath);
+            }, 50);
           } else {
             // User doesn't have an organization with ACTIVE membership
-            // Signing in should only work for those who have a membership
-            console.log('[Login] ❌ No organization with ACTIVE membership found after all checks');
-            console.log('[Login] User has account but does not have membership');
-            
-            // Logout the user since they don't have membership
-            try {
-              await fetch("/api/auth/logout", {
-                method: "POST",
-                credentials: "include",
-              });
-              console.log('[Login] Logged out user without membership');
-            } catch (logoutError) {
-              console.error('[Login] Error logging out user:', logoutError);
+            // Check if returnTo is an accept-invitation link
+            // If so, check if the organization in that invitation has membership
+            if (returnTo && returnTo.includes('/accept-invitation/')) {
+              const tokenMatch = returnTo.match(/\/accept-invitation\/([^\/]+)/);
+              if (tokenMatch && tokenMatch[1]) {
+                const invitationToken = tokenMatch[1];
+                console.log('[Login] returnTo is accept-invitation, checking if org has membership for token:', invitationToken);
+                
+                try {
+                  // Verify the invitation to get org info
+                  const verifyRes = await fetch(`/api/team/invitations/verify/${invitationToken}`, {
+                    credentials: "include",
+                  });
+                  
+                  if (verifyRes.ok) {
+                    const invitationData = await verifyRes.json();
+                    console.log('[Login] Invitation data:', invitationData);
+                    
+                    // Check if the organization has membership (from verify response)
+                    const orgHasMembership = invitationData?.orgHasMembership === true;
+                    
+                    if (orgHasMembership) {
+                      console.log('[Login] ✅ Organization has membership, auto-accepting invitation and redirecting to app');
+                      // Auto-accept the invitation since org has membership, then redirect to app
+                      try {
+                        const acceptRes = await fetch(`/api/team/invitations/accept/${invitationToken}`, {
+                          method: 'POST',
+                          credentials: "include",
+                        });
+                        
+                        if (acceptRes.ok) {
+                          const acceptData = await acceptRes.json();
+                          console.log('[Login] ✅ Invitation accepted automatically');
+                          // Refetch user data to update organization switcher
+                          await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+                          // Redirect to app since org has membership
+                          // Use correct path based on current domain
+                          const appRedirectPath = isProdApp ? "/" : "/app";
+                          console.log('[Login] ✅ Redirecting to:', appRedirectPath);
+                          // Use window.location.replace to prevent browser password prompts from blocking navigation
+                          setTimeout(() => {
+                            window.location.replace(appRedirectPath);
+                          }, 50);
+                          return;
+                        } else {
+                          console.warn('[Login] Failed to auto-accept invitation, redirecting to accept-invitation page');
+                        }
+                      } catch (acceptError) {
+                        console.error('[Login] Error auto-accepting invitation:', acceptError);
+                        // Fall through to redirect to accept-invitation page
+                      }
+                    } else {
+                      console.log('[Login] Organization does not have membership, will redirect to accept-invitation page');
+                    }
+                  }
+                } catch (invitationError) {
+                  console.error('[Login] Error checking invitation org membership:', invitationError);
+                  // Fall through to redirect to accept-invitation page
+                }
+              }
+              
+              // If we get here, redirect to accept-invitation page (org doesn't have membership or check failed)
+              console.log('[Login] Redirecting to accept-invitation page');
+              // Use window.location.replace to prevent browser password prompts from blocking navigation
+              setTimeout(() => {
+                window.location.replace(returnTo);
+              }, 50);
+            } else if (returnTo) {
+              console.log('[Login] No membership, redirecting to returnTo:', returnTo);
+              // Dev environments - stay on current domain
+              if (isDev) {
+                console.log('[Login] Dev environment, using relative returnTo');
+                setTimeout(() => {
+                  window.location.replace(returnTo);
+                }, 50);
+              } else if (isProdApp) {
+                // On app subdomain, redirect to marketing domain for checkout flow
+                const returnToPath = returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
+                const marketingUrl = `https://lead2lease.ai${returnToPath}`;
+                console.log('[Login] Redirecting to marketing domain:', marketingUrl);
+                setTimeout(() => {
+                  window.location.replace(marketingUrl);
+                }, 50);
+              } else {
+                setTimeout(() => {
+                  window.location.replace(returnTo);
+                }, 50);
+              }
+            } else {
+              console.log('[Login] ❌ No organization with ACTIVE membership found after all checks');
+              console.log('[Login] Redirect destination will be: /waitlist');
+              console.log('[Login] Current window.location.href before redirect:', window.location.href);
+              console.log('[Login] Current window.location.origin:', window.location.origin);
+              
+              // Dev environments - stay on current domain
+              if (isDev) {
+                console.log('[Login] Dev environment, using relative waitlist path');
+                setTimeout(() => {
+                  window.location.replace('/waitlist');
+                }, 50);
+              } else if (isProdApp) {
+                console.log('[Login] On app subdomain, redirecting to waitlist');
+                setTimeout(() => {
+                  window.location.replace('https://app.lead2lease.ai/waitlist');
+                }, 50);
+              } else {
+                setTimeout(() => {
+                  const redirectPath = "/waitlist";
+                  console.log('[Login] 🔄 Executing redirect to:', redirectPath);
+                  window.location.replace(redirectPath);
+                }, 50);
+              }
             }
-            
-            // Show error message - user cannot sign in without membership
-            toast({
-              title: "Access Denied",
-              description: "You are not a member. Please contact support to create an account.",
-              variant: "destructive",
-            });
           }
       }
     } catch (error: any) {
@@ -547,7 +645,7 @@ export default function Login() {
                 </form>
               </Form>
 
-              {/* <div className="text-center text-sm text-muted-foreground">
+              <div className="text-center text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link 
                   href={returnTo ? `/register?returnTo=${encodeURIComponent(returnTo)}` : "/register"} 
@@ -556,7 +654,7 @@ export default function Login() {
                 >
                   Create account
                 </Link>
-              </div> */}
+              </div>
             </CardContent>
           </Card>
           </div>

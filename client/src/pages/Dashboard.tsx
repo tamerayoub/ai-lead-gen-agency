@@ -1,146 +1,275 @@
-import { Rocket, Lock, Crown } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { Users, TrendingUp, Mail, Clock, ArrowRight, Facebook, Calendar, MessageSquare, Percent } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useMembership } from "@/hooks/useMembership";
-import { useAuth } from "@/hooks/useAuth";
-import { Link } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocation } from "wouter";
+import { format, isToday, differenceInDays, parseISO } from "date-fns";
+import { LeadCard } from "@/components/LeadCard";
+
+const statusColors: Record<string, string> = {
+  new: "bg-status-new text-white",
+  contacted: "bg-status-contacted text-white",
+  prequalified: "bg-status-prequalified text-white",
+  application: "bg-status-application text-white",
+  approved: "bg-status-approved text-white",
+};
+
+const statusTitles: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  prequalified: "Pre-qualified",
+  application: "Application Sent",
+  approved: "Approved",
+};
+
+const formatTimestamp = (timestamp: string) => {
+  try {
+    let date: Date;
+    if (timestamp.includes('T') || timestamp.includes('Z')) {
+      date = parseISO(timestamp);
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    if (isNaN(date.getTime())) {
+      return timestamp;
+    }
+
+    const now = new Date();
+    const daysDiff = differenceInDays(now, date);
+
+    if (isToday(date)) {
+      return format(date, "h:mm a");
+    } else if (daysDiff <= 7) {
+      return format(date, "EEEE h:mm a");
+    } else {
+      return format(date, "MMM d, h:mm a");
+    }
+  } catch (error) {
+    return timestamp;
+  }
+};
 
 export default function Dashboard() {
-  const { status } = useMembership();
-  const { user } = useAuth();
-  const [timeRemaining, setTimeRemaining] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
+  const [, setLocation] = useLocation();
+  const { data: stats } = useQuery<any>({ 
+    queryKey: ["/api/analytics/stats"],
+    refetchInterval: 30000,
   });
-
-  // Check if organization has a membership (active, cancelled but not expired, or past_due)
-  const hasMembership = status === 'active' || status === 'cancelled' || status === 'past_due';
-  
-  // Get current organization to check if user is owner
+  const { data: leads = [] } = useQuery<any[]>({ 
+    queryKey: ["/api/leads"],
+    refetchInterval: 30000,
+  });
+  const { data: notifications = [] } = useQuery<any[]>({ 
+    queryKey: ["/api/notifications"],
+    refetchInterval: 30000,
+  });
   const { data: currentOrg } = useQuery<{ orgId: string; role: string }>({
     queryKey: ["/api/organizations/current"],
-    enabled: !!user,
   });
   
   const isOwner = currentOrg?.role === 'owner';
 
-  // Fetch launch date from database (same as landing page)
-  const { data: launchDateData } = useQuery<{ launchDate: string }>({
-    queryKey: ["/api/launch-date"],
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
+  // Get recent leads (last 5)
+  const recentLeads = leads
+    .sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    })
+    .slice(0, 5);
 
-  const launchDate = useMemo(() => {
-    if (launchDateData?.launchDate) {
-      return new Date(launchDateData.launchDate).getTime();
-    }
-    // Fallback to 1 month from now if not loaded yet
-    const date = new Date();
-    date.setMonth(date.getMonth() + 1);
-    return date.getTime();
-  }, [launchDateData]);
+  // Get recent notifications (last 5)
+  const recentNotifications = notifications.slice(0, 5);
 
-  useEffect(() => {
-    const calculateTimeRemaining = () => {
-      const now = new Date().getTime();
-      const difference = launchDate - now;
+  // Calculate stats
+  const totalLeads = stats?.totalLeads || leads.length;
+  const leadsByStatus = leads.reduce((acc: Record<string, number>, lead: any) => {
+    acc[lead.status] = (acc[lead.status] || 0) + 1;
+    return acc;
+  }, {});
 
-      if (difference > 0) {
-        setTimeRemaining({
-          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((difference % (1000 * 60)) / 1000),
-        });
-      } else {
-        setTimeRemaining({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      }
-    };
-
-    calculateTimeRemaining();
-    const interval = setInterval(calculateTimeRemaining, 1000);
-
-    return () => clearInterval(interval);
-  }, [launchDate]);
+  const handleLeadClick = (leadId: string) => {
+    setLocation(`/leads/${leadId}`);
+  };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-      <Card className="max-w-xl w-full mx-4 shadow-xl border-2 bg-background dark:bg-gray-900" style={{ borderColor: 'rgba(255, 223, 0, 0.3)' }}>
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(255, 223, 0, 0.1)' }}>
-            <Lock className="h-6 w-6" style={{ color: '#FFDF00' }} />
-          </div>
-          <CardTitle>Features Coming Soon</CardTitle>
-          <CardDescription>
-            We're building something amazing 🚀🔥 Features are coming soon — you'll be the first to get them!
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Countdown Timer */}
-          <div className="p-4 rounded-lg border" style={{ background: 'linear-gradient(to right, rgba(255, 223, 0, 0.1), rgba(255, 223, 0, 0.15))', borderColor: 'rgba(255, 223, 0, 0.3)' }}>
-            <div className="text-center mb-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3" style={{ backgroundColor: 'rgba(255, 223, 0, 0.2)', color: '#CCB300' }}>
-                <Rocket className="h-4 w-4" />
-                <span className="text-xs font-semibold">Launch Countdown</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-3">
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
-                  {String(timeRemaining.days).padStart(2, '0')}
-                </div>
-                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Days</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
-                  {String(timeRemaining.hours).padStart(2, '0')}
-                </div>
-                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Hours</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
-                  {String(timeRemaining.minutes).padStart(2, '0')}
-                </div>
-                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Minutes</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold mb-1" style={{ color: '#FFDF00' }}>
-                  {String(timeRemaining.seconds).padStart(2, '0')}
-                </div>
-                <div className="text-[10px] md:text-xs text-gray-600 dark:text-gray-300 uppercase tracking-wide">Seconds</div>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Overview of your leads and activity</p>
+      </div>
 
-          {/* Subscribe button or contact owner message - only show if no membership */}
-          {!hasMembership && (
-            <div className="flex flex-col gap-2">
-              {isOwner ? (
-                <Link href="/founding-partner-checkout">
-                  <Button 
-                    className="w-full text-white hover:opacity-90"
-                    style={{ background: '#FFDF00' }}
-                  >
-                    <Crown className="mr-2 h-4 w-4" />
-                    Start Your Membership
-                  </Button>
-                </Link>
-              ) : (
-                <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
-                    To unlock all features, your organization needs a Founding Partner membership.
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    Please contact your organization owner to start a membership.
-                  </p>
-                </div>
-              )}
+      {/* Quick Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lead to Tour Rate</CardTitle>
+            <Percent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.leadToTourRate || 0}%</div>
+            <p className="text-xs text-muted-foreground">Leads that scheduled tours</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium"># of New Leads</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.newLeads || 0}</div>
+            <p className="text-xs text-muted-foreground">Last 30 days</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Response Rate</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.responseRate || 0}%</div>
+            <p className="text-xs text-muted-foreground">Messages responded to</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium"># of Messages Sent</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.messagesSent || 0}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recent Leads */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Leads</CardTitle>
+              <button
+                onClick={() => setLocation("/leads")}
+                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </button>
             </div>
-          )}
+          </CardHeader>
+          <CardContent>
+            {recentLeads.length > 0 ? (
+              <div className="space-y-3">
+                {recentLeads.map((lead: any) => (
+                  <div
+                    key={lead.id}
+                    onClick={() => handleLeadClick(lead.id)}
+                    className="cursor-pointer hover:bg-muted/50 p-3 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium">{lead.name || "Unknown"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {lead.email || lead.phone || (
+                            (lead.source === 'facebook' || (lead.metadata as any)?.facebookProfileId || lead.externalId) ? (
+                              <a
+                                href={`https://www.facebook.com/profile.php?id=${(lead.metadata as any)?.facebookProfileId || lead.externalId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Facebook className="h-3 w-3" />
+                                View Facebook Profile
+                              </a>
+                            ) : (
+                              "No contact info"
+                            )
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-xs px-2 py-1 rounded-full ${statusColors[lead.status] || "bg-gray-500 text-white"}`}>
+                          {statusTitles[lead.status] || lead.status}
+                        </span>
+                        {lead.createdAt && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {formatTimestamp(lead.createdAt)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No leads yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Notifications */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Recent Activity</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentNotifications.length > 0 ? (
+              <div className="space-y-3">
+                {recentNotifications.map((notification: any) => (
+                  <div key={notification.id} className="p-3 rounded-lg border">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-sm">{notification.title}</div>
+                        {notification.message && (
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {notification.message}
+                          </div>
+                        )}
+                      </div>
+                      {notification.createdAt && (
+                        <div className="text-xs text-muted-foreground ml-2">
+                          {formatTimestamp(notification.createdAt)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No recent activity</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Pipeline Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pipeline Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {Object.entries(statusTitles).map(([status, title]) => (
+              <div key={status} className="text-center">
+                <div className="text-2xl font-bold mb-1">{leadsByStatus[status] || 0}</div>
+                <div className="text-sm text-muted-foreground">{title}</div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import { users } from "@shared/schema";
 import { registerSchema, loginSchema } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Request } from "express";
+import { getStripeLookupKey } from "./stripeClient";
 
 const router = Router();
 
@@ -20,7 +21,12 @@ function getCallbackUrl(req: Request, path: string): string {
                       req.hostname === 'localhost' ||
                       req.hostname === '127.0.0.1';
   
-  console.log('[OAuth] getCallbackUrl - requestHost:', requestHost, 'hostname:', req.hostname, 'isLocalhost:', isLocalhost);
+  // Check if this is a Replit dev environment
+  const isReplitDev = requestHost.includes('.replit.dev') || 
+                      requestHost.includes('.repl.co') ||
+                      requestHost.includes('.riker.replit.dev');
+  
+  console.log('[OAuth] getCallbackUrl - requestHost:', requestHost, 'hostname:', req.hostname, 'isLocalhost:', isLocalhost, 'isReplitDev:', isReplitDev);
   
   // If localhost, ALWAYS use localhost regardless of environment variables
   if (isLocalhost) {
@@ -31,7 +37,15 @@ function getCallbackUrl(req: Request, path: string): string {
     return callbackUrl;
   }
   
-  // Not localhost - determine production vs other environments
+  // If Replit dev, stay on the Replit dev domain (don't redirect to production)
+  if (isReplitDev) {
+    const protocol = 'https';
+    const callbackUrl = `${protocol}://${requestHost}${path}`;
+    console.log('[OAuth] ✅ Replit dev detected - staying on dev domain:', callbackUrl);
+    return callbackUrl;
+  }
+  
+  // Not localhost or Replit dev - this is production
   const isProduction = !!process.env.APP_DOMAIN || !!process.env.PRODUCTION_DOMAIN || process.env.NODE_ENV === "production";
   
   // Determine protocol - check x-forwarded-proto first (for proxies), then req.secure, then hostname
@@ -41,9 +55,9 @@ function getCallbackUrl(req: Request, path: string): string {
   // Get host from request
   let host = requestHost || 'localhost:5000';
   
-  // CRITICAL: For OAuth callbacks, use APP_DOMAIN (app.lead2lease.ai) to keep session cookies on the app subdomain
+  // CRITICAL: For OAuth callbacks on production, use APP_DOMAIN (app.lead2lease.ai) to keep session cookies on the app subdomain
   // This fixes the cross-subdomain cookie issue where login happens on marketing site but app is on app subdomain
-  if (isProduction && !isLocalhost) {
+  if (isProduction) {
     // Prefer APP_DOMAIN for OAuth callbacks (ensures session cookie is set on app subdomain)
     if (process.env.APP_DOMAIN) {
       host = process.env.APP_DOMAIN.replace(/^https?:\/\//, '').split('/')[0];
@@ -68,12 +82,43 @@ function getCallbackUrl(req: Request, path: string): string {
   return callbackUrl;
 }
 
+/** Apply acquisition context from session to user (first-touch only, never overwrite) */
+async function applyAcquisitionFromSession(user: { id: string; initialOffer?: string | null } | null, req: Request): Promise<void> {
+  if (!user) return;
+  if (user.initialOffer) return; // First-touch only
+  const acqCtx = (req.session as any)?.acquisitionContext;
+  if (!acqCtx || typeof acqCtx !== "object") return;
+  try {
+    const { normalizeAcquisitionContext } = await import("./acquisition");
+    const normalized = normalizeAcquisitionContext(acqCtx, undefined, undefined);
+    if (!normalized) return;
+    await db.update(users)
+      .set({
+        initialOffer: normalized.initialOffer,
+        acquisitionContextJson: normalized.acquisitionContextJson,
+        firstTouchTs: normalized.firstTouchTs,
+        landingPage: normalized.landingPage,
+        utmSource: normalized.utmSource,
+        utmMedium: normalized.utmMedium,
+        utmCampaign: normalized.utmCampaign,
+        utmTerm: normalized.utmTerm,
+        utmContent: normalized.utmContent,
+      })
+      .where(eq(users.id, user.id));
+    console.log("[OAuth] Applied acquisition from session for user:", user.id);
+    delete (req.session as any).acquisitionContext;
+  } catch (e) {
+    console.error("[OAuth] Error applying acquisition from session:", e);
+  }
+}
+
 // Email/Password Registration
 router.post("/register", async (req, res) => {
   try {
     const validatedData = registerSchema.parse(req.body);
     const onboardingToken = req.body.onboardingToken;
-    
+    const acquisitionContext = req.body.acquisition_context;
+
     // Check if user already exists
     const existingUser = await db.query.users.findFirst({
       where: eq(users.email, validatedData.email),
@@ -90,16 +135,41 @@ router.post("/register", async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(validatedData.password, 10);
 
-    // Create user
-    const [user] = await db.insert(users).values({
+    const { normalizeAcquisitionContext } = await import("./acquisition");
+    const normalizedAcquisition = normalizeAcquisitionContext(
+      acquisitionContext,
+      {
+        source: req.query.utm_source as string,
+        medium: req.query.utm_medium as string,
+        campaign: req.query.utm_campaign as string,
+        term: req.query.utm_term as string,
+        content: req.query.utm_content as string,
+      },
+      req.query.landing_page as string || req.path
+    );
+
+    const userValues: Record<string, unknown> = {
       email: validatedData.email,
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
       provider: "email",
       passwordHash,
       termsAccepted: validatedData.agreeTerms,
-      emailSubscription: validatedData.agreeMarketing, // Required by schema validation
-    }).returning();
+      emailSubscription: validatedData.agreeMarketing,
+    };
+    if (normalizedAcquisition) {
+      userValues.initialOffer = normalizedAcquisition.initialOffer;
+      userValues.acquisitionContextJson = normalizedAcquisition.acquisitionContextJson;
+      userValues.firstTouchTs = normalizedAcquisition.firstTouchTs;
+      userValues.landingPage = normalizedAcquisition.landingPage;
+      userValues.utmSource = normalizedAcquisition.utmSource;
+      userValues.utmMedium = normalizedAcquisition.utmMedium;
+      userValues.utmCampaign = normalizedAcquisition.utmCampaign;
+      userValues.utmTerm = normalizedAcquisition.utmTerm;
+      userValues.utmContent = normalizedAcquisition.utmContent;
+    }
+
+    const [user] = await db.insert(users).values(userValues as any).returning();
 
         // Link onboarding intake if token provided
         if (onboardingToken) {
@@ -171,6 +241,12 @@ router.post("/login", (req, res, next) => {
           return res.status(500).json({ message: "Error creating session" });
         }
         
+        // Clear membership status cache on login to ensure fresh status is fetched
+        if (req.session) {
+          delete (req.session as any).membershipStatus;
+          req.session.save(() => {}); // Save session to persist cache clear
+        }
+        
         // Link onboarding intake if token provided
         if (onboardingToken) {
           try {
@@ -220,43 +296,14 @@ router.post("/login", (req, res, next) => {
 // Get current user
 router.get("/user", async (req, res) => {
   if (req.isAuthenticated()) {
-    // Fetch fresh user data from database to ensure we have the latest info
+    // OPTIMIZED: Return user from session directly (no database query needed)
+    // The session user is already loaded by Passport and is sufficient for most cases
+    // Only query DB if we need fresh data (which we don't for basic user info)
     try {
-      const { db } = await import("./db");
-      const { users } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
-      
       const user = req.user as any;
-      const freshUser = await db.query.users.findFirst({
-        where: eq(users.id, user.id),
-      });
       
-      if (freshUser) {
-        res.json({
-          id: freshUser.id,
-          email: freshUser.email,
-          firstName: freshUser.firstName,
-          lastName: freshUser.lastName,
-          phone: freshUser.phone,
-          profileImageUrl: freshUser.profileImageUrl,
-          isAdmin: freshUser.isAdmin || false,
-        });
-      } else {
-        // Fallback to session user if database lookup fails
-        res.json({
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone,
-          profileImageUrl: user.profileImageUrl,
-          isAdmin: user.isAdmin || false,
-        });
-      }
-    } catch (error) {
-      console.error('[Auth] Error fetching fresh user data:', error);
-      // Fallback to session user on error
-      const user = req.user as any;
+      // Return session user directly (fast path - no DB query)
+      // Include acquisition attribution for analytics/admin
       res.json({
         id: user.id,
         email: user.email,
@@ -264,8 +311,26 @@ router.get("/user", async (req, res) => {
         lastName: user.lastName,
         phone: user.phone,
         profileImageUrl: user.profileImageUrl,
+        company: user.company,
+        profileCompleted: user.profileCompleted,
+        provider: user.provider,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        termsAccepted: user.termsAccepted,
+        emailSubscription: user.emailSubscription,
+        currentOrgId: user.currentOrgId,
         isAdmin: user.isAdmin || false,
+        initialOffer: user.initialOffer ?? undefined,
+        landingPage: user.landingPage ?? undefined,
+        utmSource: user.utmSource ?? undefined,
+        utmMedium: user.utmMedium ?? undefined,
+        utmCampaign: user.utmCampaign ?? undefined,
+        utmTerm: user.utmTerm ?? undefined,
+        utmContent: user.utmContent ?? undefined,
       });
+    } catch (error) {
+      console.error('[Auth] Error returning user data:', error);
+      res.status(500).json({ error: "Failed to get user data" });
     }
   } else {
     res.status(401).json({ message: "Not authenticated" });
@@ -304,10 +369,10 @@ router.post("/logout", (req, res) => {
   });
 });
 
-// Store OAuth consent in session
+// Store OAuth consent and acquisition context in session
 router.post("/store-oauth-consent", (req, res) => {
   try {
-    const { agreeTerms, agreeMarketing } = req.body;
+    const { agreeTerms, agreeMarketing, acquisitionContext } = req.body;
     if (!agreeTerms) {
       return res.status(400).json({ message: "Terms acceptance is required" });
     }
@@ -318,6 +383,9 @@ router.post("/store-oauth-consent", (req, res) => {
       agreeTerms: agreeTerms === true,
       agreeMarketing: agreeMarketing === true,
     };
+    if (acquisitionContext && typeof acquisitionContext === "object") {
+      (req.session as any).acquisitionContext = acquisitionContext;
+    }
     req.session.save((err) => {
       if (err) {
         console.error('[OAuth] Error saving consent to session:', err);
@@ -545,6 +613,9 @@ router.get(
           console.error('[OAuth] Error updating user consent:', updateError);
         }
       }
+
+      // Apply acquisition context from session (first-touch only)
+      await applyAcquisitionFromSession(user, req);
       
       req.login(user, async (loginErr) => {
         if (loginErr) {
@@ -563,20 +634,6 @@ router.get(
               console.error('[OAuth] Error saving session after login:', saveErr);
             } else {
               console.log('[OAuth] ✅ Session saved after login, sessionID:', req.sessionID);
-              console.log('[OAuth] Session cookie name:', req.session?.cookie?.name || 'connect.sid');
-            }
-            resolve();
-          });
-        });
-        
-        // Reload session after save to ensure we have the latest data
-        await new Promise<void>((resolve) => {
-          req.session.reload((reloadErr) => {
-            if (reloadErr) {
-              console.error('[OAuth] Error reloading session after save:', reloadErr);
-            } else {
-              console.log('[OAuth] ✅ Session reloaded after save, sessionID:', req.sessionID);
-              console.log('[OAuth] User still authenticated after reload:', req.isAuthenticated());
             }
             resolve();
           });
@@ -620,551 +677,229 @@ router.get(
         console.log('[OAuth] User ID:', user.id);
         console.log('[OAuth] User email:', user.email);
         
-        // CRITICAL: Check membership FIRST, before checking redirect path
-        // If user has active membership (one-time payment or subscription), they should go to /app
-        // Only redirect to checkout if they DON'T have active membership
-        {
-          // CRITICAL: Check if user has membership REGARDLESS of savedFrom
-          // If user has an organization with active membership, they should go to /app
-          // This is a fallback in case savedFrom is lost due to session regeneration
-          let shouldCheckMembership = savedFrom === "login";
-          
-          // If savedFrom is undefined but user has no savedRedirectPath and no savedConsent,
-          // they likely came from login page (registration would have consent)
-          if (!savedFrom && !savedRedirectPath && !savedConsent) {
-            console.log('[OAuth] ⚠️ savedFrom is undefined but no consent/redirectPath - likely from login page, checking membership anyway');
-            shouldCheckMembership = true;
+        // CRITICAL: Set a timeout to ensure redirect happens even if membership check hangs
+        const redirectTimeout = setTimeout(() => {
+          if (!redirectPath) {
+            console.log('[OAuth] ⚠️ Redirect timeout - defaulting to /app');
+            redirectPath = "/app";
           }
-          
-          if (shouldCheckMembership) {
-            console.log('[OAuth] ✅ Coming from login page - checking membership status');
-            // Coming from login page - check membership status
-            // BEST PRACTICE: Check ALL user's organizations for active subscription (works for ALL users in org)
-            try {
-              const { storage } = await import("./storage");
-              
-              // Refresh user to get updated currentOrgId after subscription linking
-              const refreshedUser = await storage.getUser(user.id);
-              if (!refreshedUser) {
-                console.log(`[OAuth] ❌ User ${user.id} not found after refresh`);
-                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-              } else {
-                console.log('[OAuth] User refreshed, currentOrgId:', refreshedUser.currentOrgId);
-                // Get ALL of the user's organizations to check for active subscriptions
-                const userOrgs = await storage.getUserOrganizations(user.id);
-                console.log(`[OAuth] User has ${userOrgs.length} organization(s):`, userOrgs.map(o => ({ orgId: o.orgId, orgName: o.orgName })));
-                
-                if (userOrgs.length === 0) {
-                  console.log('[OAuth] ❌ User has no organizations, redirecting to login with error');
-                  redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-                } else {
-                  let orgHasActiveSubscription = false;
-                  let activeOrgId: string | null = null;
-                  
-                  // Check each organization for active subscription
-                  for (const userOrg of userOrgs) {
-                    console.log(`[OAuth] Checking org ${userOrg.orgId} (${userOrg.orgName}) for active subscription...`);
-                    const org = await storage.getOrganization(userOrg.orgId);
-                    if (!org) {
-                      console.log(`[OAuth] ⚠️ Org ${userOrg.orgId} not found in database, skipping`);
-                      continue;
-                    }
-                    
-                    console.log(`[OAuth] Org ${userOrg.orgId} details:`, {
-                      foundingPartnerStatus: org.foundingPartnerStatus,
-                      stripeSubscriptionId: org.stripeSubscriptionId ? 'present' : 'missing'
-                    });
-                    
-                    // Check if org has active subscription or one-time payment
-                    if (org.foundingPartnerStatus === 'active') {
-                      // Quick check - org is marked as active in DB
-                      orgHasActiveSubscription = true;
-                      activeOrgId = userOrg.orgId;
-                      console.log(`[OAuth] ✅ Found active org ${userOrg.orgId} (${userOrg.orgName}) in database - STATUS: active`);
-                      break;
-                    }
-                    
-                    // Always check for one-time payment if org has a customer ID (regardless of current status)
-                    // This handles cases where status might be 'expired' or 'cancelled' but one-time payment exists
-                    if (org.stripeCustomerId) {
-                      // Check for one-time payment with the configured lookup key
-                      try {
-                        const { getUncachableStripeClient } = await import("./stripeClient");
-                        const stripe = await getUncachableStripeClient();
-                        console.log(`[OAuth] Checking for one-time payment for org ${userOrg.orgId} (customer: ${org.stripeCustomerId}, current status: ${org.foundingPartnerStatus})`);
-                        
-                        // Search for successful checkout sessions (one-time payments) for this customer
-                        const checkoutSessions = await stripe.checkout.sessions.list({
-                          customer: org.stripeCustomerId,
-                          limit: 100,
-                        });
-                        
-                        // Filter for successful one-time payments
-                        // Check all paid one-time payments for this customer (metadata might not always match)
-                        const successfulOneTimePayments = checkoutSessions.data.filter(session => 
-                          session.mode === 'payment' && 
-                          session.payment_status === 'paid'
-                        );
-                        
-                        console.log(`[OAuth] Found ${successfulOneTimePayments.length} successful one-time payment(s) for customer ${org.stripeCustomerId}`);
-                        console.log(`[OAuth] Checking sessions for org ${userOrg.orgId} - will verify lookup key and metadata`);
-                        
-                        if (successfulOneTimePayments.length === 0) {
-                          console.log(`[OAuth] ⚠️ No successful one-time payments found for customer ${org.stripeCustomerId}`);
-                        }
-                        
-                        // Check if any of these sessions used the configured lookup key
-                        for (const session of successfulOneTimePayments) {
-                          try {
-                            console.log(`[OAuth] Processing session ${session.id} - mode: ${session.mode}, payment_status: ${session.payment_status}, metadata:`, session.metadata);
-                            
-                            // Retrieve the line items to check the price lookup key
-                            // Wrap in try-catch with timeout to prevent hanging
-                            let lineItems;
-                            try {
-                              lineItems = await Promise.race([
-                                stripe.checkout.sessions.listLineItems(session.id, { limit: 100 }),
-                                new Promise((_, reject) => 
-                                  setTimeout(() => reject(new Error('listLineItems timeout after 10 seconds')), 10000)
-                                )
-                              ]) as any;
-                              console.log(`[OAuth] Retrieved ${lineItems.data.length} line item(s) for session ${session.id}`);
-                            } catch (lineItemFetchError: any) {
-                              console.error(`[OAuth] ⚠️ Failed to retrieve line items for session ${session.id}:`, {
-                                error: lineItemFetchError?.message || lineItemFetchError,
-                                code: lineItemFetchError?.code,
-                                type: lineItemFetchError?.type,
-                              });
-                              continue; // Skip this session and try the next one
-                            }
-                            
-                            if (!lineItems || !lineItems.data || lineItems.data.length === 0) {
-                              console.log(`[OAuth] ⚠️ No line items found for session ${session.id}`);
-                              continue;
-                            }
-                            
-                            for (const item of lineItems.data) {
-                              const price = item.price;
-                              const lookupKey = price?.lookup_key;
-                              console.log(`[OAuth] Checking session ${session.id} - price ID: ${price?.id}, lookup_key: ${lookupKey}, metadata orgId: ${session.metadata?.orgId}, organization_id: ${session.metadata?.organization_id}`);
-                              
-                              if (lookupKey === expectedLookupKey) {
-                                console.log(`[OAuth] ✅ MATCH! Found '${expectedLookupKey}' lookup key for session ${session.id}`);
-                                
-                                // Verify metadata matches this org (or if metadata is missing, assume it's for this org if customer matches)
-                                const metadataMatches = (!session.metadata?.orgId && !session.metadata?.organization_id) || 
-                                                       session.metadata?.orgId === userOrg.orgId || 
-                                                       session.metadata?.organization_id === userOrg.orgId;
-                                
-                                console.log(`[OAuth] Metadata check - orgId: ${userOrg.orgId}, session orgId: ${session.metadata?.orgId}, session organization_id: ${session.metadata?.organization_id}, matches: ${metadataMatches}`);
-                                
-                                if (metadataMatches) {
-                                  console.log(`[OAuth] ✅ Found one-time payment with '${expectedLookupKey}' lookup key for org ${userOrg.orgId} (session: ${session.id})`);
-                                  
-                                  // Update org status to active (one-time payment grants access)
-                                  await storage.updateOrganization(userOrg.orgId, {
-                                    foundingPartnerStatus: 'active',
-                                  });
-                                  
-                                  orgHasActiveSubscription = true;
-                                  activeOrgId = userOrg.orgId;
-                                  console.log(`[OAuth] ✅ Org ${userOrg.orgId} has one-time payment - granting access`);
-                                  break;
-                                } else {
-                                  console.log(`[OAuth] ⚠️ Found one-time payment with correct lookup key but metadata doesn't match org ${userOrg.orgId} - session metadata:`, session.metadata);
-                                }
-                              } else {
-                                console.log(`[OAuth] Lookup key mismatch - expected '${expectedLookupKey}', got: ${lookupKey}`);
-                              }
-                            }
-                            if (orgHasActiveSubscription) {
-                              console.log(`[OAuth] ✅ Breaking out of session loop - found one-time payment`);
-                              break;
-                            }
-                          } catch (lineItemError: any) {
-                            console.error(`[OAuth] Error checking line items for session ${session.id}:`, lineItemError);
-                            console.error(`[OAuth] Error details:`, {
-                              message: lineItemError?.message,
-                              code: lineItemError?.code,
-                              type: lineItemError?.type,
-                              stack: lineItemError?.stack,
-                            });
-                          }
-                        }
-                        
-                        // Log summary after checking all sessions
-                        console.log(`[OAuth] Finished checking ${successfulOneTimePayments.length} session(s) for org ${userOrg.orgId} - orgHasActiveSubscription: ${orgHasActiveSubscription}`);
-                        
-                        // If we found a one-time payment and set orgHasActiveSubscription, break out of org loop
-                        if (orgHasActiveSubscription) {
-                          console.log(`[OAuth] ✅ Breaking out of org loop - found one-time payment for org ${userOrg.orgId}`);
-                          break;
-                        }
-                      } catch (oneTimePaymentError: any) {
-                        // Check if this is a "No such customer" error (test mode customer in live mode)
-                        // Stripe errors can have type 'StripeInvalidRequestError' or code 'resource_missing'
-                        const errorMessage = oneTimePaymentError?.message || '';
-                        const errorCode = oneTimePaymentError?.code || '';
-                        const isNoSuchCustomer = errorMessage.includes('No such customer') || errorCode === 'resource_missing';
-                        
-                        if (isNoSuchCustomer) {
-                          console.log(`[OAuth] ⚠️ Customer ${org.stripeCustomerId} doesn't exist in Stripe (likely test-mode ID in live mode) - clearing stale data for org ${userOrg.orgId}`);
-                          // Clear the stale test-mode customer ID so user can start fresh
-                          try {
-                            await storage.updateOrganization(userOrg.orgId, {
-                              stripeCustomerId: null,
-                              stripeSubscriptionId: null,
-                            });
-                            console.log(`[OAuth] ✅ Cleared stale Stripe data for org ${userOrg.orgId}`);
-                          } catch (updateError) {
-                            console.error(`[OAuth] Failed to clear stale Stripe data for org ${userOrg.orgId}:`, updateError);
-                          }
-                        } else {
-                          console.error(`[OAuth] Error checking one-time payments for org ${userOrg.orgId}:`, oneTimePaymentError?.message || oneTimePaymentError);
-                        }
-                        // Continue to next org in the loop
-                      }
-                    }
-                    
-                    // CRITICAL: If we found a one-time payment, break out of org loop immediately
-                    // Don't check for subscriptions if we already found a one-time payment
-                    if (orgHasActiveSubscription) {
-                      console.log(`[OAuth] ✅ Found active membership (one-time payment) for org ${userOrg.orgId} - breaking out of org loop immediately`);
-                      break;
-                    }
-                    
-                    // If still no active membership found, check for subscription
-                    if (!orgHasActiveSubscription && org.stripeSubscriptionId) {
-                      // Verify subscription is still active in Stripe
-                      try {
-                        console.log(`[OAuth] Org has subscription ID, verifying in Stripe: ${org.stripeSubscriptionId}`);
-                        const { getUncachableStripeClient } = await import("./stripeClient");
-                        const stripe = await getUncachableStripeClient();
-                        const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
-                        
-                        console.log(`[OAuth] Stripe subscription status: ${sub.status}`);
-                        
-                        if (sub.status === 'active' || sub.status === 'trialing') {
-                          orgHasActiveSubscription = true;
-                          activeOrgId = userOrg.orgId;
-                          console.log(`[OAuth] ✅ Found active subscription ${org.stripeSubscriptionId} for org ${userOrg.orgId} (${userOrg.orgName}) - STATUS: ${sub.status}`);
-                          break;
-                        } else {
-                          console.log(`[OAuth] ⚠️ Subscription ${org.stripeSubscriptionId} exists but status is ${sub.status} (not active/trialing)`);
-                        }
-                      } catch (stripeError: any) {
-                        // Check if this is a "No such subscription" error (test mode subscription in live mode)
-                        const errorMessage = stripeError?.message || '';
-                        const errorCode = stripeError?.code || '';
-                        const isNoSuchSubscription = errorMessage.includes('No such subscription') || errorCode === 'resource_missing';
-                        
-                        if (isNoSuchSubscription) {
-                          console.log(`[OAuth] ⚠️ Subscription ${org.stripeSubscriptionId} doesn't exist in Stripe (likely test-mode ID in live mode) - clearing stale data for org ${userOrg.orgId}`);
-                          try {
-                            await storage.updateOrganization(userOrg.orgId, {
-                              stripeSubscriptionId: null,
-                            });
-                            console.log(`[OAuth] ✅ Cleared stale subscription data for org ${userOrg.orgId}`);
-                          } catch (updateError) {
-                            console.error(`[OAuth] Failed to clear stale subscription data for org ${userOrg.orgId}:`, updateError);
-                          }
-                        } else {
-                          console.error(`[OAuth] ❌ Error verifying subscription for org ${userOrg.orgId}:`, stripeError?.message || stripeError);
-                        }
-                        // Continue to next org in the loop
-                      }
-                    } else if (!orgHasActiveSubscription) {
-                      console.log(`[OAuth] ⚠️ Org ${userOrg.orgId} has no subscription ID and status is not active - continuing to next org`);
-                    }
-                  }
-                  
-                  console.log('[OAuth] ===== MEMBERSHIP CHECK RESULTS =====');
-                  console.log('[OAuth] orgHasActiveSubscription:', orgHasActiveSubscription);
-                  console.log('[OAuth] activeOrgId:', activeOrgId);
-                  
-                  if (orgHasActiveSubscription && activeOrgId) {
-                    // Update user's currentOrgId to the org with active subscription
-                    if (refreshedUser.currentOrgId !== activeOrgId) {
-                      await storage.updateUser(user.id, { currentOrgId: activeOrgId });
-                      console.log(`[OAuth] Updated user's currentOrgId from ${refreshedUser.currentOrgId} to ${activeOrgId}`);
-                    } else {
-                      console.log(`[OAuth] User's currentOrgId already set to active org: ${activeOrgId}`);
-                    }
-                    
-                    // User has active membership - ALWAYS redirect to app, ignore checkout redirect
-                    // Users with active memberships should not be sent back to checkout
-                    const hostname = req.get('host') || req.hostname || '';
-                    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes(':5000');
-                    const isProduction = !isLocalhost && (hostname.includes('lead2lease.ai') || process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production');
-                    
-                    console.log('[OAuth] ===== DETERMINING APP REDIRECT PATH =====');
-                    console.log('[OAuth] hostname:', hostname);
-                    console.log('[OAuth] isLocalhost:', isLocalhost);
-                    console.log('[OAuth] isProduction:', isProduction);
-                    console.log('[OAuth] savedRedirectPath:', savedRedirectPath);
-                    console.log('[OAuth] ⚠️ User has active membership - ignoring checkout redirect, sending to app');
-                    
-                    // Only use savedRedirectPath if it's not the checkout page
-                    if (savedRedirectPath && savedRedirectPath !== '/founding-partner-checkout' && !savedRedirectPath.includes('founding-partner-checkout')) {
-                      redirectPath = savedRedirectPath;
-                      console.log('[OAuth] ✅ Organization has active membership, using savedRedirectPath:', redirectPath);
-                    } else if (isLocalhost) {
-                      // CRITICAL: Always use relative path for localhost
-                      redirectPath = "/app";
-                      console.log('[OAuth] ✅ Organization has active membership, redirecting to /app (localhost detected)');
-                    } else if (isProduction) {
-                      redirectPath = "https://app.lead2lease.ai";
-                      console.log('[OAuth] ✅ Organization has active membership, redirecting to app (production):', redirectPath);
-                    } else {
-                      redirectPath = "/app";
-                      console.log('[OAuth] ✅ Organization has active membership, redirecting to /app (default)');
-                    }
-                  } else {
-                    // No active subscription found in any org
-                    // Redirect to login with error message
-                    redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-                    console.log(`[OAuth] ❌ No active subscription found in any of user's ${userOrgs.length} organization(s), redirecting to login with error`);
-                  }
-                }
-              }
-            } catch (error) {
-              console.error("[OAuth] ❌ Error checking membership status:", error);
-              console.error("[OAuth] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-              redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+        }, 5000); // 5 second max wait
+        
+        try {
+          // CRITICAL: Check membership FIRST, before checking redirect path
+          // If user has active membership (one-time payment or subscription), they should go to /app
+          // Only redirect to checkout if they DON'T have active membership
+          {
+            // CRITICAL: Check if user has membership REGARDLESS of savedFrom
+            // If user has an organization with active membership, they should go to /app
+            // This is a fallback in case savedFrom is lost due to session regeneration
+            let shouldCheckMembership = savedFrom === "login";
+            
+            // If savedFrom is undefined but user has no savedRedirectPath and no savedConsent,
+            // they likely came from login page (registration would have consent)
+            if (!savedFrom && !savedRedirectPath && !savedConsent) {
+              console.log('[OAuth] ⚠️ savedFrom is undefined but no consent/redirectPath - likely from login page, checking membership anyway');
+              shouldCheckMembership = true;
             }
-          } else {
-            console.log('[OAuth] ⚠️ Membership check not triggered (savedFrom:', savedFrom, ')');
-            console.log('[OAuth] Fallback: Checking if user has membership anyway...');
-          
-          // PRIORITY: Check if returnTo is checkout BEFORE checking membership
-          // This ensures users coming from checkout always go to checkout
-          const fallbackDecodedRedirectPath = savedRedirectPath ? decodeURIComponent(savedRedirectPath) : null;
-          if (fallbackDecodedRedirectPath === '/founding-partner-checkout' || savedRedirectPath === '/founding-partner-checkout' || savedRedirectPath?.includes('founding-partner-checkout')) {
-            redirectPath = "/founding-partner-checkout";
-            console.log('[OAuth] Fallback - ✅ returnTo is checkout page - redirecting to checkout regardless of existing membership');
-          } else {
-            // FALLBACK: Always check membership if user might have one
-            // This ensures users with existing memberships get redirected to /app
-            try {
-              const { storage } = await import("./storage");
-              const refreshedUser = await storage.getUser(user.id);
-              
-              if (refreshedUser) {
-                const userOrgs = await storage.getUserOrganizations(user.id);
-                console.log(`[OAuth] Fallback check - User has ${userOrgs.length} organization(s)`);
+            
+            if (shouldCheckMembership) {
+              console.log('[OAuth] ✅ Coming from login page - checking membership status (OPTIMIZED)');
+              // OPTIMIZED: Quick database check first, then minimal Stripe verification if needed
+              try {
+                const { storage } = await import("./storage");
                 
-                if (userOrgs.length > 0) {
-                  // Check if any org has active membership
-                  let orgHasActiveSubscription = false;
-                  let activeOrgId: string | null = null;
+                // Quick database check - get user and orgs
+                const refreshedUser = await storage.getUser(user.id);
+                if (!refreshedUser) {
+                  console.log(`[OAuth] ❌ User ${user.id} not found`);
+                  redirectPath = "/waitlist";
+                } else {
+                  const userOrgs = await storage.getUserOrganizations(user.id);
+                  console.log(`[OAuth] User has ${userOrgs.length} organization(s)`);
                   
-                  for (const userOrg of userOrgs) {
-                    const org = await storage.getOrganization(userOrg.orgId);
-                    if (!org) continue;
+                  if (userOrgs.length === 0) {
+                    console.log('[OAuth] ❌ User has no organizations, redirecting to waitlist');
+                    redirectPath = "/waitlist";
+                  } else {
+                    let orgHasActiveSubscription = false;
+                    let activeOrgId: string | null = null;
                     
-                    if (org.foundingPartnerStatus === 'active') {
-                      orgHasActiveSubscription = true;
-                      activeOrgId = userOrg.orgId;
-                      console.log(`[OAuth] Fallback - ✅ Found active org ${userOrg.orgId}`);
-                      break;
-                    }
-                    
-                    // Always check for one-time payment if org has a customer ID (regardless of current status)
-                    if (org.stripeCustomerId) {
-                      // Check for one-time payment with the configured lookup key
-                      try {
-                        const { getUncachableStripeClient } = await import("./stripeClient");
-                        const stripe = await getUncachableStripeClient();
-                        console.log(`[OAuth] Fallback - Checking for one-time payment for org ${userOrg.orgId} (customer: ${org.stripeCustomerId}, current status: ${org.foundingPartnerStatus})`);
-                        
-                        // Search for successful checkout sessions (one-time payments) for this customer
-                        const checkoutSessions = await stripe.checkout.sessions.list({
-                          customer: org.stripeCustomerId,
-                          limit: 100,
-                        });
-                        
-                        // Filter for successful one-time payments
-                        // Check all paid one-time payments for this customer (metadata might not always match)
-                        const successfulOneTimePayments = checkoutSessions.data.filter(session => 
-                          session.mode === 'payment' && 
-                          session.payment_status === 'paid'
-                        );
-                        
-                        console.log(`[OAuth] Fallback - Found ${successfulOneTimePayments.length} successful one-time payment(s) for customer ${org.stripeCustomerId}`);
-                        console.log(`[OAuth] Fallback - Checking sessions for org ${userOrg.orgId} - will verify lookup key and metadata`);
-                        
-                        // Check if any of these sessions used the configured lookup key
-                        for (const session of successfulOneTimePayments) {
-                          try {
-                            // Retrieve the line items to check the price lookup key
-                            const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
-                            
-                            for (const item of lineItems.data) {
-                              const price = item.price;
-                              console.log(`[OAuth] Fallback - Checking session ${session.id} - price lookup_key: ${price?.lookup_key}, metadata orgId: ${session.metadata?.orgId}, organization_id: ${session.metadata?.organization_id}`);
-                              
-                              if (price?.lookup_key === expectedLookupKey) {
-                                // Verify metadata matches this org (or if metadata is missing, assume it's for this org if customer matches)
-                                const metadataMatches = !session.metadata?.orgId && !session.metadata?.organization_id || 
-                                                       session.metadata?.orgId === userOrg.orgId || 
-                                                       session.metadata?.organization_id === userOrg.orgId;
-                                
-                                if (metadataMatches) {
-                                  console.log(`[OAuth] Fallback - ✅ Found one-time payment with '${expectedLookupKey}' lookup key for org ${userOrg.orgId} (session: ${session.id})`);
-                                  
-                                  // Update org status to active (one-time payment grants access)
-                                  await storage.updateOrganization(userOrg.orgId, {
-                                    foundingPartnerStatus: 'active',
-                                  });
-                                  
-                                  orgHasActiveSubscription = true;
-                                  activeOrgId = userOrg.orgId;
-                                  console.log(`[OAuth] Fallback - ✅ Org ${userOrg.orgId} has one-time payment - granting access`);
-                                  break;
-                                } else {
-                                  console.log(`[OAuth] Fallback - ⚠️ Found one-time payment with correct lookup key but metadata doesn't match org ${userOrg.orgId} - session metadata:`, session.metadata);
-                                }
-                              }
-                            }
-                            if (orgHasActiveSubscription) break;
-                          } catch (lineItemError) {
-                            console.error(`[OAuth] Fallback - Error checking line items for session ${session.id}:`, lineItemError);
-                          }
-                        }
-                        // If we found a one-time payment and set orgHasActiveSubscription, break out of org loop
-                        if (orgHasActiveSubscription) {
-                          console.log(`[OAuth] Fallback - ✅ Breaking out of org loop - found one-time payment for org ${userOrg.orgId}`);
-                          break;
-                        }
-                      } catch (oneTimePaymentError: any) {
-                        // Check if this is a "No such customer" error (test mode customer in live mode)
-                        const errorMessage = oneTimePaymentError?.message || '';
-                        const errorCode = oneTimePaymentError?.code || '';
-                        const isNoSuchCustomer = errorMessage.includes('No such customer') || errorCode === 'resource_missing';
-                        
-                        if (isNoSuchCustomer) {
-                          console.log(`[OAuth] Fallback - ⚠️ Customer ${org.stripeCustomerId} doesn't exist in Stripe (likely test-mode ID in live mode) - clearing stale data for org ${userOrg.orgId}`);
-                          try {
-                            await storage.updateOrganization(userOrg.orgId, {
-                              stripeCustomerId: null,
-                              stripeSubscriptionId: null,
-                            });
-                            console.log(`[OAuth] Fallback - ✅ Cleared stale Stripe data for org ${userOrg.orgId}`);
-                          } catch (updateError) {
-                            console.error(`[OAuth] Fallback - Failed to clear stale Stripe data:`, updateError);
-                          }
-                        } else {
-                          console.error(`[OAuth] Fallback - Error checking one-time payments for org ${userOrg.orgId}:`, oneTimePaymentError?.message || oneTimePaymentError);
-                        }
-                      }
+                    // FAST PATH: Check database status first (no API calls)
+                    for (const userOrg of userOrgs) {
+                      const org = await storage.getOrganization(userOrg.orgId);
+                      if (!org) continue;
                       
-                      // CRITICAL: If we found a one-time payment, break out of org loop immediately
-                      // Don't check for subscriptions if we already found a one-time payment
-                      if (orgHasActiveSubscription) {
-                        console.log(`[OAuth] Fallback - ✅ Found active membership (one-time payment) for org ${userOrg.orgId} - breaking out of org loop immediately`);
+                      // Quick check - if DB says active, trust it and redirect immediately
+                      if (org.foundingPartnerStatus === 'active') {
+                        orgHasActiveSubscription = true;
+                        activeOrgId = userOrg.orgId;
+                        console.log(`[OAuth] ✅ Found active org ${userOrg.orgId} in database (fast path)`);
                         break;
                       }
                     }
                     
-                    // If still no active membership found, check for subscription
-                    if (!orgHasActiveSubscription && org.stripeSubscriptionId) {
-                      try {
-                        const { getUncachableStripeClient } = await import("./stripeClient");
-                        const stripe = await getUncachableStripeClient();
-                        const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
-                        
-                        if (sub.status === 'active' || sub.status === 'trialing') {
-                          orgHasActiveSubscription = true;
-                          activeOrgId = userOrg.orgId;
-                          console.log(`[OAuth] Fallback - ✅ Found active subscription for org ${userOrg.orgId}`);
-                          break;
-                        }
-                      } catch (stripeError: any) {
-                        // Check if this is a "No such subscription" error (test mode subscription in live mode)
-                        const errorMessage = stripeError?.message || '';
-                        const errorCode = stripeError?.code || '';
-                        const isNoSuchSubscription = errorMessage.includes('No such subscription') || errorCode === 'resource_missing';
-                        
-                        if (isNoSuchSubscription) {
-                          console.log(`[OAuth] Fallback - ⚠️ Subscription ${org.stripeSubscriptionId} doesn't exist in Stripe (likely test-mode ID in live mode) - clearing stale data for org ${userOrg.orgId}`);
-                          try {
-                            await storage.updateOrganization(userOrg.orgId, {
-                              stripeSubscriptionId: null,
-                            });
-                          } catch (updateError) {
-                            console.error(`[OAuth] Fallback - Failed to clear stale subscription data:`, updateError);
+                    // SLOW PATH: Only if fast path didn't find active membership, do quick Stripe check with timeout
+                    if (!orgHasActiveSubscription) {
+                      console.log('[OAuth] Fast path found no active membership, doing quick Stripe verification (max 1s timeout)');
+                      
+                      // Quick Stripe check with strict timeout - only check subscription IDs, skip line items
+                      const stripeCheckPromise = (async () => {
+                        try {
+                          const { getUncachableStripeClient } = await import("./stripeClient");
+                          const stripe = await getUncachableStripeClient();
+                          
+                          for (const userOrg of userOrgs) {
+                            const org = await storage.getOrganization(userOrg.orgId);
+                            if (!org) continue;
+                            
+                            // Quick subscription check only (fastest API call)
+                            if (org.stripeSubscriptionId) {
+                              try {
+                                const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+                                if (sub.status === 'active' || sub.status === 'trialing') {
+                                  orgHasActiveSubscription = true;
+                                  activeOrgId = userOrg.orgId;
+                                  // Update DB for next time
+                                  await storage.updateOrganization(userOrg.orgId, {
+                                    foundingPartnerStatus: 'active',
+                                  });
+                                  console.log(`[OAuth] ✅ Found active subscription for org ${userOrg.orgId} (quick check)`);
+                                  break;
+                                }
+                              } catch (err) {
+                                // Skip errors, continue to next org
+                              }
+                            }
                           }
-                        } else {
-                          console.error(`[OAuth] Fallback - Error verifying subscription:`, stripeError?.message || stripeError);
+                        } catch (error) {
+                          console.error('[OAuth] Stripe check error:', error);
                         }
+                      })();
+                      
+                      // Wait max 1 second for Stripe check (reduced from 2s for faster redirect)
+                      try {
+                        await Promise.race([
+                          stripeCheckPromise,
+                          new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Stripe check timeout')), 1000)
+                          )
+                        ]);
+                      } catch (timeoutError) {
+                        console.log('[OAuth] Stripe check timed out or failed, using database status');
                       }
+                      
+                      // Background: Do full verification after redirect (fire and forget)
+                      setImmediate(async () => {
+                        try {
+                          console.log('[OAuth] Background: Starting full membership verification');
+                          const { getUncachableStripeClient } = await import("./stripeClient");
+                          const stripe = await getUncachableStripeClient();
+                          const expectedLookupKey = getStripeLookupKey();
+                          
+                          for (const userOrg of userOrgs) {
+                            const org = await storage.getOrganization(userOrg.orgId);
+                            if (!org || org.foundingPartnerStatus === 'active') continue;
+                            
+                            // Check one-time payments if customer ID exists
+                            if (org.stripeCustomerId && expectedLookupKey) {
+                              try {
+                                const checkoutSessions = await stripe.checkout.sessions.list({
+                                  customer: org.stripeCustomerId,
+                                  limit: 10, // Only check recent sessions
+                                });
+                                
+                                const successfulPayments = checkoutSessions.data.filter(s => 
+                                  s.mode === 'payment' && s.payment_status === 'paid'
+                                );
+                                
+                                for (const session of successfulPayments.slice(0, 3)) { // Only check first 3
+                                  try {
+                                    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+                                    for (const item of lineItems.data) {
+                                      if (item.price?.lookup_key === expectedLookupKey) {
+                                        await storage.updateOrganization(userOrg.orgId, {
+                                          foundingPartnerStatus: 'active',
+                                        });
+                                        console.log(`[OAuth] Background: Updated org ${userOrg.orgId} to active`);
+                                        break;
+                                      }
+                                    }
+                                  } catch (err) {
+                                    // Skip errors
+                                  }
+                                }
+                              } catch (err) {
+                                // Skip errors
+                              }
+                            }
+                          }
+                        } catch (error) {
+                          console.error('[OAuth] Background verification error:', error);
+                        }
+                      });
                     }
-                  }
-                  
-                  if (orgHasActiveSubscription && activeOrgId) {
-                    // User has active membership - redirect to app
-                    const hostname = req.get('host') || req.hostname || '';
-                    const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes(':5000');
                     
-                    if (isLocalhost) {
-                      redirectPath = "/app";
-                      console.log('[OAuth] Fallback - ✅ User has membership, redirecting to /app (localhost)');
-                    } else if (hostname.includes('lead2lease.ai')) {
-                      redirectPath = "https://app.lead2lease.ai";
-                      console.log('[OAuth] Fallback - ✅ User has membership, redirecting to app (production)');
+                    // Determine redirect path - only admin/owner roles can access the app
+                    const hasAdminRole = userOrgs.some((o: { role?: string }) => o.role === 'admin' || o.role === 'owner');
+                    if (orgHasActiveSubscription && activeOrgId && hasAdminRole) {
+                      // Update currentOrgId if needed (non-blocking)
+                      if (refreshedUser.currentOrgId !== activeOrgId) {
+                        storage.updateUser(user.id, { currentOrgId: activeOrgId }).catch(err => 
+                          console.error('[OAuth] Error updating currentOrgId:', err)
+                        );
+                      }
+                      
+                      const hostname = req.get('host') || req.hostname || '';
+                      const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes(':5000');
+                      const isProduction = !isLocalhost && (hostname.includes('lead2lease.ai') || process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production');
+                      
+                      if (savedRedirectPath && savedRedirectPath !== '/founding-partner-checkout' && !savedRedirectPath.includes('founding-partner-checkout')) {
+                        redirectPath = savedRedirectPath;
+                      } else if (isLocalhost) {
+                        redirectPath = "/app";
+                      } else if (isProduction) {
+                        redirectPath = "https://app.lead2lease.ai";
+                      } else {
+                        redirectPath = "/app";
+                      }
+                      console.log('[OAuth] ✅ User has active membership and admin role, redirecting to:', redirectPath);
+                    } else if (orgHasActiveSubscription && !hasAdminRole) {
+                      redirectPath = "/waitlist";
+                      console.log('[OAuth] User has membership but no admin role, redirecting to waitlist');
                     } else {
-                      redirectPath = "/app";
-                      console.log('[OAuth] Fallback - ✅ User has membership, redirecting to /app');
-                    }
-                  } else {
-                    console.log('[OAuth] Fallback - ❌ No active membership found, redirecting to login with error');
-                    if (!redirectPath) {
-                      redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+                      redirectPath = "/waitlist";
+                      console.log(`[OAuth] ❌ No active membership found, redirecting to waitlist`);
                     }
                   }
-                } else {
-                  console.log('[OAuth] Fallback - User has no organizations, redirecting to login with error');
-                  if (!redirectPath) {
-                    redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-                  }
                 }
-              } else {
-                console.log('[OAuth] Fallback - User not found, redirecting to login with error');
-                if (!redirectPath) {
-                  redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-                }
+              } catch (error) {
+                console.error("[OAuth] ❌ Error checking membership status:", error);
+                redirectPath = "/app"; // Default to app instead of checkout on error
               }
-            } catch (error) {
-              console.error('[OAuth] Fallback - Error checking membership:', error);
+            } else {
+              console.log('[OAuth] ⚠️ Membership check not triggered (savedFrom:', savedFrom, ')');
+              // If not checking membership, default to app
               if (!redirectPath) {
-                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+                const hostname = req.get('host') || req.hostname || '';
+                const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes(':5000');
+                redirectPath = isLocalhost ? "/app" : (hostname.includes('lead2lease.ai') ? "https://app.lead2lease.ai" : "/app");
               }
             }
           }
-          
-          // If still no redirect path, redirect to login with error
-          if (!redirectPath) {
-            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-            console.log('[OAuth] No redirect path determined, redirecting to login with error');
-          }
-          }
+        } finally {
+          clearTimeout(redirectTimeout);
         }
         
         // Handle other redirect scenarios
         if (!redirectPath) {
-          // If coming from login and no membership, redirect to login with error
-          if (savedFrom === 'login') {
-            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-            console.log('[OAuth] Coming from login without membership, redirecting to login with error');
-          } else if (savedConsent) {
+          if (savedConsent) {
             // Has consent in session = coming from register page (new registration)
-            // But since account creation is disabled, redirect to login with error
-            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-            console.log('[OAuth] New user registration attempted but account creation disabled, redirecting to login');
+            redirectPath = savedRedirectPath || "/waitlist";
+            console.log('[OAuth] New user registration (has consent), redirecting to waitlist:', redirectPath);
           } else {
-            // Default: redirect to login with error
-            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-            console.log('[OAuth] Default redirect to login with error');
+            // Default: if no saved redirect path, go to waitlist (new registration)
+            redirectPath = savedRedirectPath || "/waitlist";
+            console.log('[OAuth] Default redirect (likely new registration) to:', redirectPath);
           }
         }
         
@@ -1269,19 +1004,19 @@ router.get(
                 }
                 console.log('[OAuth] ✅ Organization has active membership, redirecting to:', redirectPath, '(production:', isProduction, ')');
               } else {
-                // Organization does not have active subscription - redirect to login with error
-                redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-                console.log(`[OAuth] Organization does not have active subscription, redirecting to login with error`);
+                // Organization does not have active subscription - redirect to checkout
+                redirectPath = "/founding-partner-checkout";
+                console.log(`[OAuth] Organization does not have active subscription, redirecting to checkout`);
               }
             } else {
-              // User has no organization, redirect to login with error
-              redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
-              console.log('[OAuth] User has no organization, redirecting to login with error');
+              // User has no organization, redirect to checkout
+              redirectPath = "/founding-partner-checkout";
+              console.log('[OAuth] User has no organization, redirecting to checkout');
             }
           } catch (error) {
             console.error("[OAuth] Error checking membership status:", error);
-            // On error, redirect to login with error message
-            redirectPath = "/login?error=" + encodeURIComponent("You do not have an account. Please contact support to create an account.");
+            // On error, use saved redirect path or default to checkout
+            redirectPath = savedRedirectPath || "/founding-partner-checkout";
           }
         }
         */
@@ -1361,10 +1096,36 @@ router.get(
           delete (req.session as any).oauthFrom;
         }
         
+        // CRITICAL: Ensure redirectPath is always set
+        if (!redirectPath) {
+          const hostname = req.get('host') || req.hostname || '';
+          const isLocalhost = hostname.includes('localhost') || hostname.includes('127.0.0.1') || hostname.includes(':5000');
+          redirectPath = isLocalhost ? "/app" : (hostname.includes('lead2lease.ai') ? "https://app.lead2lease.ai" : "/app");
+          console.log('[OAuth] ⚠️ No redirect path set, defaulting to:', redirectPath);
+        }
+        
+        console.log('[OAuth] ===== FINAL REDIRECT =====');
+        console.log('[OAuth] Final redirectPath:', redirectPath);
+        console.log('[OAuth] Request hostname:', req.get('host'));
+        console.log('[OAuth] Request origin:', req.get('origin'));
+        console.log('[OAuth] Full redirect URL will be:', redirectPath.startsWith('http') ? redirectPath : (req.protocol + '://' + req.get('host') + redirectPath));
+        
+        // Verify session is authenticated
+        if (!req.isAuthenticated()) {
+          console.error('[OAuth] ⚠️ WARNING: Session not authenticated before redirect!');
+          return res.redirect("/login?error=" + encodeURIComponent("Session was not properly created"));
+        }
+        
         // Save session before redirecting to ensure session is persisted
-        // Note: Session was already saved after req.login(), but save again to be safe
-        // This ensures the session cookie is set in the response headers
+        // Use a timeout to ensure redirect happens even if session save hangs
+        const sessionSaveTimeout = setTimeout(() => {
+          console.log('[OAuth] ⚠️ Session save timeout - redirecting anyway');
+          res.redirect(302, redirectPath);
+        }, 2000); // 2 second max wait for session save
+        
         req.session.save((saveErr) => {
+          clearTimeout(sessionSaveTimeout);
+          
           if (saveErr) {
             console.error('[OAuth] Error saving session before redirect:', saveErr);
             // Still redirect even if session save fails
@@ -1379,18 +1140,6 @@ router.get(
               path: req.session?.cookie?.path,
             });
           }
-          
-          // Verify session is still authenticated before redirect
-          if (!req.isAuthenticated()) {
-            console.error('[OAuth] ⚠️ WARNING: Session not authenticated before redirect!');
-            return res.redirect("/login?error=" + encodeURIComponent("Session was not properly created"));
-          }
-          
-          console.log('[OAuth] ===== FINAL REDIRECT =====');
-          console.log('[OAuth] Final redirectPath:', redirectPath);
-          console.log('[OAuth] Request hostname:', req.get('host'));
-          console.log('[OAuth] Request origin:', req.get('origin'));
-          console.log('[OAuth] Full redirect URL will be:', redirectPath.startsWith('http') ? redirectPath : (req.protocol + '://' + req.get('host') + redirectPath));
           
           // Set redirect header explicitly after ensuring session is saved
           // The session cookie should be in the response headers now
@@ -1443,6 +1192,9 @@ router.get(
     delete (req.session as any).onboardingToken;
     
     const user = req.user as any;
+
+    // Apply acquisition context from session (first-touch only)
+    await applyAcquisitionFromSession(user, req);
     
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {
@@ -1593,6 +1345,9 @@ router.get(
         console.error('[OAuth] Error updating Facebook user consent:', updateError);
       }
     }
+
+    // Apply acquisition context from session (first-touch only)
+    await applyAcquisitionFromSession(user, req);
     
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {
@@ -1656,21 +1411,30 @@ router.get(
             }
           }
           
-          if (orgHasActiveSubscription) {
+          // Only admin/owner roles can access the app
+          const hasAdminRole = userOrgs.some((o: { role?: string }) => o.role === 'admin' || o.role === 'owner');
+          if (orgHasActiveSubscription && hasAdminRole) {
             // PRIORITY: If returnTo is explicitly set to checkout, always respect it
-            // Users might want to purchase additional memberships for new organizations
             const decodedRedirectPath = redirectPath ? decodeURIComponent(redirectPath) : null;
             if (decodedRedirectPath === '/founding-partner-checkout' || redirectPath === '/founding-partner-checkout' || redirectPath?.includes('founding-partner-checkout')) {
               redirectPath = "/founding-partner-checkout";
               console.log('[OAuth Facebook] ✅ returnTo is checkout page - redirecting to checkout regardless of existing membership');
             } else {
-              // User has active membership - redirect to app (only if returnTo is NOT checkout)
               const hostname = req.get('host') || req.hostname || '';
               const isProduction = hostname.includes('lead2lease.ai') || process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
               redirectPath = isProduction ? "https://app.lead2lease.ai" : "/app";
-              console.log('[OAuth Facebook] ✅ Organization has active membership, redirecting to app');
+              console.log('[OAuth Facebook] ✅ Organization has active membership and admin role, redirecting to app');
             }
+          } else if (orgHasActiveSubscription && !hasAdminRole) {
+            redirectPath = "/waitlist";
+            console.log('[OAuth Facebook] User has membership but no admin role, redirecting to waitlist');
+          } else {
+            redirectPath = "/waitlist";
+            console.log('[OAuth Facebook] No active membership, redirecting to waitlist');
           }
+        } else {
+          redirectPath = "/waitlist";
+          console.log('[OAuth Facebook] User has no organizations, redirecting to waitlist');
         }
       } catch (error) {
         console.error("[OAuth Facebook] Error checking membership status:", error);
@@ -1798,21 +1562,29 @@ router.get(
             }
           }
           
-          if (orgHasActiveSubscription) {
-            // PRIORITY: If returnTo is explicitly set to checkout, always respect it
-            // Users might want to purchase additional memberships for new organizations
+          // Only admin/owner roles can access the app
+          const hasAdminRole = userOrgs.some((o: { role?: string }) => o.role === 'admin' || o.role === 'owner');
+          if (orgHasActiveSubscription && hasAdminRole) {
             const decodedRedirectPath = redirectPath ? decodeURIComponent(redirectPath) : null;
             if (decodedRedirectPath === '/founding-partner-checkout' || redirectPath === '/founding-partner-checkout' || redirectPath?.includes('founding-partner-checkout')) {
               redirectPath = "/founding-partner-checkout";
               console.log('[OAuth Microsoft] ✅ returnTo is checkout page - redirecting to checkout regardless of existing membership');
             } else {
-              // User has active membership - redirect to app (only if returnTo is NOT checkout)
               const hostname = req.get('host') || req.hostname || '';
               const isProduction = hostname.includes('lead2lease.ai') || process.env.REPLIT_DEPLOYMENT === '1' || process.env.NODE_ENV === 'production';
               redirectPath = isProduction ? "https://app.lead2lease.ai" : "/app";
-              console.log('[OAuth Microsoft] ✅ Organization has active membership, redirecting to app');
+              console.log('[OAuth Microsoft] ✅ Organization has active membership and admin role, redirecting to app');
             }
+          } else if (orgHasActiveSubscription && !hasAdminRole) {
+            redirectPath = "/waitlist";
+            console.log('[OAuth Microsoft] User has membership but no admin role, redirecting to waitlist');
+          } else {
+            redirectPath = "/waitlist";
+            console.log('[OAuth Microsoft] No active membership, redirecting to waitlist');
           }
+        } else {
+          redirectPath = "/waitlist";
+          console.log('[OAuth Microsoft] User has no organizations, redirecting to waitlist');
         }
       } catch (error) {
         console.error("[OAuth Microsoft] Error checking membership status:", error);
@@ -1900,6 +1672,9 @@ router.get(
         console.error('[OAuth] Error updating Apple user consent:', updateError);
       }
     }
+
+    // Apply acquisition context from session (first-touch only)
+    await applyAcquisitionFromSession(user, req);
     
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {

@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, Filter } from "lucide-react";
 import { LeadCard } from "@/components/LeadCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
+import LeadCreateDialog from "@/components/LeadCreateDialog";
+import LeadFilterDialog, { type LeadFilters } from "@/components/LeadFilterDialog";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { format, isToday, differenceInDays, parseISO } from "date-fns";
@@ -12,11 +14,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { LeadStatus } from "@/components/LeadCard";
 import { useLocation } from "wouter";
+import { Badge } from "@/components/ui/badge";
 
 const statusColors: Record<string, string> = {
   new: "bg-status-new text-white",
   contacted: "bg-status-contacted text-white",
   prequalified: "bg-status-prequalified text-white",
+  tour: "bg-status-prequalified text-white", // Using prequalified color for tour
   application: "bg-status-application text-white",
   approved: "bg-status-approved text-white",
 };
@@ -25,7 +29,8 @@ const statusTitles: Record<string, string> = {
   new: "New",
   contacted: "Contacted",
   prequalified: "Pre-qualified",
-  application: "Application Sent",
+  tour: "Tour",
+  application: "Application",
   approved: "Approved",
 };
 
@@ -60,6 +65,14 @@ const formatTimestamp = (timestamp: string) => {
 export default function Leads() {
   const [location, setLocation] = useLocation();
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<LeadFilters>({
+    statuses: [],
+    sources: [],
+    propertyIds: [],
+    aiHandled: "all",
+  });
   
   // Navigate to full profile when clicking a lead
   const handleLeadClick = (leadId: string) => {
@@ -119,19 +132,54 @@ export default function Leads() {
     updateLeadStatusMutation.mutate({ leadId, status: newStatus });
   };
 
-  // Filter leads based on search query
+  // Filter leads based on search query and filters
   const filteredLeads = leads.filter((lead) => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      lead.name?.toLowerCase().includes(query) ||
-      lead.email?.toLowerCase().includes(query) ||
-      lead.phone?.toLowerCase().includes(query) ||
-      lead.propertyName?.toLowerCase().includes(query) ||
-      lead.status?.toLowerCase().includes(query)
-    );
+    // Search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        lead.name?.toLowerCase().includes(query) ||
+        lead.email?.toLowerCase().includes(query) ||
+        lead.phone?.toLowerCase().includes(query) ||
+        lead.propertyName?.toLowerCase().includes(query) ||
+        lead.status?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (filters.statuses.length > 0 && !filters.statuses.includes(lead.status)) {
+      return false;
+    }
+
+    // Source filter
+    if (filters.sources.length > 0) {
+      const leadSource = lead.source?.toLowerCase() || "";
+      if (!filters.sources.includes(leadSource)) {
+        return false;
+      }
+    }
+
+    // Property filter
+    if (filters.propertyIds.length > 0 && (!lead.propertyId || !filters.propertyIds.includes(lead.propertyId))) {
+      return false;
+    }
+
+    // AI Handled filter
+    if (filters.aiHandled !== "all") {
+      const isAiHandled = lead.aiHandled === true;
+      if (filters.aiHandled === "true" && !isAiHandled) return false;
+      if (filters.aiHandled === "false" && isAiHandled) return false;
+    }
+
+    return true;
   });
+
+  // Count active filters
+  const activeFilterCount = 
+    filters.statuses.length +
+    filters.sources.length +
+    filters.propertyIds.length +
+    (filters.aiHandled !== "all" ? 1 : 0);
 
   // Group leads by status
   const leadsByStatus = filteredLeads.reduce((acc: Record<string, any[]>, lead: any) => {
@@ -149,7 +197,7 @@ export default function Leads() {
       id: lead.id,
       name: lead.name,
       property: lead.propertyName,
-      value: "$2,400/mo",
+      value: "", // Don't show default rent - only show if actual rent data exists
     })),
   }));
 
@@ -160,7 +208,10 @@ export default function Leads() {
           <h1 className="text-3xl font-semibold">Leads</h1>
           <p className="text-muted-foreground mt-1">Manage and track your property leads</p>
         </div>
-        <Button data-testid="button-add-lead">
+        <Button 
+          data-testid="button-add-lead"
+          onClick={() => setIsCreateDialogOpen(true)}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Lead
         </Button>
@@ -177,9 +228,18 @@ export default function Leads() {
             data-testid="input-search-leads"
           />
         </div>
-        <Button variant="outline" data-testid="button-filter">
+        <Button 
+          variant="outline" 
+          data-testid="button-filter"
+          onClick={() => setIsFilterDialogOpen(true)}
+        >
           <Filter className="h-4 w-4 mr-2" />
           Filter
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              {activeFilterCount}
+            </Badge>
+          )}
         </Button>
       </div>
 
@@ -237,6 +297,18 @@ export default function Leads() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <LeadCreateDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+      />
+
+      <LeadFilterDialog
+        open={isFilterDialogOpen}
+        onOpenChange={setIsFilterDialogOpen}
+        filters={filters}
+        onApplyFilters={setFilters}
+      />
 
       <LeadDetailSheet
         open={!!selectedLeadId}

@@ -6,7 +6,9 @@ import type { CalendarConnection } from "@shared/schema";
 export class CalendarAutoSync {
   private intervalId: NodeJS.Timeout | null = null;
   private isSyncing: boolean = false;
-  private syncIntervalMs: number = 60 * 60 * 1000; // 1 hour (backup mechanism, webhooks handle real-time)
+  // OPTIMIZED: Increased interval from 1 hour to 2 hours to reduce resource contention
+  // Webhooks handle real-time updates, so this is just a backup sync
+  private syncIntervalMs: number = 2 * 60 * 60 * 1000; // 2 hours (was 1 hour)
 
   constructor(syncIntervalMs?: number) {
     if (syncIntervalMs) {

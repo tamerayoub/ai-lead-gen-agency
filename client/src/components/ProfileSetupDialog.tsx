@@ -70,7 +70,11 @@ export default function ProfileSetupDialog({ open, defaultEmail }: ProfileSetupD
     if (firstName && lastName) {
       return `${firstName[0]}${lastName[0]}`.toUpperCase();
     }
-    return defaultEmail[0].toUpperCase();
+    // Handle empty email case to prevent runtime error
+    if (defaultEmail && defaultEmail.length > 0) {
+      return defaultEmail[0].toUpperCase();
+    }
+    return "?";
   };
 
   return (

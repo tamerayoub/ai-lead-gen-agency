@@ -55,7 +55,7 @@ Respond with ONLY "YES" if this is a rental inquiry, or "NO" if it's not.`;
 export class GmailScanner {
   private intervalId: NodeJS.Timeout | null = null;
   private isScanning: boolean = false;
-  private scanIntervalMs: number = 1 * 60 * 1000; // 1 minute
+  private scanIntervalMs: number = 5 * 60 * 1000; // 5 minutes (increased from 1 minute to reduce load)
   private lastScanByOrg: Map<string, Date> = new Map();
   private notifiedThreadsByOrg: Map<string, Set<string>> = new Map();
 
@@ -82,12 +82,12 @@ export class GmailScanner {
       });
     }, this.scanIntervalMs);
 
-    // Run initial scan after 10 seconds
+    // Run initial scan after 30 seconds (delayed to not impact server startup)
     setTimeout(() => {
       this.scanAllOrganizations().catch(error => {
         console.error("[Gmail Scanner] Error during initial scan:", error);
       });
-    }, 10000);
+    }, 30000);
   }
 
   stop() {
@@ -304,7 +304,10 @@ export class GmailScanner {
             if (existingLeadForEmail) {
               // This is a new thread for an existing lead - add to map and process as existing
               leadsByThreadId.set(threadId, existingLeadForEmail);
-              console.log(`[Gmail Scanner] Linking new thread ${threadId} to existing lead ${fromEmail}`);
+              // REDUCED LOGGING: Only log in development mode to reduce I/O overhead
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[Gmail Scanner] Linking new thread ${threadId} to existing lead ${fromEmail}`);
+              }
               
               // Now process all messages in this thread as if it's an existing lead
               const existingConversations = await storage.getConversationsByLeadId(existingLeadForEmail.id);
@@ -399,10 +402,48 @@ export class GmailScanner {
             // Clean email body
             body = cleanEmailBody(body);
             
-            // Filter: Use AI to check if this is a rental inquiry (same as manual sync)
-            const isRentalInquiry = await isRentalInquiryAI(fromEmail, emailSubject, body);
-            if (!isRentalInquiry) {
-              console.log(`[Gmail Scanner] AI filtered out non-rental email from ${fromEmail} - Subject: "${emailSubject}"`);
+            // OPTIMIZED: Use simple heuristics first to skip obvious non-rental emails before AI call
+            // This reduces expensive AI API calls
+            const subjectLower = emailSubject.toLowerCase();
+            const bodyLower = body.toLowerCase();
+            const fromLower = fromEmail.toLowerCase();
+            
+            // Quick heuristic filters (common non-rental patterns)
+            const isLikelyNonRental = 
+              // Common marketing/newsletter domains
+              fromLower.includes('noreply') || 
+              fromLower.includes('no-reply') ||
+              fromLower.includes('mail.') ||
+              fromLower.includes('@email.') ||
+              fromLower.includes('@mail.') ||
+              // Common non-rental subjects
+              subjectLower.includes('newsletter') ||
+              subjectLower.includes('promotion') ||
+              subjectLower.includes('sale') ||
+              subjectLower.includes('discount') ||
+              subjectLower.includes('unsubscribe') ||
+              // Common non-rental body patterns
+              bodyLower.includes('unsubscribe') ||
+              bodyLower.includes('view in browser') ||
+              bodyLower.includes('marketing') ||
+              bodyLower.includes('promotional');
+            
+            // Only use AI if heuristics don't clearly indicate non-rental
+            if (!isLikelyNonRental) {
+              // Use AI to filter out non-rental emails (marketing, newsletters, etc.)
+              const isRentalInquiry = await isRentalInquiryAI(fromEmail, emailSubject, body);
+              if (!isRentalInquiry) {
+                // REDUCED LOGGING: Only log in development mode to reduce I/O overhead
+                if (process.env.NODE_ENV === 'development') {
+                  console.log(`[Gmail Scanner] AI filtered out non-rental email from ${fromEmail} - Subject: "${emailSubject}"`);
+                }
+                continue;
+              }
+            } else {
+              // REDUCED LOGGING: Only log in development mode to reduce I/O overhead
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[Gmail Scanner] Heuristic filtered out non-rental email from ${fromEmail} - Subject: "${emailSubject}"`);
+              }
               continue;
             }
             

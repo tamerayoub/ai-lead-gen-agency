@@ -415,12 +415,25 @@ export default function PropertySchedulingDialog({
         count: number;
       } | null; // null means reminders are disabled/cleared
     }) => {
-      return await apiRequest("POST", `/api/properties/${propertyId}/scheduling-settings`, data);
+      const response = await apiRequest("POST", `/api/properties/${propertyId}/scheduling-settings`, data);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to save scheduling settings");
+      }
+      return response;
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Cannot Create Booking Type",
+        description: error.message || "One or more listings have 'Accept Bookings' disabled. Please enable 'Accept Bookings' for all listings before creating booking types.",
+        variant: "destructive",
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "scheduling-settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/scheduling-settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/schedule/preferences/bulk"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       // Invalidate all unit queries for this property to ensure they refetch property settings
       queryClient.invalidateQueries({ queryKey: ["/api/units"], exact: false });
       
@@ -564,14 +577,6 @@ export default function PropertySchedulingDialog({
         onClose();
       }
     },
-    onError: (error: Error) => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to save scheduling settings",
-      });
-      setPendingSaveData(null);
-    },
   });
 
   const applyToUnitsMutation = useMutation({
@@ -591,6 +596,7 @@ export default function PropertySchedulingDialog({
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties/with-listed-units"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       // Invalidate all unit scheduling queries for this property to ensure they show updated settings
       queryClient.invalidateQueries({ queryKey: ["/api/units"], exact: false });
       // Also invalidate property settings query to ensure it's fresh
@@ -1040,7 +1046,7 @@ export default function PropertySchedulingDialog({
             {/* Booking Toggle */}
             <div className="flex items-center justify-between p-5 border rounded-md bg-muted/20">
               <div className="space-y-0.5">
-                <Label htmlFor="booking-enabled" className="text-base">Public Booking</Label>
+                <Label htmlFor="booking-enabled" className="text-base">Enable Booking</Label>
                 <p className="text-sm text-muted-foreground">
                   Allow prospects to book showings for this property
                 </p>
@@ -1745,7 +1751,7 @@ export default function PropertySchedulingDialog({
                     htmlFor="apply-booking-enabled"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
                   >
-                    <div className="font-semibold">Public Booking</div>
+                    <div className="font-semibold">Enable Booking</div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {pendingSaveData.bookingEnabled ? "Enabled" : "Disabled"}
                     </div>
@@ -1833,9 +1839,9 @@ export default function PropertySchedulingDialog({
     <AlertDialog open={showBookingToggleDialog} onOpenChange={setShowBookingToggleDialog}>
       <AlertDialogContent data-testid="dialog-booking-toggle-confirm">
         <AlertDialogHeader>
-          <AlertDialogTitle>Disable Public Booking?</AlertDialogTitle>
+          <AlertDialogTitle>Disable Booking?</AlertDialogTitle>
           <AlertDialogDescription>
-            Disabling public booking will prevent new showing bookings for this property and all its units.
+            Disabling booking will prevent new showing bookings for this property and all its units.
             Existing scheduled showings will remain intact. You can re-enable booking at any time.
           </AlertDialogDescription>
         </AlertDialogHeader>

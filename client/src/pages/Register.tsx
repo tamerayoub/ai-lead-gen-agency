@@ -15,6 +15,8 @@ import { Building2, Mail, User, ArrowLeft, Bot, Calendar, BarChart3, Home } from
 import logo from "@/assets/lead2lease-logo-black.svg";
 import { SiGoogle, SiFacebook, SiApple } from "react-icons/si";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getAcquisitionContext } from "@/lib/acquisition";
+import { trackSignupCompleted } from "@/lib/analytics";
 
 const registerSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -143,12 +145,23 @@ export default function Register() {
       setIsLoading(true);
       // Clear saved form data on successful submission
       sessionStorage.removeItem('registerFormData');
+      const acquisitionContext = getAcquisitionContext();
       const payload = {
         ...values,
         ...(onboardingToken && { onboardingToken }),
+        ...(acquisitionContext && { acquisition_context: acquisitionContext }),
       };
       const response = await apiRequest("POST", "/api/auth/register", payload);
-      
+
+      if (acquisitionContext) {
+        trackSignupCompleted({
+          offer: acquisitionContext.offer,
+          source: acquisitionContext.source,
+          campaign: acquisitionContext.campaign ?? undefined,
+          landing_page: acquisitionContext.landing_page,
+        });
+      }
+
       toast({
         title: "Account created!",
         description: "Welcome! Your account has been created successfully.",
@@ -220,40 +233,19 @@ export default function Register() {
         }
       }
       
-      // Redirect to returnTo URL if provided, otherwise go to membership checkout
-      if (returnTo) {
-        // If on app subdomain, redirect to marketing domain for checkout flow
-        const hostname = window.location.hostname.toLowerCase();
-        const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
-        
-        if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
-          // Convert returnTo path to marketing domain URL
-          const returnToPath = returnTo.startsWith('/') ? returnTo : `/${returnTo}`;
-          const marketingUrl = `https://lead2lease.ai${returnToPath}`;
-          console.log('[Register] Redirecting to marketing domain:', marketingUrl);
-          setTimeout(() => {
-            window.location.replace(marketingUrl);
-          }, 50);
-        } else {
-          setTimeout(() => {
-            window.location.replace(returnTo);
-          }, 50);
-        }
-      } else {
-        // If on app subdomain, redirect to marketing domain for checkout
+      // Redirect to waitlist - team will reach out to get them started
         const hostname = window.location.hostname.toLowerCase();
         const isAppSubdomain = hostname === 'app.lead2lease.ai' || hostname.startsWith('app.');
         
         if (isAppSubdomain && (hostname.includes('lead2lease.ai') || hostname.includes('lead2lease'))) {
           setTimeout(() => {
-            window.location.replace('https://lead2lease.ai/founding-partner-checkout');
+            window.location.replace('https://app.lead2lease.ai/waitlist');
           }, 50);
         } else {
           setTimeout(() => {
-            window.location.replace("/founding-partner-checkout");
+            window.location.replace("/waitlist");
           }, 50);
         }
-      }
     } catch (error: any) {
       toast({
         title: "Registration failed",
@@ -292,7 +284,8 @@ export default function Register() {
 
     if (!pendingOAuthProvider) return;
 
-    // Store consent in session before redirecting
+    // Store consent and acquisition context in session before redirecting
+    const acquisitionContext = getAcquisitionContext();
     fetch('/api/auth/store-oauth-consent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -300,6 +293,7 @@ export default function Register() {
       body: JSON.stringify({
         agreeTerms: oauthAgreeTerms,
         agreeMarketing: oauthAgreeMarketing,
+        ...(acquisitionContext && { acquisitionContext }),
       }),
     }).then((response) => {
       if (!response.ok) {

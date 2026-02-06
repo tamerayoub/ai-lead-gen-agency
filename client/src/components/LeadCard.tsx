@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Phone, Mail, MessageSquare, Bot, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type LeadStatus = "new" | "contacted" | "prequalified" | "application" | "approved";
+export type LeadStatus = "new" | "contacted" | "prequalified" | "tour" | "application" | "approved";
 
 interface LeadCardProps {
   name: string;
@@ -22,6 +22,7 @@ const statusColors: Record<LeadStatus, string> = {
   new: "bg-status-new text-white",
   contacted: "bg-status-contacted text-white",
   prequalified: "bg-status-prequalified text-white",
+  tour: "bg-status-prequalified text-white", // Using prequalified color for tour
   application: "bg-status-application text-white",
   approved: "bg-status-approved text-white",
 };

@@ -1,0 +1,152 @@
+.landing-v4 {
+  --lv4-primary: 214 89% 52%;
+  --lv4-primary-foreground: 0 0% 100%;
+  --lv4-accent: 214 100% 60%;
+  --lv4-accent-foreground: 0 0% 100%;
+  --lv4-background: 0 0% 100%;
+  --lv4-foreground: 214 89% 20%;
+  --lv4-card: 210 40% 98%;
+  --lv4-card-foreground: 214 89% 20%;
+  --lv4-secondary: 214 30% 94%;
+  --lv4-secondary-foreground: 214 89% 30%;
+  --lv4-muted: 214 20% 96%;
+  --lv4-muted-foreground: 214 20% 45%;
+  --lv4-border: 214 30% 88%;
+  --lv4-facebook: 214 89% 52%;
+  --lv4-facebook-foreground: 0 0% 100%;
+  --lv4-messenger: 214 100% 59%;
+  --lv4-messenger-gradient-start: 255 87% 51%;
+  --lv4-messenger-gradient-end: 214 100% 59%;
+  --lv4-success: 142 71% 45%;
+  --lv4-success-foreground: 0 0% 100%;
+  --lv4-chat-user: 214 89% 52%;
+  --lv4-chat-ai: 214 30% 94%;
+  --lv4-glow-primary: 214 89% 52%;
+  --lv4-glow-accent: 214 100% 60%;
+
+  --primary: var(--lv4-primary);
+  --primary-foreground: var(--lv4-primary-foreground);
+  --accent: var(--lv4-accent);
+  --accent-foreground: var(--lv4-accent-foreground);
+  --background: var(--lv4-background);
+  --foreground: var(--lv4-foreground);
+  --card: var(--lv4-card);
+  --card-foreground: var(--lv4-card-foreground);
+  --secondary: var(--lv4-secondary);
+  --secondary-foreground: var(--lv4-secondary-foreground);
+  --muted: var(--lv4-muted);
+  --muted-foreground: var(--lv4-muted-foreground);
+  --border: var(--lv4-border);
+
+  font-family: 'Inter', sans-serif;
+}
+
+.landing-v4 .lv4-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--lv4-primary)) 0%, hsl(var(--lv4-accent)) 100%);
+}
+
+.landing-v4 .lv4-gradient-messenger {
+  background: linear-gradient(45deg, hsl(var(--lv4-messenger-gradient-start)) 0%, hsl(var(--lv4-messenger-gradient-end)) 100%);
+}
+
+.landing-v4 .lv4-glow-primary {
+  box-shadow: 0 0 40px -10px hsl(var(--lv4-primary) / 0.5);
+}
+
+.landing-v4 .lv4-glow-accent {
+  box-shadow: 0 0 30px -8px hsl(var(--lv4-accent) / 0.4);
+}
+
+.landing-v4 .lv4-text-gradient {
+  background: linear-gradient(135deg, hsl(var(--lv4-primary)) 0%, hsl(var(--lv4-accent)) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-v4 .lv4-bg-facebook {
+  background-color: hsl(var(--lv4-facebook));
+}
+
+.landing-v4 .lv4-text-facebook {
+  color: hsl(var(--lv4-facebook));
+}
+
+.landing-v4 .lv4-bg-success {
+  background-color: hsl(var(--lv4-success));
+}
+
+.landing-v4 .lv4-text-success {
+  color: hsl(var(--lv4-success));
+}
+
+.landing-v4 .lv4-bg-success-foreground {
+  color: hsl(var(--lv4-success-foreground));
+}
+
+.landing-v4 .lv4-bg-success-10 {
+  background-color: hsl(var(--lv4-success) / 0.1);
+}
+
+.landing-v4 .lv4-border-success-20 {
+  border-color: hsl(var(--lv4-success) / 0.2);
+}
+
+.landing-v4 .lv4-bg-facebook-10 {
+  background-color: hsl(var(--lv4-facebook) / 0.1);
+}
+
+.landing-v4 .lv4-border-facebook-20 {
+  border-color: hsl(var(--lv4-facebook) / 0.2);
+}
+
+.landing-v4 .lv4-bg-chat-user {
+  background-color: hsl(var(--lv4-chat-user));
+}
+
+.landing-v4 .lv4-bg-chat-ai {
+  background-color: hsl(var(--lv4-chat-ai));
+}
+
+@keyframes lv4-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes lv4-pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px -5px hsl(var(--lv4-primary) / 0.4); }
+  50% { box-shadow: 0 0 40px -5px hsl(var(--lv4-primary) / 0.6); }
+}
+
+@keyframes lv4-typing {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+@keyframes lv4-chat-bubble-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.landing-v4 .lv4-animate-float {
+  animation: lv4-float 6s ease-in-out infinite;
+}
+
+.landing-v4 .lv4-animate-pulse-glow {
+  animation: lv4-pulse-glow 2s ease-in-out infinite;
+}
+
+.landing-v4 .lv4-animate-typing {
+  animation: lv4-typing 1s steps(3) infinite;
+}
+
+.landing-v4 .lv4-chat-bubble-enter {
+  animation: lv4-chat-bubble-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}

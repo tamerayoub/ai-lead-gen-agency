@@ -25,7 +25,6 @@ import {
   Crown,
   ChevronDown,
   Menu,
-  Calculator,
 } from "lucide-react";
 
 interface PublicHeaderProps {
@@ -103,8 +102,8 @@ export function PublicHeader({
 
   // Determine header styles based on scroll position (only for landing page)
   const headerClasses = currentPage === 'landing' && !isScrolled
-    ? "fixed top-0 left-0 z-50 bg-transparent backdrop-blur-none shadow-none w-screen transition-all duration-300"
-    : "fixed top-0 left-0 z-50 border-b border-white/20 bg-white/80 backdrop-blur-sm md:backdrop-blur-md backdrop-saturate-150 shadow-sm w-screen transition-all duration-300";
+    ? "fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-none shadow-none w-full transition-all duration-300"
+    : "fixed top-0 left-0 right-0 z-50 border-b border-white/20 bg-white/80 backdrop-blur-sm md:backdrop-blur-md backdrop-saturate-150 shadow-sm w-full transition-all duration-300";
   
   // Text color classes based on scroll position
   const textColorClass = currentPage === 'landing' && !isScrolled
@@ -170,18 +169,17 @@ export function PublicHeader({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {/* ROI Calculator */}
-                <Link href="/roi-calculator" onClick={() => setMobileMenuOpen(false)}>
-                  <Button
-                    variant="ghost"
+                {/* Pricing */}
+                <Link href="/pricing" onClick={() => setMobileMenuOpen(false)}>
+                  <Button 
+                    variant="ghost" 
                     className="w-full justify-start text-gray-700 hover:text-gray-900"
                   >
-                    ROI Calculator
+                    Pricing
                   </Button>
                 </Link>
-                <div className="border-t border-gray-200 my-2" />
                 {/* Book a Demo */}
-                <Link href="/demo-form" onClick={() => setMobileMenuOpen(false)}>
+                <Link href="/book-demo" onClick={() => setMobileMenuOpen(false)}>
                   <Button 
                     variant="outline"
                     className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-blue-600"
@@ -191,7 +189,7 @@ export function PublicHeader({
                   </Button>
                 </Link>
                 {/* Get Early Access */}
-                {/* <Button 
+                <Button 
                   onClick={() => {
                     setMobileMenuOpen(false);
                     handleGetEarlyAccess();
@@ -201,7 +199,7 @@ export function PublicHeader({
                 >
                   <Crown className="mr-2 h-4 w-4" />
                   Get Early Access
-                </Button> */}
+                </Button>
                 {/* Sign In */}
                 <Button 
                   onClick={() => {
@@ -217,38 +215,27 @@ export function PublicHeader({
           </Sheet>
         </div>
         {/* Logo - on the left */}
-        <div className="flex items-center gap-2 flex-1 md:flex-1">
+        <div className="flex items-center gap-2 flex-1 md:flex-initial md:flex-none">
           <Link href="/" className="flex items-center">
-            <img
-              src={logoBlack}
-              alt="Lead2Lease Logo"
+            <img 
+              src={logoBlack} 
+              alt="Lead2Lease Logo" 
               className="h-7 md:h-10 lg:h-11 w-auto object-contain cursor-pointer transition-all duration-300 hover:opacity-80 hover:scale-105"
             />
           </Link>
         </div>
         {/* Desktop Navigation - centered */}
-        <div className="hidden md:flex items-center justify-center flex-1 gap-2 absolute left-1/2 -translate-x-1/2">
-          {/* Home Link */}
-          <Link href="/">
-            <Button
-              variant="ghost"
-              className="text-gray-700 hover:text-gray-900"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            >
-              Home
-            </Button>
-          </Link>
-
+        <div className="hidden md:flex items-center justify-center flex-1 gap-6 md:ml-20 lg:ml-32 xl:ml-40">
           {/* Product Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
+              <Button 
+                variant="ghost" 
                 data-testid="button-product-header"
                 className="text-gray-700 hover:text-gray-900"
               >
-                <span className="mr-0.5">Product</span>
-                <ChevronDown className="h-4 w-4 -ml-0.5" />
+                Product
+                <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="center" className="w-56">
@@ -321,20 +308,19 @@ export function PublicHeader({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* ROI Calculator Link */}
-          <Link href="/roi-calculator">
-            <Button
-              variant="ghost"
+          <Link href="/pricing">
+            <Button 
+              variant="ghost" 
+              data-testid="button-pricing-header"
               className="text-gray-700 hover:text-gray-900"
             >
-              ROI Calculator
+              Pricing
             </Button>
           </Link>
         </div>
         {/* Desktop Buttons */}
         <div className="hidden md:flex items-center gap-3 flex-1 justify-end">
-          <Link href="/demo-form">
+          <Link href="/book-demo">
             <Button 
               variant="outline"
               data-testid="button-book-demo-header"
@@ -344,7 +330,7 @@ export function PublicHeader({
               Book a Demo
             </Button>
           </Link>
-          {/* <Button 
+          <Button 
             onClick={handleGetEarlyAccess}
             data-testid="button-founding-member-header"
             className="text-white hover:opacity-90 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold"
@@ -352,7 +338,7 @@ export function PublicHeader({
           >
             <Crown className="mr-2 h-4 w-4" />
             Get Early Access
-          </Button> */}
+          </Button>
           <Button 
             onClick={handleSignIn} 
             data-testid="button-signin-header"
@@ -363,24 +349,14 @@ export function PublicHeader({
         </div>
         {/* Mobile Buttons - on the right */}
         <div className="md:hidden flex items-center gap-2">
-          <Link href="/demo-form">
-            <Button 
-              size="sm"
-              variant="outline"
-              className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-2 border-blue-600 rounded-lg text-xs px-3 py-1 h-8 font-semibold"
-            >
-              <Calendar className="mr-1 h-3 w-3" />
-              Book a Demo
-            </Button>
-          </Link>
-          {/* <Button 
+          <Button 
             onClick={handleGetEarlyAccess}
             size="sm"
             className="text-white hover:opacity-90 rounded-lg shadow-md text-xs px-2 py-1 h-8 font-semibold"
             style={{ backgroundColor: '#FFDF00' }}
           >
             Get Early Access
-          </Button> */}
+          </Button>
         </div>
       </div>
     </header>

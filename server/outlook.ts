@@ -195,6 +195,65 @@ export async function sendOutlookReply(
   );
 }
 
+export async function sendOutlookEmail(
+  accessToken: string,
+  {
+    to,
+    subject,
+    body,
+    inReplyTo,
+    references
+  }: {
+    to: string;
+    subject: string;
+    body: string;
+    inReplyTo?: string;
+    references?: string;
+  }
+) {
+  const messageBody = {
+    message: {
+      toRecipients: [
+        {
+          emailAddress: {
+            address: to
+          }
+        }
+      ],
+      subject: subject,
+      body: {
+        contentType: "Text",
+        content: body
+      },
+      ...(inReplyTo && {
+        internetMessageHeaders: [
+          {
+            name: "In-Reply-To",
+            value: inReplyTo
+          },
+          ...(references ? [{
+            name: "References",
+            value: references
+          }] : [])
+        ]
+      })
+    }
+  };
+
+  const response = await axios.post(
+    'https://graph.microsoft.com/v1.0/me/sendMail',
+    messageBody,
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+
+  return response.data;
+}
+
 export async function getUserProfile(accessToken: string) {
   const response = await axios.get(
     'https://graph.microsoft.com/v1.0/me',

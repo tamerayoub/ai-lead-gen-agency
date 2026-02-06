@@ -12,8 +12,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Home, DollarSign, Calendar, Image as ImageIcon } from "lucide-react";
-import { PropertyUnit } from "@shared/schema";
+import { Plus, Edit, Trash2, Home, Image as ImageIcon, Pencil, FileText } from "lucide-react";
+import { Listing, PropertyUnit } from "@shared/schema";
 import { useLocation } from "wouter";
 import {
   AlertDialog,
@@ -41,6 +41,11 @@ export default function PropertyDetailView({ property, onEdit }: PropertyDetailV
   const { data: units = [], isLoading } = useQuery<PropertyUnit[]>({
     queryKey: ["/api/properties", property.id, "units"],
     queryFn: () => fetch(`/api/properties/${property.id}/units`).then(res => res.json()),
+  });
+
+  const { data: propertyListings = [] } = useQuery<Listing[]>({
+    queryKey: ["/api/properties", property.id, "listings"],
+    queryFn: () => fetch(`/api/properties/${property.id}/listings`).then((res) => res.json()),
   });
 
   const deleteMutation = useMutation({
@@ -109,7 +114,7 @@ export default function PropertyDetailView({ property, onEdit }: PropertyDetailV
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-1">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Units</CardTitle>
@@ -121,36 +126,6 @@ export default function PropertyDetailView({ property, onEdit }: PropertyDetailV
             </div>
             <p className="text-xs text-muted-foreground">
               {units.length} configured
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Occupancy</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-occupancy">
-              {property.occupancy}/{property.units}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {property.units > 0 ? Math.round((property.occupancy / property.units) * 100) : 0}% occupied
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-revenue">
-              ${property.monthlyRevenue}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total across all units
             </p>
           </CardContent>
         </Card>
@@ -228,6 +203,34 @@ export default function PropertyDetailView({ property, onEdit }: PropertyDetailV
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        {propertyListings.find((listing) => listing.unitId === unit.id) ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const listing = propertyListings.find((l) => l.unitId === unit.id);
+                              if (listing) {
+                                setLocation(`/leasing/listings?edit=${listing.id}`);
+                              }
+                            }}
+                            data-testid={`button-edit-listing-${unit.id}`}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit Listing
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setLocation(`/leasing/listings?create=true&propertyId=${property.id}&unitId=${unit.id}`);
+                            }}
+                            data-testid={`button-create-listing-${unit.id}`}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Create Listing
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"

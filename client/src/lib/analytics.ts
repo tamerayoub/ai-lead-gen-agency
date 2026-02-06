@@ -1,95 +1,54 @@
-// Google Analytics initialization and utility functions
-
-declare global {
-  interface Window {
-    gtag?: (
-      command: 'config' | 'event' | 'js' | 'set',
-      targetId: string | Date,
-      config?: Record<string, any>
-    ) => void;
-    dataLayer?: any[];
-  }
-}
-
 /**
- * Initialize Google Analytics
- * This should be called once when the app loads
+ * Analytics wrapper - emits acquisition and lifecycle events.
+ * TODO: Integrate with PostHog, GA, or Mixpanel when available.
+ * In dev, logs to console for verification.
  */
-export function initGoogleAnalytics() {
-  const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-  
-  if (!measurementId) {
-    console.log('[Analytics] Google Analytics not configured - VITE_GA_MEASUREMENT_ID not set');
-    return;
-  }
 
-  // Check if already initialized
-  if (window.gtag && window.dataLayer) {
-    console.log('[Analytics] Google Analytics already initialized');
-    return;
-  }
+const isDev = typeof window !== "undefined" && (
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname.endsWith(".replit.dev") ||
+  window.location.hostname.endsWith(".repl.co")
+);
 
-  // Initialize dataLayer
-  window.dataLayer = window.dataLayer || [];
-  
-  // Define gtag function
-  function gtag(...args: any[]) {
-    window.dataLayer!.push(arguments);
-  }
-  window.gtag = gtag;
-
-  // Load Google Analytics script
-  const script1 = document.createElement('script');
-  script1.async = true;
-  script1.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-  document.head.appendChild(script1);
-
-  // Initialize GA4
-  gtag('js', new Date());
-  gtag('config', measurementId, {
-    page_path: window.location.pathname,
-  });
-
-  console.log('[Analytics] Google Analytics initialized with ID:', measurementId);
+export interface AcquisitionEventProps {
+  offer?: string | null;
+  source?: string | null;
+  campaign?: string | null;
+  landing_page?: string | null;
 }
 
-/**
- * Track a custom event in Google Analytics
- * Uses the existing gtag function that should be initialized in HTML <head>
- */
-export function trackEvent(
-  eventName: string,
-  eventParams?: {
-    event_category?: string;
-    event_label?: string;
-    value?: number;
-    [key: string]: any;
+function logEvent(name: string, props: Record<string, unknown>): void {
+  if (isDev) {
+    console.log(`[Analytics] ${name}`, props);
   }
-) {
-  if (typeof window === 'undefined' || !window.gtag) {
-    // Silently fail if gtag is not available (GA might not be loaded yet or not configured)
-    return;
-  }
-
-  window.gtag('event', eventName, {
-    ...eventParams,
-  });
+  // TODO: PostHog capture
+  // if (window.posthog) window.posthog.capture(name, props);
+  // TODO: GA4
+  // if (window.gtag) window.gtag('event', name, props);
+  // TODO: Mixpanel
+  // if (window.mixpanel) window.mixpanel.track(name, props);
 }
 
-/**
- * Track page view
- * Uses the existing gtag function that should be initialized in HTML <head>
- * Note: GA4 automatically tracks page views, but this can be used for custom page tracking
- */
-export function trackPageView(path: string) {
-  if (typeof window === 'undefined' || !window.gtag) {
-    return;
-  }
-
-  // Track page view using GA4 config (this updates the page_path)
-  window.gtag('config', import.meta.env.VITE_GA_MEASUREMENT_ID || '', {
-    page_path: path,
-    page_title: document.title,
-  });
+/** Emitted when acquisition context is first captured on a landing page */
+export function trackAcquisitionCaptured(props: AcquisitionEventProps): void {
+  logEvent("acquisition_captured", props);
 }
 
+/** Emitted when signup completes (email or OAuth) */
+export function trackSignupCompleted(props: AcquisitionEventProps): void {
+  logEvent("signup_completed", props);
+}
+
+/** Emitted when onboarding is completed */
+export function trackOnboardingCompleted(props: AcquisitionEventProps): void {
+  logEvent("onboarding_completed", props);
+}
+
+/** Initialize Google Analytics (no-op stub - add GA measurement ID to enable) */
+export function initGoogleAnalytics(): void {
+  // TODO: Add GA4 init when measurement ID is configured
+  // if (import.meta.env.VITE_GA_MEASUREMENT_ID) {
+  //   // Load gtag script and init
+  // }
+}

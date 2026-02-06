@@ -637,6 +637,7 @@ export default function Scheduling() {
       
       queryClient.invalidateQueries({ queryKey: ["/api/properties/with-listed-units"] });
       queryClient.invalidateQueries({ queryKey: ["/api/units", variables.unitId, "scheduling"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       toast({
         title: variables.bookingEnabled ? "Booking enabled" : "Booking disabled",
         description: variables.bookingEnabled 
@@ -660,6 +661,7 @@ export default function Scheduling() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/properties/with-listed-units"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties", variables.propertyId, "scheduling-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       toast({
         title: variables.bookingEnabled ? "Property booking enabled" : "Property booking disabled",
         description: variables.bookingEnabled 
@@ -905,6 +907,7 @@ export default function Scheduling() {
       queryClient.invalidateQueries({ queryKey: ["/api/properties/with-listed-units?includeAll=true"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties", propertyId, "scheduling-settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/scheduling-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       toast({
         title: "Booking type deleted",
         description: "Property-level scheduling settings have been removed",

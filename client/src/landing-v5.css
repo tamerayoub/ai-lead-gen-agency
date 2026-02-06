@@ -1,0 +1,142 @@
+.landing-v5 {
+  --lv5-primary: 217 91% 50%;
+  --lv5-primary-foreground: 0 0% 100%;
+  --lv5-accent: 217 91% 60%;
+  --lv5-accent-foreground: 0 0% 100%;
+  --lv5-background: 0 0% 100%;
+  --lv5-foreground: 220 25% 15%;
+  --lv5-card: 0 0% 100%;
+  --lv5-card-foreground: 220 25% 15%;
+  --lv5-secondary: 210 20% 97%;
+  --lv5-secondary-foreground: 220 25% 15%;
+  --lv5-muted: 210 20% 96%;
+  --lv5-muted-foreground: 220 10% 45%;
+  --lv5-border: 220 13% 90%;
+  --lv5-facebook: 214 89% 52%;
+  --lv5-facebook-light: 214 89% 65%;
+  --lv5-facebook-foreground: 0 0% 100%;
+  --lv5-success: 217 91% 45%;
+  --lv5-success-light: 217 91% 95%;
+  --lv5-success-foreground: 0 0% 100%;
+  --lv5-ring: 217 91% 50%;
+
+  --primary: var(--lv5-primary);
+  --primary-foreground: var(--lv5-primary-foreground);
+  --accent: var(--lv5-accent);
+  --accent-foreground: var(--lv5-accent-foreground);
+  --background: var(--lv5-background);
+  --foreground: var(--lv5-foreground);
+  --card: var(--lv5-card);
+  --card-foreground: var(--lv5-card-foreground);
+  --secondary: var(--lv5-secondary);
+  --secondary-foreground: var(--lv5-secondary-foreground);
+  --muted: var(--lv5-muted);
+  --muted-foreground: var(--lv5-muted-foreground);
+  --border: var(--lv5-border);
+  --ring: var(--lv5-ring);
+
+  font-family: 'Inter', sans-serif;
+  color: hsl(var(--lv5-foreground));
+  background-color: hsl(var(--lv5-background));
+}
+
+.landing-v5 .lv5-text-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(217 91% 60%) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-v5 .lv5-bg-gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(217 91% 55%) 100%);
+}
+
+.landing-v5 .lv5-shadow-card {
+  box-shadow: 0 4px 24px -4px hsl(220 25% 15% / 0.08), 0 2px 8px -2px hsl(220 25% 15% / 0.04);
+}
+
+.landing-v5 .lv5-bg-facebook {
+  background-color: hsl(var(--lv5-facebook));
+}
+
+.landing-v5 .lv5-text-facebook {
+  color: hsl(var(--lv5-facebook));
+}
+
+.landing-v5 .lv5-bg-facebook-light-20 {
+  background-color: hsl(var(--lv5-facebook-light) / 0.2);
+}
+
+.landing-v5 .lv5-bg-success {
+  background-color: hsl(var(--lv5-primary));
+}
+
+.landing-v5 .lv5-text-success {
+  color: hsl(var(--lv5-primary));
+}
+
+.landing-v5 .lv5-bg-success-light {
+  background-color: hsl(var(--lv5-primary) / 0.12);
+}
+
+.landing-v5 .lv5-bg-success-light-50 {
+  background-color: hsl(var(--lv5-primary) / 0.08);
+}
+
+.landing-v5 .lv5-text-success-on-dark {
+  color: hsl(var(--lv5-success));
+}
+
+.landing-v5 .lv5-integration-badge {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(var(--lv5-accent)) 100%);
+  box-shadow: 0 0 20px -4px hsl(var(--lv5-primary) / 0.5);
+}
+
+.landing-v5 .lv5-data-particle {
+  box-shadow: 0 4px 12px -2px hsl(0 0% 0% / 0.3);
+}
+
+.landing-v5 .lv5-glow-primary {
+  box-shadow: 0 0 40px -10px hsl(var(--lv5-primary) / 0.5);
+}
+
+.landing-v5 .lv5-glow-accent {
+  box-shadow: 0 0 30px -8px hsl(var(--lv5-accent) / 0.4);
+}
+
+.landing-v5 .lv5-flow-facebook {
+  background: linear-gradient(135deg, hsl(var(--lv5-facebook)) 0%, hsl(var(--lv5-facebook-light)) 100%);
+}
+
+.landing-v5 .lv5-flow-success {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(217 91% 58%) 100%);
+}
+
+.landing-v5 .lv5-flow-success-primary {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(217 91% 45%) 100%);
+}
+
+.landing-v5 .lv5-flow-primary-facebook {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(var(--lv5-facebook)) 100%);
+}
+
+.landing-v5 .lv5-flow-accent-success {
+  background: linear-gradient(135deg, hsl(var(--lv5-accent)) 0%, hsl(var(--lv5-primary)) 100%);
+}
+
+.landing-v5 .lv5-flow-accent-primary {
+  background: linear-gradient(135deg, hsl(var(--lv5-accent)) 0%, hsl(var(--lv5-primary)) 100%);
+}
+
+.landing-v5 .lv5-flow-primary-accent {
+  background: linear-gradient(135deg, hsl(var(--lv5-primary)) 0%, hsl(var(--lv5-accent)) 100%);
+}
+
+@keyframes lv5-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.landing-v5 .lv5-animate-pulse {
+  animation: lv5-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { PublicHeader } from "@/components/PublicHeader";
-import { trackEvent } from "@/lib/analytics";
 import {
   Building2,
   Calendar,
@@ -125,7 +124,6 @@ function Counter({ value, suffix = "" }: { value: number; suffix?: string }) {
 
 function LandingContent() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [timeRemaining, setTimeRemaining] = useState({
     days: 0,
     hours: 0,
@@ -156,7 +154,8 @@ function LandingContent() {
     refetchOnWindowFocus: false,
   });
   
-  const displayPrice = priceData?.formattedAmount || "149.99";
+  const displayPrice = priceData?.formattedAmount || "1999.99";
+  const enterpriseSectionPrice = "1999.99"; // Hardcoded price for Enterprise section
 
   const launchDate = useMemo(() => {
     if (launchDateData?.launchDate) {
@@ -240,8 +239,8 @@ function LandingContent() {
   }, []);
 
 
-  const handleQuickEmailSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
-    e?.preventDefault();
+  const handleDemoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
     if (!demoEmail || !demoEmail.includes("@")) {
       toast({
@@ -255,60 +254,47 @@ function LandingContent() {
     setIsSubmittingDemo(true);
     
     try {
-      // Track Google Analytics event for email submission
-      trackEvent('book_demo_email_submit', {
-        event_category: 'Demo Request',
-        event_label: 'Landing Page Email Input',
-        value: 1,
-      });
-      
-      // Submit quick email collection - saves to database and sends notification to support@lead2lease.ai
-      await apiRequest("POST", "/api/demo-email-quick", {
+      // Submit demo request with email and required defaults
+      // The schema requires firstName, lastName, phone, etc., so we provide defaults
+      await apiRequest("POST", "/api/demo-requests", {
         email: demoEmail,
-      });
-      
-      // Track successful submission
-      trackEvent('book_demo_email_success', {
-        event_category: 'Demo Request',
-        event_label: 'Landing Page Email Input',
-        value: 1,
+        firstName: "Not", // Default value since field is required
+        lastName: "Provided", // Default value since field is required
+        phone: "0000000000", // Default value since field is required
+        countryCode: "+1",
+        company: null, // Optional field
+        unitsUnderManagement: "Not specified", // Default value since field is required
+        managedOrOwned: "Not specified", // Default value since field is required
+        hqLocation: "Not specified", // Default value since field is required
+        currentTools: null, // Optional field
+        agreeTerms: true,
+        agreeMarketing: false,
+        isCurrentCustomer: false,
       });
       
       toast({
-        title: "Email collected!",
-        description: "Redirecting you to complete your demo request...",
+        title: "Demo request submitted!",
+        description: "We'll be in touch soon to schedule your demo.",
       });
       
-      // Close dialog if it's open
       setShowDemoDialog(false);
-      
-      // Redirect to /demo-form with email pre-filled via URL params
-      setLocation(`/demo-form?email=${encodeURIComponent(demoEmail)}`);
-      
-      // Clear email after a short delay to allow redirect
-      setTimeout(() => {
-        setDemoEmail("");
-        setIsSubmittingDemo(false);
-      }, 100);
+      setDemoEmail("");
     } catch (error: any) {
-      console.error("Error submitting email:", error);
       toast({
         title: "Submission failed",
-        description: error.message || "Unable to submit email. Please try again.",
+        description: error.message || "Unable to submit demo request. Please try again.",
         variant: "destructive",
       });
+    } finally {
       setIsSubmittingDemo(false);
     }
-  };
-
-  const handleDemoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await handleQuickEmailSubmit(e);
   };
 
   const handleGetStarted = () => {
     window.location.href = "/onboarding";
   };
+
+  const [, setLocation] = useLocation();
 
   const handleSignIn = () => {
     // Redirect to app subdomain login in production, or /login locally
@@ -345,8 +331,16 @@ function LandingContent() {
   };
 
   const handleSeeItInAction = () => {
-    // Redirect to book demo page
-    setLocation("/demo-form");
+    // Redirect to app subdomain register in production
+    const hostname = window.location.hostname.toLowerCase();
+    const isProductionMarketing = hostname === 'lead2lease.ai' || hostname === 'www.lead2lease.ai';
+    const returnTo = encodeURIComponent("/founding-partner-checkout");
+    
+    if (isProductionMarketing) {
+      window.location.href = `https://app.lead2lease.ai/register?returnTo=${returnTo}`;
+    } else {
+      setLocation(`/register?returnTo=${returnTo}`);
+    }
   };
 
   const scrollToSection = (sectionId: string) => {
@@ -427,7 +421,7 @@ function LandingContent() {
       />
 
       {/* Hero Section - Benefits Focused */}
-      <section className="relative overflow-hidden pt-8 md:pt-12">
+      <section className="relative overflow-hidden pt-20 md:pt-24">
         {/* Background layer that will be blurred under the header */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/15 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
@@ -437,7 +431,7 @@ function LandingContent() {
         </div>
 
         {/* Foreground content must be above the background */}
-        <div className="relative z-10 container mx-auto px-4 md:px-6 pt-4 pb-12 lg:pt-6 lg:pb-16 max-w-full overflow-x-hidden">
+        <div className="relative z-10 container mx-auto px-4 md:px-6 pt-8 pb-12 lg:pt-12 lg:pb-16 max-w-full overflow-x-hidden">
           <motion.div
             className="max-w-5xl mx-auto text-center"
             initial="hidden"
@@ -471,43 +465,35 @@ function LandingContent() {
             variants={fadeInUp}
             className="text-lg lg:text-xl text-gray-600 mb-6 max-w-3xl mx-auto"
           >
-            Lead2Lease is the AI-powered residential leasing platform that is configurable and implemented to your workflow, streamlining your
+            Lead2Lease is the AI-powered residential leasing platform that automates your
             entire property rental pipeline—from first inquiry to signed lease—so you can
             fill property vacancies faster and maximize revenue.
           </motion.p>
-          <div className="flex gap-3 flex-wrap justify-center mb-8 max-w-3xl mx-auto px-4">
-            <div className="w-full sm:flex-1 sm:min-w-0 flex flex-col sm:flex-row items-stretch sm:items-center rounded-xl sm:rounded-2xl overflow-hidden shadow-lg border-2 border-gray-200 focus-within:border-blue-600 focus-within:shadow-xl transition-all duration-300 bg-white">
-              <Input
-                type="email"
-                placeholder="Enter your email"
-                value={demoEmail}
-                onChange={(e) => setDemoEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && demoEmail && demoEmail.includes('@')) {
-                    handleQuickEmailSubmit(e);
-                  }
-                }}
-                disabled={isSubmittingDemo}
-                className="flex-1 h-12 sm:h-14 md:h-16 text-base sm:text-lg border-0 border-r-0 sm:border-r-0 rounded-none px-4 sm:px-6 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent placeholder:text-base sm:placeholder:text-lg md:placeholder:text-xl placeholder:opacity-60"
-                data-testid="input-demo-email-hero"
-              />
+          <div className="flex gap-4 flex-wrap justify-center mb-8">
+            <Button
+              size="lg"
+              onClick={handleBecomeFoundingPartner}
+              data-testid="button-get-started-hero"
+              className="px-6 py-4 text-white hover:opacity-90 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+              style={{ backgroundColor: '#FFDF00' }}
+            >
+              <Crown className="mr-2 h-4 w-4 flex-shrink-0" />
+              <div className="flex flex-col items-center text-center">
+                <span className="text-base font-semibold leading-tight">Get Early Premium Access</span>
+                <span className="text-xs font-normal opacity-90 leading-tight">Become a Founding Partner</span>
+              </div>
+            </Button>
+            <Link href="/book-demo">
               <Button
                 size="lg"
-                data-testid="button-get-started-hero"
-                onClick={handleQuickEmailSubmit}
-                disabled={isSubmittingDemo || !demoEmail || !demoEmail.includes('@')}
-                className="h-12 sm:h-14 md:h-16 px-4 sm:px-6 md:px-8 text-white hover:opacity-90 rounded-none shadow-none transition-all duration-300 font-semibold bg-gradient-to-r from-primary via-blue-600 to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 text-sm sm:text-base md:text-lg"
+                variant="outline"
+                data-testid="button-book-demo-hero"
+                className="bg-blue-50 hover:bg-blue-100 text-blue-600 text-base px-6 py-4 border-2 border-blue-600 rounded-xl transition-all duration-300 font-semibold shadow-sm hover:shadow-md"
               >
-                {isSubmittingDemo ? (
-                  <span className="whitespace-nowrap">Submitting...</span>
-                ) : (
-                  <>
-                    <Calendar className="mr-2 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                    <span className="font-semibold leading-tight whitespace-nowrap">Book a Free Demo</span>
-                  </>
-                )}
+                <Calendar className="mr-2 h-4 w-4" />
+                Schedule a Demo
               </Button>
-            </div>
+            </Link>
           </div>
 
           {/* Key Metrics */}
@@ -646,7 +632,7 @@ function LandingContent() {
           >
             <div className="max-w-6xl mx-auto px-4 overflow-x-hidden">
               <h3 className="text-2xl font-bold text-center mb-8 bg-gradient-to-r from-primary via-blue-600 to-blue-700 bg-clip-text text-transparent">
-                Our AI-Powered Leasing Pipeline
+                Your Complete AI-Powered Leasing Pipeline
               </h3>
               
               {/* Desktop view - Pipeline Flow with arrows */}
@@ -803,18 +789,71 @@ function LandingContent() {
             </div>
           </motion.div>
 
+          {/* Countdown Timer */}
+          <motion.div
+            variants={fadeInUp}
+            className="mb-12"
+          >
+            <Card className="max-w-3xl mx-auto border-2 shadow-lg" style={{ borderColor: 'rgba(255, 223, 0, 0.3)', backgroundColor: 'rgba(255, 223, 0, 0.05)' }}>
+              <CardContent className="p-6">
+                <div className="text-center mb-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-3" style={{ backgroundColor: 'rgba(255, 223, 0, 0.2)', color: '#CCB300' }}>
+                    <Rocket className="h-4 w-4" />
+                    <span className="text-xs font-semibold">Founding Partner Early Access</span>
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2" style={{ color: '#CCB300' }}>
+                    Launch Countdown
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Join now to secure your founding partner access before launch
+                  </p>
+                </div>
+                <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                      {String(timeRemaining.days).padStart(2, '0')}
+                    </div>
+                    <div className="text-xs text-gray-600 uppercase tracking-wide">Days</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                      {String(timeRemaining.hours).padStart(2, '0')}
+                    </div>
+                    <div className="text-xs text-gray-600 uppercase tracking-wide">Hours</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                      {String(timeRemaining.minutes).padStart(2, '0')}
+                    </div>
+                    <div className="text-xs text-gray-600 uppercase tracking-wide">Minutes</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-4xl font-bold mb-1" style={{ color: '#FFDF00' }}>
+                      {String(timeRemaining.seconds).padStart(2, '0')}
+                    </div>
+                    <div className="text-xs text-gray-600 uppercase tracking-wide">Seconds</div>
+                  </div>
+                </div>
+                <div className="text-center mt-6">
+                  <Button
+                    onClick={handleBecomeFoundingPartner}
+                    className="text-white hover:opacity-90"
+                    style={{ backgroundColor: '#FFDF00' }}
+                  >
+                    <Crown className="mr-2 h-4 w-4" />
+                    Get Early Premium Access
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* AI Leasing Agent - The Star Feature */}
-      <section id="ai-leasing-agent" className="py-20 relative overflow-hidden bg-gradient-to-b from-white to-gray-50">
-        {/* Background decorations */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 -right-8 w-72 h-72 bg-sky-400/10 md:bg-sky-400/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-20 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/12 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
-        </div>
-        <div className="container mx-auto px-4 relative z-10">
+      <section id="ai-leasing-agent" className="py-20 relative overflow-hidden">
+        <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20 relative">
             <motion.div
               className="text-center mb-12 relative z-20"
@@ -1157,13 +1196,8 @@ function LandingContent() {
       </section>
 
       {/* CRM Section */}
-      <section id="crm" className="py-20 relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
-        {/* Background decorations */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 -left-8 w-72 h-72 bg-blue-600/8 md:bg-blue-600/12 rounded-full blur-3xl mix-blend-multiply animate-blob"></div>
-          <div className="absolute bottom-20 -right-8 w-72 h-72 bg-pink-300/10 md:bg-pink-300/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-4000"></div>
-        </div>
-        <div className="container mx-auto px-4 relative z-10">
+      <section id="crm" className="py-20">
+        <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20">
             <motion.div
               className="text-center mb-12"
@@ -1321,13 +1355,8 @@ function LandingContent() {
       </section>
 
       {/* Smart Scheduling */}
-      <section id="ai-smart-scheduling" className="py-20 relative overflow-hidden bg-gradient-to-b from-white to-gray-50">
-        {/* Background decorations */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 -right-8 w-72 h-72 bg-sky-400/10 md:bg-sky-400/15 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-20 -left-8 w-72 h-72 bg-primary/5 md:bg-primary/10 rounded-full blur-3xl mix-blend-multiply animate-blob animation-delay-1000"></div>
-        </div>
-        <div className="container mx-auto px-4 relative z-10">
+      <section id="ai-smart-scheduling" className="py-20 relative overflow-hidden">
+        <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto border-t border-gray-200 pt-20 -mt-20 relative">
             <motion.div
               className="text-center mb-12 relative z-20"
@@ -2073,7 +2102,7 @@ function LandingContent() {
         </div>
       </section>
 
-      {false && (
+      {/* Founding Partner Membership */}
       <section className="py-6 md:py-8 lg:py-20 bg-gradient-to-b from-white to-gray-50 overflow-x-hidden" data-testid="section-founding-partner">
         <div className="container mx-auto px-3 md:px-4 w-full max-w-full overflow-x-hidden">
           <div className="max-w-6xl mx-auto w-full overflow-x-hidden">
@@ -2404,7 +2433,7 @@ function LandingContent() {
                         Get Enterprise-Level Customization Without the Enterprise Price Tag
                       </h3>
                         <p className="text-sm md:text-base text-gray-700 font-medium">
-                          Building a custom AI leasing solution costs hundreds of thousands. Lead2Lease delivers that same tailored experience for just <span className="font-bold text-primary">${displayPrice}/mo</span>.
+                          Building a custom AI leasing solution costs hundreds of thousands. Lead2Lease delivers that same tailored experience for just <span className="font-bold text-primary">${enterpriseSectionPrice}</span>.
                       </p>
                       </div>
                       
@@ -2458,7 +2487,7 @@ function LandingContent() {
                           <div className="space-y-2 text-xs md:text-sm lg:text-base">
                             <div className="flex items-start gap-2 p-2 rounded min-w-0" style={{ backgroundColor: 'rgba(255, 223, 0, 0.15)' }}>
                               <span className="text-green-600 mt-0.5 font-bold flex-shrink-0">✓</span>
-                              <span className="flex-1 text-gray-800 font-semibold break-words">${displayPrice}/mo</span>
+                              <span className="flex-1 text-gray-800 font-semibold break-words">${enterpriseSectionPrice}</span>
                             </div>
                             <div className="flex items-start gap-2 p-2 rounded min-w-0" style={{ backgroundColor: 'rgba(255, 223, 0, 0.15)' }}>
                               <span className="text-green-600 mt-0.5 font-bold flex-shrink-0">✓</span>
@@ -2471,10 +2500,6 @@ function LandingContent() {
                             <div className="flex items-start gap-2 p-2 rounded min-w-0" style={{ backgroundColor: 'rgba(255, 223, 0, 0.15)' }}>
                               <span className="text-green-600 mt-0.5 font-bold flex-shrink-0">✓</span>
                               <span className="flex-1 text-gray-800 font-semibold break-words">No tech expertise</span>
-                            </div>
-                            <div className="flex items-start gap-2 p-2 rounded min-w-0" style={{ backgroundColor: 'rgba(255, 223, 0, 0.15)' }}>
-                              <span className="text-green-600 mt-0.5 font-bold flex-shrink-0">✓</span>
-                              <span className="flex-1 text-gray-800 font-semibold break-words">Proven platform</span>
                             </div>
                           </div>
                         </div>
@@ -2503,10 +2528,13 @@ function LandingContent() {
                         <span>Founding Partner</span>
                       </CardTitle>
                       <div className="mt-1">
-                        <span className="text-2xl md:text-3xl font-bold">${displayPrice}</span>
+                        <span className="text-2xl md:text-3xl font-bold">${enterpriseSectionPrice}</span>
                         <span className="ml-1 opacity-90 text-xs md:text-sm">upfront payment</span>
                       </div>
                       <p className="text-[10px] md:text-xs mt-1 opacity-90">Monthly recurring begins post-launch</p>
+                      <div className="mt-2 px-2 py-1 rounded-md bg-white/20 backdrop-blur-sm border border-white/30">
+                        <p className="text-xs md:text-sm font-bold text-white text-center">Money back guarantee</p>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-3 md:p-4 space-y-3">
                       <div className="space-y-3 md:space-y-4">
@@ -2538,7 +2566,6 @@ function LandingContent() {
           </div>
         </div>
       </section>
-      )}
 
       {/* Final CTA */}
       <section className="py-20">
@@ -2561,7 +2588,7 @@ function LandingContent() {
                 reducing vacancy costs by 40%.
               </p>
               <div className="flex gap-4 flex-wrap justify-center mb-8">
-                <Link href="/demo-form">
+                <Link href="/book-demo">
                   <Button
                     size="lg"
                     variant="outline"
@@ -2575,105 +2602,6 @@ function LandingContent() {
             </div>
           </Card>
           </motion.div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-8 md:py-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 md:mb-8 px-2">Frequently Asked Questions</h2>
-            <div className="space-y-4 md:space-y-6">
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">What payment methods do you accept?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    We accept all major credit cards and debit cards through Stripe. Your payment information 
-                    is securely processed and never stored on our servers.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">How is pricing determined?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    Design partner pricing is based on:
-                  </p>
-                  <ul className="text-sm md:text-base text-gray-600 mt-2 list-disc list-inside space-y-1">
-                    <li>Portfolio size</li>
-                    <li>Operational complexity</li>
-                    <li>Required capabilities</li>
-                    <li>Level of collaboration</li>
-                  </ul>
-                  <p className="text-sm md:text-base text-gray-600 mt-2">
-                    For this reason, pricing is discussed individually rather than published publicly.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">Will features configured for our business be exclusive to us?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    Lead2Lease does not sell permanent feature exclusivity.
-                  </p>
-                  <p className="text-sm md:text-base text-gray-600 mt-2">
-                    Capabilities configured or prioritized for your workflow become part of the core platform so they can be supported, improved, and maintained long-term.
-                  </p>
-                  <p className="text-sm md:text-base text-gray-600 mt-2">
-                    This ensures reliability, upgrades, and continued innovation for all customers.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">Why not offer exclusivity?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    Permanent exclusivity usually requires fully custom development and long-term maintenance, which significantly increases cost and risk.
-                  </p>
-                  <p className="text-sm md:text-base text-gray-600 mt-2">
-                    Lead2Lease provides the benefits of tailored automation — without the overhead, lock-in, or fragility of custom-built systems.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">Who is Lead2Lease best suited for?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    Lead2Lease is ideal for property managers and operators who:
-                  </p>
-                  <ul className="text-sm md:text-base text-gray-600 mt-2 list-disc list-inside space-y-1">
-                    <li>Actively manage leasing workflows</li>
-                    <li>Handle consistent lead volume</li>
-                    <li>Want to reduce vacancy time</li>
-                    <li>Need automation without adding headcount</li>
-                  </ul>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="px-4 md:px-6 pt-4 md:pt-6">
-                  <CardTitle className="text-base md:text-lg">What happens if Lead2Lease isn't a fit long-term?</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
-                  <p className="text-sm md:text-base text-gray-600">
-                    There is no obligation beyond agreed terms.
-                  </p>
-                  <p className="text-sm md:text-base text-gray-600 mt-2">
-                    Our goal is to deliver real operational value — if the platform is not a fit, customers are not locked into long-term commitments by default.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -2723,7 +2651,7 @@ function LandingContent() {
                       Login
                     </button>
                   </li>
-                  {/* <li>
+                  <li>
                     <button
                       onClick={() => {
                         const hostname = window.location.hostname.toLowerCase();
@@ -2739,7 +2667,15 @@ function LandingContent() {
                     >
                       Sign Up
                     </button>
-                  </li> */}
+                  </li>
+                  <li>
+                    <button
+                      onClick={handleBecomeFoundingPartner}
+                      className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      Get Early Access
+                    </button>
+                  </li>
                 </ul>
               </div>
 
@@ -2749,7 +2685,7 @@ function LandingContent() {
                 <ul className="space-y-2 text-sm">
                   <li>
                     <Link
-                      href="/demo-form"
+                      href="/book-demo"
                       className="text-muted-foreground hover:text-foreground transition-colors"
                     >
                       Book Demo
@@ -2867,7 +2803,7 @@ function LandingContent() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmittingDemo || !demoEmail || !demoEmail.includes("@")}
+                disabled={isSubmittingDemo || !demoEmail}
                 className="flex-1 text-white bg-gradient-to-r from-primary via-blue-600 to-blue-700 hover:opacity-90"
               >
                 {isSubmittingDemo ? "Submitting..." : "Book Demo"}

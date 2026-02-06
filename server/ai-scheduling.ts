@@ -335,13 +335,9 @@ export function suggestTimeSlots(
     }).filter((id): id is string => id !== null));
   }
   
-  // If we have assigned members but no preferences, log a warning but continue
+  // If we have assigned members but no preferences, return early (no need to log - caller should filter days)
   // (The function will still work for members WITH preferences)
   if (assignedMemberIds.length > 0 && dayPreferences.length === 0) {
-    console.warn(`[suggestTimeSlots] ⚠️ WARNING: ${assignedMemberIds.length} assigned members but NO schedule preferences for ${dayOfWeek}`);
-    console.warn(`[suggestTimeSlots] Assigned members:`, assignedMemberIds);
-    console.warn(`[suggestTimeSlots] This means NO time slots will be generated for this day`);
-    console.warn(`[suggestTimeSlots] Members need schedule preferences set up to generate available time slots`);
     return suggestions; // No preferences for this day
   }
   

@@ -332,7 +332,9 @@ Powered by Lead2Lease
 export class ReminderScheduler {
   private intervalId: NodeJS.Timeout | null = null;
   private isProcessing: boolean = false;
-  private checkIntervalMs: number = 60 * 1000; // Check every 1 minute
+  // OPTIMIZED: Increased interval from 60s to 120s (2 minutes) to reduce resource contention
+  // Reminders are still timely, but reduces database/CPU load
+  private checkIntervalMs: number = 120 * 1000; // Check every 2 minutes (was 1 minute)
 
   constructor(checkIntervalMs?: number) {
     if (checkIntervalMs) {

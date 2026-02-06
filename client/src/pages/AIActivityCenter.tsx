@@ -1,9 +1,10 @@
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Phone, Mail, MessageSquare, Search, Filter, CheckCircle, Clock, XCircle } from "lucide-react";
+import { Bot, Phone, Mail, MessageSquare, Search, Filter, CheckCircle, Clock, XCircle, MessageCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { format, isToday, differenceInDays, parseISO } from "date-fns";
@@ -49,19 +50,21 @@ interface Activity {
   aiGenerated: boolean;
 }
 
-const channelIcons = {
+const channelIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   email: Mail,
   sms: MessageSquare,
   phone: Phone,
+  facebook: MessageCircle, // Fallback for Facebook channel
 };
 
-const channelColors = {
+const channelColors: Record<string, string> = {
   email: "bg-blue-500/10 text-blue-500",
   sms: "bg-green-500/10 text-green-500",
   phone: "bg-blue-500/10 text-blue-500",
+  facebook: "bg-blue-600/10 text-blue-600", // Fallback for Facebook channel
 };
 
-const statusIcons = {
+const statusIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   success: CheckCircle,
   pending: Clock,
   failed: XCircle,
@@ -96,14 +99,15 @@ export default function AIActivityCenter() {
   const phoneActivities = filteredActivities.filter(a => a.channel === "phone");
 
   const ActivityCard = ({ activity }: { activity: Activity }) => {
-    const ChannelIcon = channelIcons[activity.channel];
-    const StatusIcon = statusIcons[activity.status];
+    const ChannelIcon = channelIcons[activity.channel] || MessageCircle;
+    const StatusIcon = statusIcons[activity.status] || Clock;
+    const channelColor = channelColors[activity.channel] || "bg-gray-500/10 text-gray-500";
     
     return (
       <Card className="hover-elevate" data-testid={`activity-${activity.id}`}>
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${channelColors[activity.channel]}`}>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md ${channelColor}`}>
               <ChannelIcon className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0 space-y-2">

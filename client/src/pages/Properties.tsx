@@ -230,8 +230,6 @@ export default function Properties() {
             name={property.name}
             address={property.address}
             units={property.units}
-            occupancy={property.occupancy}
-            monthlyRevenue={property.monthlyRevenue}
             activeLeads={property.activeLeads}
             conversionRate={property.conversionRate}
             coverPhoto={property.coverPhoto}

@@ -615,7 +615,7 @@ export default function ShowingDetailSheet({
                     Reschedule
                   </Button>
                 )}
-                {showing.leadId && (
+                {/* {showing.leadId && (
                   <Button
                     type="button"
                     variant="outline"
@@ -632,7 +632,7 @@ export default function ShowingDetailSheet({
                     <Send className="h-4 w-4 mr-2" />
                     Send Application
                   </Button>
-                )}
+                )} */}
                 {showing.status !== "cancelled" && (
                   <Button
                     type="button"
@@ -662,7 +662,7 @@ export default function ShowingDetailSheet({
                   >
                     Details
                   </Button>
-                  <Button
+                  {/* <Button
                     type="button"
                     variant={activeSection === "questions" ? "secondary" : "ghost"}
                     size="sm"
@@ -670,7 +670,7 @@ export default function ShowingDetailSheet({
                     className="text-xs"
                   >
                     Questions
-                  </Button>
+                  </Button> */}
                   <Button
                     type="button"
                     variant={activeSection === "notes" ? "secondary" : "ghost"}
@@ -811,11 +811,11 @@ export default function ShowingDetailSheet({
                 </div>
               )}
 
-              {activeSection === "questions" && (
+              {/* {activeSection === "questions" && (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground">Questions section - Coming soon</p>
                 </div>
-              )}
+              )} */}
 
               {activeSection === "notes" && (
                 <div className="space-y-4">

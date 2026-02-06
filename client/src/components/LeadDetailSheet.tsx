@@ -629,6 +629,7 @@ export function LeadDetailSheet({ open, onOpenChange, lead, onExpand }: LeadDeta
                 leadName={lead.name}
                 onRetryMessage={handleRetryMessage}
                 onDeleteMessage={handleDeleteMessage}
+                leadMetadata={(lead as any).metadata || null}
               />
               <div ref={conversationEndRef} />
             </TabsContent>

@@ -155,15 +155,37 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      
+      // Only log response body for small responses to avoid performance overhead
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        try {
+          const responseStr = JSON.stringify(capturedJsonResponse);
+          // Only include response in log if it's small (under 200 chars) to avoid performance hit
+          if (responseStr.length < 200) {
+            logLine += ` :: ${responseStr}`;
+          } else {
+            // For large responses, just show a summary
+            const responseType = Array.isArray(capturedJsonResponse) 
+              ? `[Array(${capturedJsonResponse.length})]`
+              : typeof capturedJsonResponse === 'object'
+              ? `[Object]`
+              : `[${typeof capturedJsonResponse}]`;
+            logLine += ` :: ${responseType}`;
+          }
+        } catch (e) {
+          // If stringify fails, skip it
+        }
       }
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      // Truncate very long paths
+      if (logLine.length > 150) {
+        logLine = logLine.slice(0, 149) + "…";
       }
 
-      log(logLine);
+      // Only log slow requests or errors to reduce log noise
+      if (duration > 1000 || res.statusCode >= 400) {
+        log(logLine);
+      }
     }
   });
 
@@ -193,10 +215,32 @@ async function initStripe() {
     );
     console.log(`[Stripe] Webhook configured: ${webhook.url} (UUID: ${uuid})`);
 
-    console.log('[Stripe] Syncing data in background...');
-    stripeSync.syncBackfill()
-      .then(() => console.log('[Stripe] Data sync complete'))
-      .catch((err: any) => console.error('[Stripe] Sync error:', err));
+    // Run data sync in background with better error handling for missing resources
+    // Delay sync to not impact startup performance
+    setTimeout(() => {
+      console.log('[Stripe] Syncing data in background...');
+      stripeSync.syncBackfill()
+        .then(() => console.log('[Stripe] Data sync complete'))
+        .catch((err: any) => {
+          // OPTIMIZED: Only log non-critical errors (missing customers/subscriptions are expected in test mode)
+          const errorMessage = err?.message || '';
+          const errorCode = err?.code || '';
+          const isResourceMissing = errorMessage.includes('No such customer') || 
+                                   errorMessage.includes('No such subscription') ||
+                                   errorCode === 'resource_missing';
+          
+          if (isResourceMissing) {
+            // These are expected errors (test mode data in live mode, deleted resources, etc.)
+            // Only log in development to reduce noise
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[Stripe] Sync skipped missing resource: ${errorMessage}`);
+            }
+          } else {
+            // Log actual errors
+            console.error('[Stripe] Sync error:', err?.message || err);
+          }
+        });
+    }, 10000); // Delay 10 seconds after startup to reduce resource contention
   } catch (error) {
     console.error('[Stripe] Initialization error:', error);
   }
@@ -204,8 +248,11 @@ async function initStripe() {
 
 (async () => {
   try {
-    // Initialize Stripe before routes
-    await initStripe();
+    // Initialize Stripe in background (non-blocking) so server starts faster
+    // This prevents slow startup times from Stripe webhook setup and migrations
+    initStripe().catch((err) => {
+      console.error('[Server] Stripe initialization error (non-blocking):', err);
+    });
 
     const server = await registerRoutes(app);
 
@@ -267,11 +314,18 @@ async function initStripe() {
         log(`serving on port ${port}`);
 
         // Start Gmail scanner for periodic lead detection
+        // TEMPORARILY DISABLED: Commented out to reduce server load
+        // Gmail Scanner was running every 5 minutes, scanning 4 organizations,
+        // processing 50 messages per org (200 total), causing heavy CPU and database load
+        // To re-enable: Uncomment the code below
+        /*
         try {
           gmailScanner.start();
         } catch (error) {
           console.error("[Server] Error starting Gmail scanner:", error);
         }
+        */
+        console.log("[Server] Gmail Scanner is currently disabled (commented out)");
 
         // Start calendar auto-sync for periodic calendar syncing
         try {

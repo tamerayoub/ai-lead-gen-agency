@@ -7,6 +7,7 @@ This project can be run in both **Cursor** (local development) and **Replit** (c
 Replit automatically manages environment variables through its Secrets pane, so no `.env` file is needed.
 
 **Command:**
+
 ```bash
 npm run dev
 ```
@@ -14,6 +15,7 @@ npm run dev
 This runs: `NODE_ENV=development tsx server/index.ts`
 
 ### Setting Environment Variables in Replit:
+
 1. Click on the "Secrets" icon in the left sidebar (🔒)
 2. Add your environment variables as key-value pairs
 3. They'll be automatically available to the application
@@ -23,6 +25,7 @@ This runs: `NODE_ENV=development tsx server/index.ts`
 Cursor requires a `.env` file to load environment variables.
 
 **Command:**
+
 ```bash
 npm run dev:cursor
 ```
@@ -30,6 +33,7 @@ npm run dev:cursor
 This runs: `dotenv-cli -e .env -- tsx server/index.ts`
 
 ### Setting Environment Variables in Cursor:
+
 1. Create a `.env` file in the root directory
 2. Add your environment variables:
    ```env
@@ -41,24 +45,26 @@ This runs: `dotenv-cli -e .env -- tsx server/index.ts`
 
 ## Available Scripts
 
-| Script | Environment | Description |
-|--------|-------------|-------------|
-| `npm run dev` | **Replit** | Start the app in Replit (uses Replit Secrets) |
-| `npm run dev:cursor` | **Cursor** | Start the app in Cursor (uses .env file) |
-| `npm run build` | Both | Build the production bundle |
-| `npm start` | Both | Run the production build |
-| `npm run check` | Both | Run TypeScript type checking |
-| `npm run db:push` | Both | Push database schema changes |
+| Script               | Environment | Description                                   |
+| -------------------- | ----------- | --------------------------------------------- |
+| `npm run dev`        | **Replit**  | Start the app in Replit (uses Replit Secrets) |
+| `npm run dev:cursor` | **Cursor**  | Start the app in Cursor (uses .env file)      |
+| `npm run build`      | Both        | Build the production bundle                   |
+| `npm start`          | Both        | Run the production build                      |
+| `npm run check`      | Both        | Run TypeScript type checking                  |
+| `npm run db:push`    | Both        | Push database schema changes                  |
 
 ## Key Differences
 
 ### Replit:
+
 - ✅ Environment variables managed through Secrets UI
 - ✅ No `.env` file needed
 - ✅ Automatic deployment and hosting
 - ✅ Built-in database integration
 
 ### Cursor:
+
 - ✅ Uses `.env` file for environment variables
 - ✅ Full local development control
 - ✅ Works offline
@@ -67,6 +73,7 @@ This runs: `dotenv-cli -e .env -- tsx server/index.ts`
 ## Quick Start
 
 ### First Time Setup (Cursor):
+
 ```bash
 # 1. Install dependencies
 npm install
@@ -82,6 +89,7 @@ npm run dev:cursor
 ```
 
 ### First Time Setup (Replit):
+
 ```bash
 # 1. Dependencies are auto-installed
 # 2. Set environment variables in Secrets pane
@@ -92,10 +100,27 @@ npm run dev
 ## Troubleshooting
 
 **Error: `dotenv: not found` in Replit**
+
 - Solution: Use `npm run dev` instead of `npm run dev:cursor`
 
 **Error: Environment variables not loading in Cursor**
+
 - Solution: Ensure `.env` file exists and use `npm run dev:cursor`
 
 **Error: `dotenv-cli: not found` in Cursor**
+
 - Solution: Run `npm install` to install all dependencies
+
+## Facebook Marketplace Integration (Secure Auth)
+
+Facebook credentials are stored in Azure Key Vault. Session state is encrypted in the database.
+
+**Required environment variables:**
+
+- `KEY_VAULT_URI` – Azure Key Vault URI (e.g. `https://lead2lease-kv.vault.azure.net/`)
+- `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID` – Azure service principal
+- `ENCRYPTION_KEY` – Min 32 chars, for encrypting storageState in DB (AES-256-GCM)
+
+**Optional:**
+
+- `ALLOW_HARD_LOGIN_FALLBACK` – If `true`, allows plaintext credential fallback when Key Vault is unavailable (not recommended for production)

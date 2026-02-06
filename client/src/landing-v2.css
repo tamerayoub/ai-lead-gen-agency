@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+.landing-v2 {
+  --background: 210 20% 98%;
+  --foreground: 220 25% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 25% 10%;
+  --primary: 173 58% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 25% 10%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 10% 46%;
+  --accent: 15 90% 60%;
+  --accent-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 173 58% 39%;
+  --radius: 0.75rem;
+
+  --gradient-hero: linear-gradient(135deg, hsl(173 58% 39%) 0%, hsl(200 70% 35%) 100%);
+  --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 98%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(15 90% 60%) 0%, hsl(25 95% 55%) 100%);
+  --shadow-soft: 0 4px 20px -4px hsl(220 25% 10% / 0.08);
+  --shadow-card: 0 8px 30px -8px hsl(220 25% 10% / 0.12);
+  --shadow-glow: 0 0 40px -10px hsl(173 58% 39% / 0.4);
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+.landing-v2 {
+  font-family: var(--font-body);
+}
+
+.landing-v2 h1,
+.landing-v2 h2,
+.landing-v2 h3,
+.landing-v2 h4,
+.landing-v2 h5,
+.landing-v2 h6 {
+  font-family: var(--font-display);
+}
+
+.landing-v2 .font-display {
+  font-family: var(--font-display);
+}
+
+.landing-v2 .font-heading {
+  font-family: var(--font-display);
+}
+
+.landing-v2 .text-gradient {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: var(--gradient-hero);
+}
+
+.landing-v2 .bg-hero-gradient {
+  background: var(--gradient-hero);
+}
+
+.landing-v2 .bg-card-gradient {
+  background: var(--gradient-card);
+}
+
+.landing-v2 .bg-accent-gradient {
+  background: var(--gradient-accent);
+}
+
+.landing-v2 .shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.landing-v2 .shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.landing-v2 .shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.landing-v2 .animate-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+.landing-v2 .animate-pulse-slow {
+  animation: pulse 4s ease-in-out infinite;
+}
+
+.landing-v2 .animate-slide-up {
+  animation: landing-slideUp 0.6s ease-out forwards;
+}
+
+.landing-v2 .animate-fade-in {
+  animation: landing-fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes landing-slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

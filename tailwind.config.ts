@@ -86,11 +86,20 @@ export default {
           danger: "hsl(0 72% 51%)",
           info: "hsl(210 100% 56%)",
         },
+        brand: {
+          DEFAULT: "hsl(var(--brand, 217 91% 50%) / <alpha-value>)",
+          dark: "hsl(var(--brand-dark, 217 91% 38%) / <alpha-value>)",
+          light: "hsl(var(--brand-light, 217 91% 60%) / <alpha-value>)",
+          glow: "hsl(var(--brand-glow, 217 91% 70%) / <alpha-value>)",
+          surface: "hsl(var(--brand-surface, 217 60% 97%) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+        display: ["'Space Grotesk'", "sans-serif"],
+        body: ["'Inter'", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
@@ -125,6 +134,9 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         blob: "blob 7s infinite",
         marquee: "marquee 20s linear infinite",
+      },
+      boxShadow: {
+        glow: "0 0 40px -10px hsl(173 58% 39% / 0.4)",
       },
     },
   },

@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Building2, Home } from "lucide-react";
+import { Loader2, Building2, Home, AlertCircle } from "lucide-react";
 
 interface BookingTypeCreateDialogProps {
   open: boolean;
@@ -30,6 +30,7 @@ export default function BookingTypeCreateDialog({
     name: string;
     address: string;
     bookingEnabled?: boolean;
+    hasListingsWithBookingsDisabled?: boolean;
     listedUnits: Array<{
       id: string;
       unitNumber: string;
@@ -44,7 +45,9 @@ export default function BookingTypeCreateDialog({
     queryKey: ["/api/properties/with-listed-units?includeAll=true"],
   });
 
-  const selectedProperty = propertiesWithListedUnits.find(p => p.id === selectedPropertyId);
+  // Allow all properties with listed units - booking type can be created even when accept bookings is off (it will be disabled)
+  const availableProperties = propertiesWithListedUnits;
+  const selectedProperty = availableProperties.find(p => p.id === selectedPropertyId);
 
   // Filter units: available units are those without a booking type
   const availableUnits = selectedProperty?.listedUnits.filter(unit => !unit.bookingTypeName) || [];
@@ -102,17 +105,31 @@ export default function BookingTypeCreateDialog({
             Create Booking Type
           </DialogTitle>
           <DialogDescription>
-            Select a property and choose which units this booking type will apply to
+            Select a property and choose which units this booking type will apply to. Note: Apartments/units must be listed before booking event types can be created.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Info Message */}
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+            <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-blue-800 dark:text-blue-300">
+              <strong>Important:</strong> Apartments/units must be listed before booking event types can be created. Go to <strong>Leasing → Listings</strong> to create listings for your units first.
+            </p>
+          </div>
+
           {/* Property Selection */}
           <div className="space-y-2">
             <Label htmlFor="property-select">Property</Label>
             {propertiesLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : availableProperties.length === 0 ? (
+              <div className="p-4 border border-dashed rounded-md bg-muted/30 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No properties with listed units found. Please create listings for your units first in Leasing → Listings.
+                </p>
               </div>
             ) : (
               <Select
@@ -127,12 +144,13 @@ export default function BookingTypeCreateDialog({
                   <SelectValue placeholder="Select a property" />
                 </SelectTrigger>
                 <SelectContent>
-                  {propertiesWithListedUnits.map((property) => (
+                  {availableProperties.map((property) => (
                     <SelectItem key={property.id} value={property.id}>
                       <div className="flex flex-col">
                         <span className="font-medium">{property.name}</span>
                         <span className="text-xs text-muted-foreground">
                           {property.address} • {property.listedUnits.length} {property.listedUnits.length === 1 ? 'unit' : 'units'}
+                          {property.hasListingsWithBookingsDisabled ? ' • Booking will be disabled until Accept Bookings is on' : ''}
                         </span>
                       </div>
                     </SelectItem>

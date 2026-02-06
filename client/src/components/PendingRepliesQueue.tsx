@@ -2,10 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, XCircle, Mail, MessageSquare, Phone, Edit, Send, RefreshCw } from "lucide-react";
+import { CheckCircle, XCircle, Mail, MessageSquare, Phone, Edit, Send, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +29,9 @@ export function PendingRepliesQueue() {
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState("");
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState("");
 
   const { data: pendingReplies = [] } = useQuery<PendingReply[]>({
     queryKey: ["/api/pending-replies"],
@@ -74,9 +80,55 @@ export function PendingRepliesQueue() {
     setEditedContent(reply.content);
   };
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ replyId, content }: { replyId: string; content: string }) => {
+      return apiRequest("PATCH", `/api/pending-replies/${replyId}`, { content });
+    },
+    onSuccess: () => {
+      toast({ title: "Reply updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/pending-replies"] });
+      setEditingId(null);
+    },
+    onError: () => {
+      toast({ title: "Failed to update reply", variant: "destructive" });
+    },
+  });
+
   const handleSaveEdit = (reply: PendingReply) => {
-    // TODO: Implement update endpoint
-    setEditingId(null);
+    updateMutation.mutate({ replyId: reply.id, content: editedContent });
+  };
+
+  const regenerateMutation = useMutation({
+    mutationFn: async ({ replyId, feedback }: { replyId: string; feedback: string }) => {
+      const response = await apiRequest("POST", `/api/pending-replies/${replyId}/regenerate`, { feedback });
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Reply regenerated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/pending-replies"] });
+      setRegenerateDialogOpen(false);
+      setRegenerateFeedback("");
+      setRegeneratingId(null);
+    },
+    onError: (error: any) => {
+      console.error("Regenerate error:", error);
+      toast({ 
+        title: "Failed to regenerate reply",
+        description: error?.message || "An error occurred while regenerating the reply",
+        variant: "destructive" 
+      });
+      setRegenerateDialogOpen(false);
+      setRegeneratingId(null);
+    },
+  });
+
+  const handleRegenerate = (reply: PendingReply) => {
+    setRegeneratingId(reply.id);
+    setRegenerateDialogOpen(true);
+  };
+
+  const handleConfirmRegenerate = (reply: PendingReply) => {
+    regenerateMutation.mutate({ replyId: reply.id, feedback: regenerateFeedback });
   };
 
   const pendingCount = pendingReplies.filter(r => r.status === 'pending').length;
@@ -219,6 +271,16 @@ export function PendingRepliesQueue() {
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline"
+                              onClick={() => handleRegenerate(reply)}
+                              disabled={regenerateMutation.isPending}
+                              data-testid={`button-regenerate-${reply.id}`}
+                            >
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Regenerate
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="destructive"
                               onClick={() => rejectMutation.mutate(reply.id)}
                               disabled={rejectMutation.isPending}
@@ -238,6 +300,75 @@ export function PendingRepliesQueue() {
           </ScrollArea>
         )}
       </CardContent>
+
+      {/* Regenerate Dialog */}
+      <Dialog open={regenerateDialogOpen} onOpenChange={(open) => {
+        setRegenerateDialogOpen(open);
+        if (!open) {
+          setRegeneratingId(null);
+          setRegenerateFeedback("");
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regenerate AI Reply</DialogTitle>
+            <DialogDescription>
+              Provide feedback to improve the AI response. Examples: "shorter", "more friendly", "add pricing details", "more professional"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="feedback">Feedback (optional)</Label>
+              <Input
+                id="feedback"
+                placeholder="e.g., shorter, more friendly, add pricing details"
+                value={regenerateFeedback}
+                onChange={(e) => setRegenerateFeedback(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    const reply = pendingReplies.find(r => r.id === regeneratingId);
+                    if (reply) handleConfirmRegenerate(reply);
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave empty to regenerate with the same information but improved wording
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRegenerateDialogOpen(false);
+                setRegeneratingId(null);
+                setRegenerateFeedback("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const reply = pendingReplies.find(r => r.id === regeneratingId);
+                if (reply) handleConfirmRegenerate(reply);
+              }}
+              disabled={regenerateMutation.isPending}
+            >
+              {regenerateMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Regenerate
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -14,12 +14,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SiGoogle, SiZillow, SiMeta, SiFacebook } from "react-icons/si";
-import { Mail, Building2, CheckCircle2, Settings as SettingsIcon, RefreshCw, XCircle, AlertCircle, Info, Phone, MessageSquare, FileSpreadsheet, Home } from "lucide-react";
+import { Key } from "lucide-react";
+import { Mail, Building2, CheckCircle2, Settings as SettingsIcon, RefreshCw, XCircle, AlertCircle, Info, Phone, MessageSquare, FileSpreadsheet, Home, Eye, EyeOff, Send } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useSyncProgress } from "@/hooks/useSyncProgress";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 
 interface Integration {
   id: string;
@@ -33,6 +37,7 @@ interface Integration {
 
 export default function Integrations() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [showSyncLogs, setShowSyncLogs] = useState(false);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showStopSyncDialog, setShowStopSyncDialog] = useState(false);
@@ -44,6 +49,15 @@ export default function Integrations() {
   const [messengerVerifyToken, setMessengerVerifyToken] = useState("");
   const [messengerPageName, setMessengerPageName] = useState("");
   const [messengerPageId, setMessengerPageId] = useState("");
+  const [showFacebookMarketplaceConfigDialog, setShowFacebookMarketplaceConfigDialog] = useState(false);
+  const [showFacebookMarketplaceDisconnectDialog, setShowFacebookMarketplaceDisconnectDialog] = useState(false);
+  const [facebookMarketplaceEmail, setFacebookMarketplaceEmail] = useState("");
+  const [facebookMarketplacePassword, setFacebookMarketplacePassword] = useState("");
+  const [showFacebookMarketplacePassword, setShowFacebookMarketplacePassword] = useState(false);
+  const [isTestingFacebookMarketplace, setIsTestingFacebookMarketplace] = useState(false);
+  const [facebookMarketplaceTestStatus, setFacebookMarketplaceTestStatus] = useState<"success" | "failed" | null>(null);
+  const [isRunningMessagePolling, setIsRunningMessagePolling] = useState(false);
+  const [pollingPid, setPollingPid] = useState<number | null>(null);
   const [userClosedLogs, setUserClosedLogs] = useState(false);
   const [isConnectingGmail, setIsConnectingGmail] = useState(false);
   const [isConnectingOutlook, setIsConnectingOutlook] = useState(false);
@@ -260,7 +274,101 @@ export default function Integrations() {
     0
   );
 
-  const integrations: Integration[] = [
+  const { data: apiConnectorStatus } = useQuery<any>({
+    queryKey: ["/api/integrations/api-connector/status"],
+  });
+
+  const { data: facebookMarketplaceConfig, isLoading: facebookMarketplaceLoading, isFetching: facebookMarketplaceFetching, refetch: refetchFacebookMarketplace } = useQuery<any>({ 
+    queryKey: ["/api/integrations/facebook/status"],
+    queryFn: async () => {
+      console.log('[Facebook Marketplace Query NEW] ===== Fetching from NEW API =====');
+      console.log('[Facebook Marketplace Query NEW] Timestamp:', new Date().toISOString());
+      const response = await fetch(`/api/integrations/facebook/status`, { 
+        credentials: "include",
+      });
+      console.log('[Facebook Marketplace Query NEW] Response status:', response.status);
+      if (!response.ok) {
+        if (response.status === 404 || response.status === 400) {
+          console.log('[Facebook Marketplace Query NEW] No status found - returning { connected: false }');
+          return { connected: false, isActive: false };
+        }
+        throw new Error("Failed to fetch");
+      }
+      const data = await response.json();
+      console.log('[Facebook Marketplace Query] API response data:', JSON.stringify(data, null, 2));
+      console.log('[Facebook Marketplace Query] Data.connected:', data.connected);
+      console.log('[Facebook Marketplace Query] Data.isActive:', data.isActive);
+      console.log('[Facebook Marketplace Query] ===== Fetch complete =====');
+      return data;
+    },
+    staleTime: 0, // Always consider stale - refetch when needed
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes (renamed from cacheTime)
+    refetchOnMount: true, // Always refetch on mount to get fresh data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnReconnect: false, // Don't refetch on reconnect
+    retry: 1,
+    retryDelay: 1000,
+  });
+
+  // Only consider connected if we have data AND it's not loading/fetching
+  // This prevents showing "not connected" during initial load
+  const isFacebookMarketplaceConnected = Boolean(
+    !facebookMarketplaceLoading && 
+    !facebookMarketplaceFetching &&
+    facebookMarketplaceConfig && 
+    facebookMarketplaceConfig.connected === true && 
+    facebookMarketplaceConfig.isActive !== false
+  );
+  
+  console.log('[Facebook Marketplace UI] Connection status check:', {
+    isLoading: facebookMarketplaceLoading,
+    isFetching: facebookMarketplaceFetching,
+    hasConfig: !!facebookMarketplaceConfig,
+    configConnected: facebookMarketplaceConfig?.connected,
+    configIsActive: facebookMarketplaceConfig?.isActive,
+    isConnected: isFacebookMarketplaceConnected,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Fetch integrations when page loads (always fetch on mount to get fresh data)
+  useEffect(() => {
+    console.log('[Facebook Marketplace UI] ===== Component mounted, refetching =====');
+    refetchFacebookMarketplace().then((result) => {
+      console.log('[Facebook Marketplace UI] ✅ Refetch result:', {
+        data: result.data,
+        status: result.status,
+        dataUpdatedAt: result.dataUpdatedAt
+      });
+      console.log('[Facebook Marketplace UI] Refetched data.connected:', result.data?.connected);
+      console.log('[Facebook Marketplace UI] Refetched data.isActive:', result.data?.isActive);
+    }).catch((error) => {
+      console.error('[Facebook Marketplace UI] ❌ Refetch error:', error);
+    });
+  }, []); // Only run on mount
+  
+  // Debug logging - track when connection status changes
+  useEffect(() => {
+    console.log('[Facebook Marketplace UI] ===== Connection Status Update =====');
+    console.log('[Facebook Marketplace UI] facebookMarketplaceConfig:', JSON.stringify(facebookMarketplaceConfig, null, 2));
+    console.log('[Facebook Marketplace UI] isFacebookMarketplaceConnected:', isFacebookMarketplaceConnected);
+    console.log('[Facebook Marketplace UI] config?.connected:', facebookMarketplaceConfig?.connected);
+    console.log('[Facebook Marketplace UI] config?.isActive:', facebookMarketplaceConfig?.isActive);
+    console.log('[Facebook Marketplace UI] hasConfig:', !!facebookMarketplaceConfig);
+    console.log('[Facebook Marketplace UI] status should be:', isFacebookMarketplaceConnected ? "configured" : "available");
+    console.log('[Facebook Marketplace UI] willShowCheckmark:', isFacebookMarketplaceConnected);
+    console.log('[Facebook Marketplace UI] willShowDisconnect:', isFacebookMarketplaceConnected);
+    console.log('[Facebook Marketplace UI] ====================================');
+  }, [isFacebookMarketplaceConnected, facebookMarketplaceConfig]);
+
+  const integrations: Integration[] = useMemo(() => [
+    {
+      id: "api",
+      name: "API",
+      description: "REST API for external PMS and integrators. Sync leads, conversations, tours, and listings programmatically.",
+      icon: <Key className="h-8 w-8" />,
+      status: apiConnectorStatus?.configured ? "configured" : "available",
+      category: "API & Developers",
+    },
     {
       id: "gmail",
       name: "Gmail",
@@ -270,69 +378,98 @@ export default function Integrations() {
       category: "Email",
       provider: "google",
     },
+    // {
+    //   id: "outlook",
+    //   name: "Outlook",
+    //   description: "Sync emails and manage leads directly from your Outlook inbox.",
+    //   icon: <Mail className="h-8 w-8" />,
+    //   status: isOutlookConnected ? "configured" : "available",
+    //   category: "Email",
+    //   provider: "microsoft",
+    // },
     {
-      id: "outlook",
-      name: "Outlook",
-      description: "Sync emails and manage leads directly from your Outlook inbox.",
-      icon: <Mail className="h-8 w-8" />,
-      status: isOutlookConnected ? "configured" : "available",
-      category: "Email",
-      provider: "microsoft",
-    },
-    {
-      id: "zillow",
-      name: "Zillow",
-      description: "List properties on Zillow and automatically capture leads from inquiries",
-      icon: <SiZillow className="h-8 w-8" />,
-      status: "available",
-      category: "Listing Platform",
-    },
-    {
-      id: "apartments",
-      name: "Apartments.com",
-      description: "Sync property listings and capture leads from Apartments.com",
-      icon: <Building2 className="h-8 w-8" />,
-      status: "coming-soon",
-      category: "Listing Platform",
-    },
-    {
-      id: "realtor",
-      name: "Realtor.com",
-      description: "Connect your Realtor.com account to manage listings and capture leads",
-      icon: <Home className="h-8 w-8" />,
-      status: "coming-soon",
-      category: "Listing Platform",
-    },
-    {
-      id: "facebook",
-      name: "Facebook Messenger",
-      description: "Respond to Facebook Messenger inquiries automatically with AI",
+      id: "facebook-marketplace",
+      name: "Facebook Marketplace",
+      description: "Automatically post listings to Facebook Marketplace and manage your listings",
       icon: <SiFacebook className="h-8 w-8" />,
-      status: isMessengerConnected ? "configured" : "available",
-      category: "Messaging",
+      status: isFacebookMarketplaceConnected ? "configured" : "available",
+      category: "Listing Platform",
     },
-    {
-      id: "twilio",
-      name: "Twilio (SMS & Calls)",
-      description: "Handle SMS messages and phone calls with AI-powered responses",
-      icon: <Phone className="h-8 w-8" />,
-      status: "coming-soon",
-      category: "Communication",
-    },
-    {
-      id: "excel",
-      name: "Excel Import",
-      description: "Import leads and property data from Excel spreadsheets",
-      icon: <FileSpreadsheet className="h-8 w-8" />,
-      status: "coming-soon",
-      category: "Data Import",
-    },
-  ];
+    // {
+    //   id: "zillow",
+    //   name: "Zillow",
+    //   description: "List properties on Zillow and automatically capture leads from inquiries",
+    //   icon: <SiZillow className="h-8 w-8" />,
+    //   status: "available",
+    //   category: "Listing Platform",
+    // },
+    // {
+    //   id: "apartments",
+    //   name: "Apartments.com",
+    //   description: "Sync property listings and capture leads from Apartments.com",
+    //   icon: <Building2 className="h-8 w-8" />,
+    //   status: "available",
+    //   category: "Listing Platform",
+    // },
+    // {
+    //   id: "realtor",
+    //   name: "Realtor.com",
+    //   description: "Connect your Realtor.com account to manage listings and capture leads",
+    //   icon: <Home className="h-8 w-8" />,
+    //   status: "available",
+    //   category: "Listing Platform",
+    // },
+    // {
+    //   id: "facebook",
+    //   name: "Facebook Messenger",
+    //   description: "Respond to Facebook Messenger inquiries automatically with AI",
+    //   icon: <SiFacebook className="h-8 w-8" />,
+    //   status: isMessengerConnected ? "configured" : "available",
+    //   category: "Messaging",
+    // },
+    // {
+    //   id: "twilio",
+    //   name: "Twilio (SMS & Calls)",
+    //   description: "Handle SMS messages and phone calls with AI-powered responses",
+    //   icon: <Phone className="h-8 w-8" />,
+    //   status: "available",
+    //   category: "Communication",
+    // },
+    // {
+    //   id: "excel",
+    //   name: "Excel Import",
+    //   description: "Import leads and property data from Excel spreadsheets",
+    //   icon: <FileSpreadsheet className="h-8 w-8" />,
+    //   status: "available",
+    //   category: "Data Import",
+    // },
+  ], [
+    isGmailConnected, 
+    // isOutlookConnected, 
+    isFacebookMarketplaceConnected, 
+    apiConnectorStatus,
+    // isMessengerConnected,
+    facebookMarketplaceConfig // Add this to ensure recalculation when query data changes
+  ]);
+
+  // Debug logging - track when integrations array recalculates
+  useEffect(() => {
+    const fbIntegration = integrations.find(i => i.id === "facebook-marketplace");
+    if (fbIntegration) {
+      console.log('[Facebook Marketplace UI] Integration status in array:', {
+        id: fbIntegration.id,
+        status: fbIntegration.status,
+        isConfigured: fbIntegration.status === "configured",
+      });
+    }
+  }, [integrations]);
 
   const connectGmail = async () => {
     try {
       setIsConnectingGmail(true);
-      const res = await fetch("/api/integrations/gmail/auth");
+      // Pass the current path as returnUrl so we can redirect back here after OAuth
+      const returnUrl = window.location.pathname;
+      const res = await fetch(`/api/integrations/gmail/auth?returnUrl=${encodeURIComponent(returnUrl)}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.url) {
@@ -565,6 +702,95 @@ export default function Integrations() {
     syncOutlookMutation.mutate();
   };
 
+  // ===== APARTMENTS.COM HANDLERS =====
+  const connectApartments = async () => {
+    try {
+      const res = await fetch("/api/integrations/apartments/auth");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        // If no OAuth URL, show configuration dialog or direct API key input
+        toast({ 
+          title: "Apartments.com Integration", 
+          description: "Please configure your API credentials in settings" 
+        });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Failed to initiate Apartments.com connection", 
+        description: "API endpoint not yet configured. This integration is being set up.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // ===== REALTOR.COM HANDLERS =====
+  const connectRealtor = async () => {
+    try {
+      const res = await fetch("/api/integrations/realtor/auth");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        // If no OAuth URL, show configuration dialog or direct API key input
+        toast({ 
+          title: "Realtor.com Integration", 
+          description: "Please configure your API credentials in settings" 
+        });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Failed to initiate Realtor.com connection", 
+        description: "API endpoint not yet configured. This integration is being set up.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // ===== TWILIO HANDLERS =====
+  const connectTwilio = async () => {
+    try {
+      const res = await fetch("/api/integrations/twilio/auth");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        // If no OAuth URL, show configuration dialog or direct API key input
+        toast({ 
+          title: "Twilio Integration", 
+          description: "Please configure your Twilio credentials (Account SID, Auth Token, Phone Number) in settings" 
+        });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Failed to initiate Twilio connection", 
+        description: "API endpoint not yet configured. This integration is being set up.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // ===== EXCEL IMPORT HANDLERS =====
+  const connectExcel = async () => {
+    try {
+      // Excel import typically doesn't need OAuth, it's a file upload feature
+      toast({ 
+        title: "Excel Import", 
+        description: "Use the import feature in the Leads page to upload Excel files. No connection required." 
+      });
+    } catch (error) {
+      toast({ 
+        title: "Excel Import", 
+        description: "Use the import feature in the Leads page to upload Excel files.",
+        variant: "destructive" 
+      });
+    }
+  };
+
   // ===== MESSENGER HANDLERS =====
   const configureMessengerMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/integrations/messenger/configure", {
@@ -607,6 +833,291 @@ export default function Integrations() {
 
   const handleDisconnectMessenger = (deleteLeads: boolean) => {
     disconnectMessengerMutation.mutate(deleteLeads);
+  };
+
+  // ===== FACEBOOK MARKETPLACE HANDLERS =====
+  const configureFacebookMarketplaceMutation = useMutation({
+    mutationFn: async () => {
+      // Use NEW persistent endpoint that saves storageState
+      setIsTestingFacebookMarketplace(true);
+      setFacebookMarketplaceTestStatus(null);
+      
+      try {
+        console.log('[Facebook Marketplace NEW] Connecting with persistent session...');
+        const connectResponseRaw = await apiRequest("POST", "/api/integrations/facebook/connect", {
+          email: facebookMarketplaceEmail,
+          password: facebookMarketplacePassword,
+        });
+        
+        const connectResponse = await connectResponseRaw.json();
+        
+        if (!connectResponse.success) {
+          setFacebookMarketplaceTestStatus("failed");
+          setIsTestingFacebookMarketplace(false);
+          throw new Error(connectResponse.error || "Connection failed");
+        }
+        
+        // Connection successful - storageState is saved on server
+        console.log('[Facebook Marketplace NEW] ✅ Connected successfully with persistent session');
+        setFacebookMarketplaceTestStatus("success");
+        setIsTestingFacebookMarketplace(false);
+        
+        return connectResponseRaw;
+      } catch (error: any) {
+        setIsTestingFacebookMarketplace(false);
+        setFacebookMarketplaceTestStatus("failed");
+        const errorMessage = error?.response?.data?.error || error?.message || "Connection failed";
+        throw new Error(errorMessage);
+      }
+    },
+    onSuccess: async (response) => {
+      // Store email before clearing state
+      const savedEmail = facebookMarketplaceEmail;
+      
+      toast({ title: "Facebook Marketplace configured successfully" });
+      
+      // Clear fields and close dialog
+      setFacebookMarketplaceEmail("");
+      setFacebookMarketplacePassword("");
+      setShowFacebookMarketplacePassword(false);
+      setShowFacebookMarketplaceConfigDialog(false);
+      setFacebookMarketplaceTestStatus(null);
+      
+      // Invalidate and refetch to get fresh data
+      console.log('[Facebook Marketplace NEW] Invalidating query cache...');
+      await queryClient.invalidateQueries({ queryKey: ["/api/integrations/facebook/status"] });
+      
+      // Wait a moment for the database transaction to complete, then refetch
+      setTimeout(async () => {
+        try {
+          console.log('[Facebook Marketplace NEW] Refetching after connect...');
+          const freshData = await refetchFacebookMarketplace();
+          console.log('[Facebook Marketplace NEW] ✅ Refetch after connect completed:', {
+            data: freshData.data,
+            status: freshData.status,
+            dataUpdatedAt: freshData.dataUpdatedAt
+          });
+          console.log('[Facebook Marketplace] Fresh data.connected:', freshData.data?.connected);
+          console.log('[Facebook Marketplace] Fresh data.isActive:', freshData.data?.isActive);
+        } catch (error) {
+          console.error('[Facebook Marketplace] ❌ Error refetching after configure:', error);
+        }
+      }, 500);
+    },
+    onError: (error: any) => {
+      // Keep dialog open and show error message
+      const errorMessage = error?.message || error?.response?.data?.error || "Failed to configure Facebook Marketplace";
+      toast({ title: errorMessage, variant: "destructive" });
+      // Don't close dialog - let user see the error and try again
+    },
+  });
+
+  const disconnectFacebookMarketplaceMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/integrations/facebook/disconnect", {});
+      return response.json();
+    },
+    onSuccess: async () => {
+      toast({ title: "Facebook Marketplace disconnected successfully" });
+      // Invalidate and refetch to update the UI
+      await queryClient.invalidateQueries({ queryKey: ["/api/integrations/facebook/status"] });
+      await refetchFacebookMarketplace();
+      
+      // Immediately update query cache to disconnected state
+      queryClient.setQueryData(["/api/integrations/facebook/status"], {
+        connected: false,
+        isActive: false,
+      });
+      
+      console.log('[Facebook Marketplace] Query cache updated to disconnected state');
+      
+      // Invalidate and refetch to update status
+      await queryClient.invalidateQueries({ queryKey: ["/api/integrations/facebook-marketplace"] });
+      
+      // Force refetch
+      await queryClient.refetchQueries({ 
+        queryKey: ["/api/integrations/facebook-marketplace"],
+        type: 'active'
+      });
+      
+      // Clear all fields and state
+      setFacebookMarketplaceEmail("");
+      setFacebookMarketplacePassword("");
+      setShowFacebookMarketplacePassword(false);
+      setShowFacebookMarketplaceConfigDialog(false);
+      setShowFacebookMarketplaceDisconnectDialog(false);
+      setFacebookMarketplaceTestStatus(null);
+      setIsTestingFacebookMarketplace(false);
+      
+      console.log('[Facebook Marketplace] All state cleared after disconnect');
+    },
+    onError: () => {
+      toast({ title: "Failed to disconnect Facebook Marketplace", variant: "destructive" });
+    },
+  });
+
+  const runMessagePollingMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[Facebook Marketplace UI] ===== RUN MESSAGE POLLING CLICKED =====');
+      console.log('[Facebook Marketplace UI] Timestamp:', new Date().toISOString());
+      console.log('[Facebook Marketplace UI] Making API request...');
+      
+      try {
+        const response = await apiRequest("POST", "/api/integrations/facebook-marketplace/run-message-polling", {});
+        const data = await response.json();
+        console.log('[Facebook Marketplace UI] ✅ API Response received:', data);
+        return data;
+      } catch (error: any) {
+        console.error('[Facebook Marketplace UI] ❌ API Request failed:', error);
+        console.error('[Facebook Marketplace UI] Error message:', error?.message);
+        console.error('[Facebook Marketplace UI] Error response:', error?.response);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Message polling started", 
+        description: "The script is running in the background. Check the browser window and server logs for progress." 
+      });
+      setIsRunningMessagePolling(true);
+      setPollingPid(data.pid || null);
+      
+      // Poll for status to detect when it stops
+      const checkStatus = async () => {
+        try {
+          const statusResponse = await fetch("/api/integrations/facebook-marketplace/polling-status", {
+            credentials: "include"
+          });
+          if (statusResponse.ok) {
+            const status = await statusResponse.json();
+            if (!status.isRunning) {
+              setIsRunningMessagePolling(false);
+              setPollingPid(null);
+            } else {
+              // Check again in 2 seconds
+              setTimeout(checkStatus, 2000);
+            }
+          }
+        } catch (error) {
+          console.error("Error checking polling status:", error);
+        }
+      };
+      
+      // Start checking status after 2 seconds
+      setTimeout(checkStatus, 2000);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.message || error?.response?.data?.error || "Failed to start message polling";
+      toast({ title: errorMessage, variant: "destructive" });
+      setIsRunningMessagePolling(false);
+      setPollingPid(null);
+    },
+  });
+
+  const runSendMessageMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[Facebook Marketplace UI] ===== RUN SEND MESSAGE CLICKED =====');
+      console.log('[Facebook Marketplace UI] Timestamp:', new Date().toISOString());
+      console.log('[Facebook Marketplace UI] Making API request...');
+      
+      try {
+        const response = await apiRequest("POST", "/api/integrations/facebook-marketplace/run-send-message", {});
+        const data = await response.json();
+        console.log('[Facebook Marketplace UI] ✅ API Response received:', data);
+        return data;
+      } catch (error: any) {
+        console.error('[Facebook Marketplace UI] ❌ API Request failed:', error);
+        console.error('[Facebook Marketplace UI] Error message:', error?.message);
+        console.error('[Facebook Marketplace UI] Error response:', error?.response);
+        throw error;
+      }
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Send message script started", 
+        description: "The script is running in a browser window. It will send all pending Facebook messages." 
+      });
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.message || error?.response?.data?.error || "Failed to start send message script";
+      toast({ title: errorMessage, variant: "destructive" });
+    },
+  });
+
+  const stopMessagePollingMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/integrations/facebook-marketplace/stop-message-polling", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Message polling stopped", 
+        description: "The polling process has been stopped successfully." 
+      });
+      setIsRunningMessagePolling(false);
+      setPollingPid(null);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.message || error?.response?.data?.error || "Failed to stop message polling";
+      toast({ title: errorMessage, variant: "destructive" });
+    },
+  });
+
+  // Check polling status on mount and periodically
+  const { data: pollingStatus } = useQuery({
+    queryKey: ["/api/integrations/facebook-marketplace/polling-status"],
+    queryFn: async () => {
+      const response = await fetch("/api/integrations/facebook-marketplace/polling-status", {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        return { isRunning: false, pid: null, startedAt: null };
+      }
+      return response.json();
+    },
+    refetchInterval: isRunningMessagePolling ? 2000 : false, // Poll every 2 seconds if running
+    enabled: true,
+  });
+
+  // Update local state when polling status changes
+  useEffect(() => {
+    if (pollingStatus) {
+      setIsRunningMessagePolling(pollingStatus.isRunning);
+      setPollingPid(pollingStatus.pid);
+    }
+  }, [pollingStatus]);
+
+  // Clear credentials when dialog closes or when disconnected
+  useEffect(() => {
+    if (!showFacebookMarketplaceConfigDialog) {
+      setFacebookMarketplaceEmail("");
+      setFacebookMarketplacePassword("");
+      setShowFacebookMarketplacePassword(false);
+      setFacebookMarketplaceTestStatus(null);
+    }
+  }, [showFacebookMarketplaceConfigDialog]);
+
+  const configureFacebookMarketplace = async () => {
+    // If already connected, don't open the configuration dialog
+    // User should disconnect first to change credentials
+    const config = await queryClient.fetchQuery<any>({ queryKey: ["/api/integrations/facebook-marketplace"] });
+    if (config?.connected) {
+      // Already connected - do not open dialog, status shows in main list
+      return;
+    }
+    
+    // Always start with empty fields
+    setFacebookMarketplaceEmail("");
+    setFacebookMarketplacePassword("");
+    setShowFacebookMarketplacePassword(false);
+    setFacebookMarketplaceTestStatus(null);
+    
+    setShowFacebookMarketplaceConfigDialog(true);
+  };
+
+
+  const handleDisconnectFacebookMarketplace = () => {
+    disconnectFacebookMarketplaceMutation.mutate();
   };
 
   // Handle OAuth redirect
@@ -661,30 +1172,163 @@ export default function Integrations() {
                 <CardHeader>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <div className="relative flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         {integration.icon}
+                        {integration.id === "facebook-marketplace" && (isFacebookMarketplaceConnected || integration.status === "configured") && (
+                          <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
+                            <CheckCircle2 className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        )}
                       </div>
                       <div>
-                        <CardTitle className="text-xl" data-testid={`text-${integration.id}-name`}>
-                          {integration.name}
-                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-xl" data-testid={`text-${integration.id}-name`}>
+                            {integration.name}
+                          </CardTitle>
+                          {integration.id === "facebook-marketplace" && (isFacebookMarketplaceConnected || integration.status === "configured") && (
+                            <CheckCircle2 className="h-6 w-6 text-green-500" data-testid={`icon-${integration.id}-configured`} />
+                          )}
+                        </div>
                         <Badge variant="outline" className="mt-1">
                           {integration.category}
                         </Badge>
                       </div>
                     </div>
-                    {integration.status === "configured" && (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" data-testid={`icon-${integration.id}-configured`} />
-                    )}
-                    {integration.status === "coming-soon" && (
-                      <Badge variant="secondary">Coming Soon</Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {(integration.id === "facebook-marketplace" && (isFacebookMarketplaceConnected || integration.status === "configured")) && (
+                        <>
+                          <Badge className="bg-green-500 text-white border-green-500 hover:bg-green-600">
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                            Connected
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowFacebookMarketplaceDisconnectDialog(true)}
+                            disabled={disconnectFacebookMarketplaceMutation.isPending}
+                            data-testid="button-facebook-marketplace-disconnect"
+                          >
+                            Disconnect
+                          </Button>
+                        </>
+                      )}
+                      {integration.status === "configured" && integration.id !== "facebook-marketplace" && (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" data-testid={`icon-${integration.id}-configured`} />
+                      )}
+                      {integration.status === "coming-soon" && integration.id !== "facebook-marketplace" && (
+                        <Badge variant="secondary">Coming Soon</Badge>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <CardDescription data-testid={`text-${integration.id}-description`}>
                     {integration.description}
                   </CardDescription>
+
+                  {/* API Connector-specific content */}
+                  {integration.id === "api" && (
+                    <>
+                      {apiConnectorStatus?.configured && (
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <span>{apiConnectorStatus.keyCount || 0} API key(s)</span>
+                          <span>{apiConnectorStatus.webhookCount || 0} webhook(s)</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Base URL: <code className="rounded bg-muted px-1">{window.location.origin}/api/integrations/api/v1</code>
+                      </p>
+                    </>
+                  )}
+
+                  {/* Facebook Marketplace-specific content */}
+                  {integration.id === "facebook-marketplace" && (
+                    <>
+                      {isFacebookMarketplaceConnected && (
+                        <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950">
+                          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          <AlertDescription className="text-green-800 dark:text-green-200">
+                            <strong>Connected</strong> as {facebookMarketplaceConfig?.email || "Facebook account"}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {!isRunningMessagePolling ? (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => runMessagePollingMutation.mutate()}
+                              disabled={runMessagePollingMutation.isPending}
+                              className="flex-1"
+                              data-testid="button-facebook-marketplace-run-polling"
+                            >
+                              {runMessagePollingMutation.isPending ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Starting...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Run Message Polling
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => runSendMessageMutation.mutate()}
+                              disabled={runSendMessageMutation.isPending}
+                              className="flex-1"
+                              data-testid="button-facebook-marketplace-send-messages"
+                            >
+                              {runSendMessageMutation.isPending ? (
+                                <>
+                                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                  Starting...
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-4 w-4 mr-2" />
+                                  Send Pending Messages
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => stopMessagePollingMutation.mutate()}
+                            disabled={stopMessagePollingMutation.isPending}
+                            className="w-full"
+                            data-testid="button-facebook-marketplace-stop-polling"
+                          >
+                            {stopMessagePollingMutation.isPending ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Stopping...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-4 w-4 mr-2" />
+                                Stop Polling
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      {runMessagePollingMutation.isSuccess && (
+                        <Alert className="border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <AlertDescription className="text-blue-800 dark:text-blue-200 text-sm">
+                            Message polling script started. A browser window will open to run the automation. Check server logs for progress.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </>
+                  )}
 
                   {/* Gmail-specific content */}
                   {integration.id === "gmail" && isGmailConnected && (
@@ -913,29 +1557,45 @@ export default function Integrations() {
                       >
                         Disconnect
                       </Button>
-                    ) : integration.status === "configured" ? (
+                    ) : integration.id === "api" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation("/integrations/api")}
+                        data-testid="button-api-configure"
+                      >
+                        <Key className="h-4 w-4 mr-2" />
+                        {integration.status === "configured" ? "Manage" : "Configure"}
+                      </Button>
+                    ) : integration.status === "configured" && integration.id !== "facebook-marketplace" ? (
                       <Button variant="outline" size="sm" data-testid={`button-${integration.id}-manage`}>
                         <SettingsIcon className="h-4 w-4 mr-2" />
                         Manage
                       </Button>
-                    ) : integration.status === "available" ? (
+                    ) : (integration.status === "available" || (integration.id === "facebook-marketplace" && !isFacebookMarketplaceConnected && integration.status !== "configured")) ? (
                       <Button 
                         size="sm" 
                         onClick={
                           integration.id === "gmail" ? connectGmail : 
                           integration.id === "outlook" ? connectOutlook : 
                           integration.id === "facebook" ? configureMessenger :
+                          integration.id === "api" ? () => setLocation("/integrations/api") :
+                          integration.id === "facebook-marketplace" ? configureFacebookMarketplace :
+                          integration.id === "apartments" ? connectApartments :
+                          integration.id === "realtor" ? connectRealtor :
+                          integration.id === "twilio" ? connectTwilio :
+                          integration.id === "excel" ? connectExcel :
                           undefined
                         }
                         data-testid={`button-${integration.id}-connect`}
                       >
-                        {integration.id === "facebook" ? "Configure" : "Connect"}
+                        Connect
                       </Button>
-                    ) : (
+                    ) : integration.id !== "facebook-marketplace" ? (
                       <Button size="sm" disabled data-testid={`button-${integration.id}-coming-soon`}>
                         Coming Soon
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>
@@ -1175,6 +1835,167 @@ export default function Integrations() {
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete Leads & Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Facebook Marketplace Configuration Dialog */}
+      <AlertDialog 
+        open={showFacebookMarketplaceConfigDialog} 
+        onOpenChange={(open) => {
+          // Prevent closing dialog during verification or save
+          if (!open && (configureFacebookMarketplaceMutation.isPending || isTestingFacebookMarketplace)) {
+            return;
+          }
+          setShowFacebookMarketplaceConfigDialog(open);
+        }}
+      >
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Configure Facebook Marketplace
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter your Facebook account credentials to automatically post listings to Facebook Marketplace. Your credentials are stored securely and only used for posting listings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="facebook-marketplace-email">Facebook Email *</Label>
+                  <Input
+                    id="facebook-marketplace-email"
+                    type="email"
+                    value={facebookMarketplaceEmail}
+                    onChange={(e) => setFacebookMarketplaceEmail(e.target.value)}
+                    placeholder="your-email@example.com"
+                    data-testid="input-facebook-marketplace-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="facebook-marketplace-password">Facebook Password *</Label>
+                  <div className="relative">
+                    <Input
+                      id="facebook-marketplace-password"
+                      type={showFacebookMarketplacePassword ? "text" : "password"}
+                      value={facebookMarketplacePassword}
+                      onChange={(e) => {
+                        setFacebookMarketplacePassword(e.target.value);
+                      }}
+                      placeholder="Enter your Facebook password"
+                      data-testid="input-facebook-marketplace-password"
+                      className={facebookMarketplacePassword ? "pr-10" : ""}
+                    />
+                    {/* Show password toggle when password field is not empty */}
+                    {facebookMarketplacePassword && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowFacebookMarketplacePassword(!showFacebookMarketplacePassword)}
+                        data-testid="button-facebook-marketplace-password-toggle"
+                      >
+                        {showFacebookMarketplacePassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+            
+            {/* Show verification in progress */}
+            {isTestingFacebookMarketplace && !facebookMarketplaceTestStatus && (
+              <div className="p-3 rounded-md bg-blue-50 border border-blue-200 dark:bg-blue-950 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                  <span className="text-sm text-blue-800 dark:text-blue-200">
+                    Verifying credentials with Facebook...
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {/* Verification Status */}
+            {facebookMarketplaceTestStatus && (
+              <div className={`p-3 rounded-md ${
+                facebookMarketplaceTestStatus === "success" 
+                  ? "bg-green-50 border border-green-200 dark:bg-green-950 dark:border-green-800" 
+                  : "bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {facebookMarketplaceTestStatus === "success" ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <span className="text-sm text-green-800 dark:text-green-200">
+                        Verification successful! Saving configuration...
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                      <span className="text-sm text-red-800 dark:text-red-200">
+                        Failed verification. Please check your credentials and try again.
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex gap-2">
+              <AlertDialogCancel 
+                disabled={configureFacebookMarketplaceMutation.isPending || isTestingFacebookMarketplace}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <Button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  configureFacebookMarketplaceMutation.mutate();
+                }}
+                disabled={
+                  !facebookMarketplaceEmail || 
+                  !facebookMarketplacePassword ||
+                  configureFacebookMarketplaceMutation.isPending ||
+                  isTestingFacebookMarketplace
+                }
+                data-testid="button-facebook-marketplace-save"
+              >
+                {configureFacebookMarketplaceMutation.isPending || isTestingFacebookMarketplace ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      {isTestingFacebookMarketplace ? "Verifying..." : "Saving..."}
+                    </>
+                  ) : (
+                    "Save Configuration"
+                  )}
+                </Button>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Disconnect Facebook Marketplace Dialog */}
+      <AlertDialog open={showFacebookMarketplaceDisconnectDialog} onOpenChange={setShowFacebookMarketplaceDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect Facebook Marketplace?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove your Facebook Marketplace credentials. You can reconnect at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDisconnectFacebookMarketplace}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

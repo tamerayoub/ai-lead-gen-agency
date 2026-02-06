@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Brain, MessageSquare, Zap, Settings2, Save, CreditCard, Crown, ExternalLink, Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { CreditCard, Crown, ExternalLink, Loader2, AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -26,22 +26,8 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    // Prevent access to locked tabs
-    const lockedTabs = ['ai-training', 'responses', 'automation', 'integrations'];
-    if (tabParam && lockedTabs.includes(tabParam)) {
-      return 'billing'; // Default to billing if trying to access locked tab
-    }
     return tabParam || 'billing'; // Default to billing
   });
-
-  // Prevent switching to locked tabs
-  const handleTabChange = (value: string) => {
-    const lockedTabs = ['ai-training', 'responses', 'automation', 'integrations'];
-    if (lockedTabs.includes(value)) {
-      return; // Don't allow switching to locked tabs
-    }
-    setActiveTab(value);
-  };
 
   // Use membership hook to check subscription status
   const { isFoundingPartner, status: membershipStatus, currentPeriodEnd, isLoading: membershipLoading, refetch: refetchMembership } = useMembership();
@@ -314,79 +300,17 @@ export default function Settings() {
         <p className="text-muted-foreground mt-1">Configure your AI assistant and system preferences</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="overflow-x-auto -mx-2 md:mx-0">
-          <TabsList className={`inline-flex w-full md:grid md:w-full ${isOwner ? 'md:grid-cols-5' : 'md:grid-cols-4'} h-auto min-w-max md:min-w-0`}>
-            <TabsTrigger value="ai-training" data-testid="tab-ai-training" disabled className="opacity-50 cursor-not-allowed whitespace-nowrap flex-shrink-0">
-              <Brain className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="text-xs md:text-sm">AI Training</span>
-              <span className="ml-1 text-xs text-muted-foreground">(Coming Soon)</span>
-          </TabsTrigger>
-            <TabsTrigger value="responses" data-testid="tab-responses" disabled className="opacity-50 cursor-not-allowed whitespace-nowrap flex-shrink-0">
-              <MessageSquare className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="text-xs md:text-sm">Responses</span>
-              <span className="ml-1 text-xs text-muted-foreground">(Coming Soon)</span>
-          </TabsTrigger>
-            <TabsTrigger value="automation" data-testid="tab-automation" disabled className="opacity-50 cursor-not-allowed whitespace-nowrap flex-shrink-0">
-              <Zap className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="text-xs md:text-sm">Automation</span>
-              <span className="ml-1 text-xs text-muted-foreground">(Coming Soon)</span>
-          </TabsTrigger>
+          <TabsList className={`inline-flex w-full md:grid md:w-full ${isOwner ? 'md:grid-cols-1' : 'md:grid-cols-1'} h-auto min-w-max md:min-w-0`}>
           {isOwner && (
               <TabsTrigger value="billing" data-testid="tab-billing" className="whitespace-nowrap flex-shrink-0">
                 <CreditCard className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
                 <span className="text-xs md:text-sm">Billing</span>
             </TabsTrigger>
           )}
-            <TabsTrigger value="integrations" data-testid="tab-integrations" disabled className="opacity-50 cursor-not-allowed whitespace-nowrap flex-shrink-0">
-              <Settings2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              <span className="text-xs md:text-sm">Integrations</span>
-              <span className="ml-1 text-xs text-muted-foreground">(Coming Soon)</span>
-          </TabsTrigger>
         </TabsList>
         </div>
-
-        <TabsContent value="ai-training" className="mt-6 space-y-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <Brain className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="font-semibold text-lg mb-2">Coming Soon</h3>
-                <p className="text-muted-foreground">
-                  AI Training features are coming soon. Stay tuned!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="responses" className="mt-6 space-y-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="font-semibold text-lg mb-2">Coming Soon</h3>
-                <p className="text-muted-foreground">
-                  Response configuration features are coming soon. Stay tuned!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="automation" className="mt-6 space-y-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <Zap className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="font-semibold text-lg mb-2">Coming Soon</h3>
-                <p className="text-muted-foreground">
-                  Automation features are coming soon. Stay tuned!
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {isOwner && (
           <TabsContent value="billing" className="mt-6 space-y-6">
@@ -609,20 +533,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
         )}
-
-        <TabsContent value="integrations" className="mt-6 space-y-6">
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <Settings2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="font-semibold text-lg mb-2">Coming Soon</h3>
-              <p className="text-muted-foreground">
-                  Integration settings are coming soon. Stay tuned!
-              </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );
