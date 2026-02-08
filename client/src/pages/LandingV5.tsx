@@ -4,10 +4,13 @@ import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { getLoginUrl, getRegisterUrl } from '@/lib/appUrls';
 import { ensureAcquisitionContextFromLanding } from '@/lib/acquisition';
+import { trackCTAClick, GA_OFFER_KEYS } from '@/lib/analytics';
 import { HeroAnimation } from '@/components/landing-v5/HeroAnimation';
 import { HeroCTA } from '@/components/landing-v5/HeroCTA';
 import { ArrowRight, BarChart3, Plug } from 'lucide-react';
 import logoBlack from '@/assets/lead2lease-logo-black.svg';
+
+const FB_INTEGRATION_OFFER = GA_OFFER_KEYS["/fb-integration"];
 
 export default function LandingV5() {
   useEffect(() => {
@@ -30,28 +33,38 @@ export default function LandingV5() {
             </Link>
 
             <div className="hidden md:flex items-center gap-6" data-testid="nav-links-v5">
-              <Link href="/book-demo" className="text-sm text-muted-foreground hover-elevate px-2 py-1 rounded-md">
+              <Link
+                href="/book-demo"
+                className="text-sm text-muted-foreground hover-elevate px-2 py-1 rounded-md"
+                onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Book Demo", placement: "header" })}
+              >
                 Book Demo
               </Link>
             </div>
 
             <div className="flex items-center gap-3">
-              <Link href={getRegisterUrl()}>
+              <a
+                href={getLoginUrl()}
+                onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Log In", placement: "header" })}
+              >
                 <Button variant="outline" size="sm" className="border-border" data-testid="button-header-login-v5">
                   Log In
                 </Button>
-              </Link>
-              <Link href={getRegisterUrl()}>
+              </a>
+              <a
+                href={getRegisterUrl()}
+                onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Get Started Free", placement: "header" })}
+              >
                 <Button size="sm" className="lv5-bg-gradient-primary text-white" data-testid="button-header-cta-v5">
                   Get Started Free
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
         </div>
       </nav>
 
-      <section className="relative min-h-[calc(100vh-5.5rem)] pt-24 pb-6 lg:pt-28 lg:pb-8 overflow-hidden flex flex-col justify-center" data-testid="hero-section-v5">
+      <section className="relative min-h-[calc(100vh-5.5rem)] pt-24 pb-6 lg:pt-12 lg:pb-8 overflow-hidden flex flex-col justify-center lg:justify-start" data-testid="hero-section-v5">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute top-40 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
@@ -171,12 +184,15 @@ export default function LandingV5() {
           <p className="text-muted-foreground mb-8" data-testid="text-bottom-cta-description-v5">
             Connect your Facebook Marketplace account in under 5 minutes and start converting more leads into signed leases today.
           </p>
-          <Link href={getRegisterUrl()}>
+          <a
+            href={getRegisterUrl()}
+            onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Get Started Free", placement: "bottom" })}
+          >
             <Button size="lg" className="group lv5-bg-gradient-primary text-white shadow-lg" data-testid="button-bottom-cta-v5">
               Get Started Free
               <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Button>
-          </Link>
+          </a>
           <p className="text-sm text-muted-foreground mt-4" data-testid="text-bottom-subtext-v5">
             No credit card required &middot; Cancel anytime
           </p>
@@ -198,10 +214,24 @@ export default function LandingV5() {
               <h4 className="font-semibold text-foreground mb-4">Platform</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href={getLoginUrl()} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-login-v5">Login</Link>
+                  <a
+                    href={getLoginUrl()}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-login-v5"
+                    onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Login", placement: "footer" })}
+                  >
+                    Login
+                  </a>
                 </li>
                 <li>
-                  <Link href={getRegisterUrl()} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-signup-v5">Sign Up</Link>
+                  <a
+                    href={getRegisterUrl()}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-signup-v5"
+                    onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Sign Up", placement: "footer" })}
+                  >
+                    Sign Up
+                  </a>
                 </li>
               </ul>
             </div>
@@ -209,7 +239,14 @@ export default function LandingV5() {
               <h4 className="font-semibold text-foreground mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/book-demo" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-book-demo-v5">Book Demo</Link>
+                  <Link
+                    href="/book-demo"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-book-demo-v5"
+                    onClick={() => trackCTAClick({ offer: FB_INTEGRATION_OFFER, button_label: "Book Demo", placement: "footer" })}
+                  >
+                    Book Demo
+                  </Link>
                 </li>
                 <li>
                   <a href="mailto:support@lead2lease.ai" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-help-v5">Help</a>

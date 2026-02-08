@@ -82,6 +82,43 @@ function getCallbackUrl(req: Request, path: string): string {
   return callbackUrl;
 }
 
+/** Notify support when a newly registered user (OAuth) completes signup */
+async function notifySupportIfNewOAuthUser(user: { id: string; createdAt?: Date | null } | null): Promise<void> {
+  if (!user) return;
+  const createdAt = user.createdAt ? new Date(user.createdAt).getTime() : 0;
+  const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+  if (createdAt < twoMinutesAgo) return;
+  try {
+    const refreshed = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: {
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        provider: true,
+        company: true,
+        landingPage: true,
+        utmSource: true,
+        utmMedium: true,
+        utmCampaign: true,
+        utmTerm: true,
+        utmContent: true,
+        initialOffer: true,
+        createdAt: true,
+      },
+    });
+    if (refreshed) {
+      const { sendRegistrationNotification } = await import("./email");
+      sendRegistrationNotification(refreshed).catch((err) =>
+        console.error("[Auth] OAuth registration notification failed:", err)
+      );
+    }
+  } catch (_) {
+    // Ignore
+  }
+}
+
 /** Apply acquisition context from session to user (first-touch only, never overwrite) */
 async function applyAcquisitionFromSession(user: { id: string; initialOffer?: string | null } | null, req: Request): Promise<void> {
   if (!user) return;
@@ -170,6 +207,16 @@ router.post("/register", async (req, res) => {
     }
 
     const [user] = await db.insert(users).values(userValues as any).returning();
+
+    // Notify support of new registration (fire and forget)
+    try {
+      const { sendRegistrationNotification } = await import("./email");
+      sendRegistrationNotification(user).catch((err) =>
+        console.error("[Auth] Registration notification failed:", err)
+      );
+    } catch (_) {
+      // Ignore - don't fail registration
+    }
 
         // Link onboarding intake if token provided
         if (onboardingToken) {
@@ -616,7 +663,9 @@ router.get(
 
       // Apply acquisition context from session (first-touch only)
       await applyAcquisitionFromSession(user, req);
-      
+      // Notify support if this was a new OAuth registration
+      notifySupportIfNewOAuthUser(user).catch(() => {});
+
       req.login(user, async (loginErr) => {
         if (loginErr) {
           console.error('[OAuth] Login error:', loginErr);
@@ -1195,7 +1244,8 @@ router.get(
 
     // Apply acquisition context from session (first-touch only)
     await applyAcquisitionFromSession(user, req);
-    
+    notifySupportIfNewOAuthUser(user).catch(() => {});
+
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {
       try {
@@ -1348,7 +1398,8 @@ router.get(
 
     // Apply acquisition context from session (first-touch only)
     await applyAcquisitionFromSession(user, req);
-    
+    notifySupportIfNewOAuthUser(user).catch(() => {});
+
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {
       try {
@@ -1675,7 +1726,8 @@ router.get(
 
     // Apply acquisition context from session (first-touch only)
     await applyAcquisitionFromSession(user, req);
-    
+    notifySupportIfNewOAuthUser(user).catch(() => {});
+
     // Link onboarding intake if token was provided
     if (onboardingToken && user) {
       try {

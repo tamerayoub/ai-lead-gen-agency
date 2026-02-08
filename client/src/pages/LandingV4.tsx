@@ -9,7 +9,10 @@ import { StatCard } from "@/components/landing-v4/StatCard";
 import { Logo } from "@/components/landing-v4/Logo";
 import { getLoginUrl, getRegisterUrl } from "@/lib/appUrls";
 import { ensureAcquisitionContextFromLanding } from "@/lib/acquisition";
+import { trackCTAClick, GA_OFFER_KEYS } from "@/lib/analytics";
 import { ArrowRight } from "lucide-react";
+
+const FB_AI_OFFER = GA_OFFER_KEYS["/fb-ai-leasing-agent"];
 
 function FeatureCard({
   icon,
@@ -65,16 +68,22 @@ export default function LandingV4() {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-3">
-            <Link href="/book-demo">
+            <Link
+              href="/book-demo"
+              onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Book a Demo", placement: "header" })}
+            >
               <Button variant="ghost" className="rounded-full" data-testid="button-header-book-demo-v4">
                 Book a Demo
               </Button>
             </Link>
-            <Link href={getRegisterUrl()}>
+            <a
+              href={getRegisterUrl()}
+              onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Get Started Free", placement: "header" })}
+            >
               <Button className="lv4-gradient-primary text-primary-foreground lv4-glow-primary rounded-full" data-testid="button-header-cta-v4">
                 Get Started Free <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -114,11 +123,14 @@ export default function LandingV4() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link href={getRegisterUrl()}>
+                <a
+                  href={getRegisterUrl()}
+                  onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Start Automating Now for free", placement: "hero" })}
+                >
                   <Button size="lg" className="lv4-gradient-primary text-primary-foreground lv4-glow-primary rounded-full text-lg px-8 py-6 h-auto" data-testid="button-hero-cta-v4">
                     Start Automating Now for free <ArrowRight className="ml-2 w-6 h-6" />
                   </Button>
-                </Link>
+                </a>
               </div>
 
               <div className="flex items-center gap-4 pt-2" data-testid="social-proof-v4">
@@ -215,11 +227,14 @@ export default function LandingV4() {
           </div>
 
           <div className="text-center mt-16">
-            <Link href={getRegisterUrl()}>
+            <a
+              href={getRegisterUrl()}
+              onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Start Your Free Trial", placement: "bottom" })}
+            >
               <Button size="lg" className="lv4-gradient-primary text-primary-foreground lv4-glow-primary rounded-full" data-testid="button-bottom-cta-v4">
                 Start Your Free Trial <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-            </Link>
+            </a>
             <p className="mt-4 text-sm text-muted-foreground" data-testid="text-bottom-subtext-v4">
               No credit card required · Cancel anytime
             </p>
@@ -242,14 +257,24 @@ export default function LandingV4() {
               <h4 className="font-semibold text-foreground mb-4">Platform</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href={getLoginUrl()} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-login-v4">
+                  <a
+                    href={getLoginUrl()}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-login-v4"
+                    onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Login", placement: "footer" })}
+                  >
                     Login
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link href={getRegisterUrl()} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-signup-v4">
+                  <a
+                    href={getRegisterUrl()}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-signup-v4"
+                    onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Sign Up", placement: "footer" })}
+                  >
                     Sign Up
-                  </Link>
+                  </a>
                 </li>
               </ul>
             </div>
@@ -257,7 +282,12 @@ export default function LandingV4() {
               <h4 className="font-semibold text-foreground mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link href="/book-demo" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="link-footer-book-demo-v4">
+                  <Link
+                    href="/book-demo"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="link-footer-book-demo-v4"
+                    onClick={() => trackCTAClick({ offer: FB_AI_OFFER, button_label: "Book Demo", placement: "footer" })}
+                  >
                     Book Demo
                   </Link>
                 </li>

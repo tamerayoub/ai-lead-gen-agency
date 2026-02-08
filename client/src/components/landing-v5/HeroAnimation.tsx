@@ -18,9 +18,9 @@ export const HeroAnimation = () => {
         <MobileFlowAnimation />
       </div>
 
-      {/* Desktop: full layout - larger to fill space */}
-      <div className="hidden lg:block relative w-full">
-        <div className="relative grid grid-cols-[minmax(260px,0.9fr)_minmax(120px,160px)_minmax(260px,0.9fr)] gap-4 items-stretch min-h-[400px] xl:min-h-[440px] w-full max-w-[1200px] ml-0">
+      {/* Desktop: scaled down to fit viewport without scrolling */}
+      <div className="hidden lg:block relative w-full h-full flex items-center justify-center overflow-hidden">
+        <div className="relative grid grid-cols-[minmax(260px,0.9fr)_minmax(120px,160px)_minmax(260px,0.9fr)] gap-4 items-stretch min-h-[360px] xl:min-h-[400px] w-full max-w-[1200px] ml-0 origin-center scale-[0.7] xl:scale-[0.78]">
           <div className="min-w-0 flex flex-col">
             <FacebookMarketplacePanel />
           </div>

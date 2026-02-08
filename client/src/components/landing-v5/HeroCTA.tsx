@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'wouter';
 import { getRegisterUrl } from '@/lib/appUrls';
+import { trackCTAClick, GA_OFFER_KEYS } from '@/lib/analytics';
 
 export const HeroCTA = () => {
   return (
     <motion.div 
-      className="relative z-10 text-center lg:text-left max-w-lg lg:max-w-none overflow-visible"
+      className="relative z-10 text-center lg:text-left max-w-lg lg:max-w-none overflow-visible mt-4 lg:mt-8"
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
@@ -36,7 +36,11 @@ export const HeroCTA = () => {
       </p>
 
       <div className="flex flex-col sm:flex-row items-center gap-3 mb-4 px-6 sm:px-0">
-        <Link href={getRegisterUrl()} className="w-full sm:w-auto">
+        <a
+          href={getRegisterUrl()}
+          className="w-full sm:w-auto [&>button]:w-full"
+          onClick={() => trackCTAClick({ offer: GA_OFFER_KEYS["/fb-integration"], button_label: "Connect Facebook Marketplace Now for Free", placement: "hero" })}
+        >
           <Button 
             size="lg" 
             className="w-full sm:w-auto lv5-bg-gradient-primary text-white shadow-lg text-sm sm:text-lg px-6 py-5 sm:py-6 whitespace-normal text-center sm:whitespace-nowrap sm:text-left break-words min-w-0"
@@ -45,7 +49,7 @@ export const HeroCTA = () => {
             Connect Facebook Marketplace Now for Free
             <ArrowRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
           </Button>
-        </Link>
+        </a>
       </div>
 
       <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-1 text-sm text-muted-foreground" data-testid="checklist-hero-v5">

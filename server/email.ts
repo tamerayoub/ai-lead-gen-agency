@@ -971,6 +971,109 @@ export async function sendShowingRescheduleEmail(data: {
   }
 }
 
+// Send notification to support when someone registers
+const SUPPORT_EMAIL = "support@lead2lease.ai";
+
+export async function sendRegistrationNotification(user: {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  provider?: string | null;
+  company?: string | null;
+  landingPage?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
+  initialOffer?: string | null;
+  createdAt?: Date | null;
+}) {
+  try {
+    const emailPassword = process.env.EMAIL_PASSWORD;
+    if (!emailPassword) {
+      console.error("[Email] EMAIL_PASSWORD not configured - cannot send registration notification");
+      return;
+    }
+
+    const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "—";
+    const source = user.provider === "email" ? "Email/Password" : (user.provider || "—");
+    const utmParts: string[] = [];
+    if (user.utmSource) utmParts.push(`utm_source=${user.utmSource}`);
+    if (user.utmMedium) utmParts.push(`utm_medium=${user.utmMedium}`);
+    if (user.utmCampaign) utmParts.push(`utm_campaign=${user.utmCampaign}`);
+    if (user.utmTerm) utmParts.push(`utm_term=${user.utmTerm}`);
+    if (user.utmContent) utmParts.push(`utm_content=${user.utmContent}`);
+    const sourceDetails = [
+      user.landingPage ? `Landing: ${user.landingPage}` : null,
+      user.initialOffer ? `Offer: ${user.initialOffer}` : null,
+      utmParts.length ? utmParts.join(", ") : null,
+    ].filter(Boolean).join(" | ") || "—";
+
+    const notificationHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #1e293b; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
+          .prospect-info { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .info-row { margin: 8px 0; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+          .label { font-weight: bold; color: #64748b; display: inline-block; width: 150px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>🔔 New Account Registration</h2>
+          </div>
+          <div class="content">
+            <div class="prospect-info">
+              <h3 style="margin-top: 0;">User Information</h3>
+              <div class="info-row">
+                <span class="label">Name:</span> ${fullName}
+              </div>
+              <div class="info-row">
+                <span class="label">Email:</span> ${user.email}
+              </div>
+              ${user.phone ? `<div class="info-row"><span class="label">Phone:</span> ${user.phone}</div>` : ""}
+              ${user.company ? `<div class="info-row"><span class="label">Company:</span> ${user.company}</div>` : ""}
+              <div class="info-row">
+                <span class="label">Source:</span> ${source}
+              </div>
+              <div class="info-row">
+                <span class="label">Source Details:</span> ${sourceDetails}
+              </div>
+              <div class="info-row">
+                <span class="label">Registered At:</span> ${user.createdAt ? new Date(user.createdAt).toLocaleString() : new Date().toLocaleString()}
+              </div>
+            </div>
+            <p style="color: #64748b; font-size: 14px;">
+              A new user has registered for an account. Reach out to welcome them and offer onboarding support.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await transporter.sendMail({
+      from: '"Lead2Lease Notifications" <lead2leaseai@gmail.com>',
+      to: SUPPORT_EMAIL,
+      subject: `New Registration: ${fullName} (${user.email})`,
+      html: notificationHtml,
+    });
+
+    console.log(`[Email] Registration notification sent to ${SUPPORT_EMAIL} for: ${user.email}`);
+  } catch (error) {
+    console.error("[Email] Error sending registration notification:", error);
+    // Don't throw - registration should succeed even if notification fails
+  }
+}
+
 // Send welcome email to new Founding Partner members
 export async function sendDemoRequestNotification(email: string) {
   try {
