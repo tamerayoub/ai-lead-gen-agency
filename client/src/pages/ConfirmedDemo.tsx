@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -5,12 +6,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckCircle2, Home, Calendar, Mail } from "lucide-react";
 import logoBlack from "@/assets/lead2lease-logo-black.svg";
 
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
+
 function ConfirmedDemoContent() {
   // Get event details from URL params if available (Calendly can pass these)
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const eventDate = urlParams.get('event_date') || null;
   const inviteeEmail = urlParams.get('invitee_email') || null;
   const eventName = urlParams.get('event_name') || '30-minute Demo';
+
+  // Fire Google Ads conversion event once when confirmation page mounts
+  useEffect(() => {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'conversion', {
+        'send_to': 'AW-17849344954/ghXkCLHrwtsbELrHnb9C',
+        'value': 1.0,
+        'currency': 'USD',
+      });
+    }
+  }, []);
 
   const formatDate = (dateString: string) => {
     try {
