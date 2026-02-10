@@ -66,6 +66,23 @@ export const HeroCTA = () => {
           5-minute setup
         </span>
       </div>
+
+      <div className="flex items-center justify-center lg:justify-start gap-4 pt-3" data-testid="social-proof-v5">
+        <div className="flex -space-x-2">
+          {["JM", "SK", "AR", "LP"].map((initials, i) => (
+            <div
+              key={i}
+              className="w-8 h-8 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-xs font-medium text-muted-foreground"
+              data-testid={`avatar-social-proof-${i + 1}`}
+            >
+              {initials}
+            </div>
+          ))}
+        </div>
+        <span className="text-sm text-muted-foreground">
+          Trusted by <span className="font-semibold text-foreground">500+</span> property managers
+        </span>
+      </div>
     </motion.div>
   );
 };

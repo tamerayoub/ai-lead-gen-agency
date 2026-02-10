@@ -7,6 +7,7 @@ import { ensureAcquisitionContextFromLanding } from '@/lib/acquisition';
 import { trackCTAClick, GA_OFFER_KEYS } from '@/lib/analytics';
 import { HeroAnimation } from '@/components/landing-v5/HeroAnimation';
 import { HeroCTA } from '@/components/landing-v5/HeroCTA';
+import { IntegrationsMarqueeWithLogos } from '@/components/IntegrationsMarqueeWithLogos';
 import { ArrowRight, BarChart3, Plug } from 'lucide-react';
 import logoBlack from '@/assets/lead2lease-logo-black.svg';
 
@@ -172,6 +173,9 @@ export default function LandingV5() {
             <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-api-integration-description-v5">
               Connect Lead2Lease to your existing systems and workflow tools using our API. Sync leads, listings, and conversations—or build custom integrations.
             </p>
+            <div className="mt-10 max-w-6xl mx-auto">
+              <IntegrationsMarqueeWithLogos gradientFrom="from-secondary/20" gradientTo="to-transparent" />
+            </div>
           </div>
         </div>
       </section>

@@ -1074,14 +1074,74 @@ export async function sendRegistrationNotification(user: {
   }
 }
 
-// Send welcome email to new Founding Partner members
-export async function sendDemoRequestNotification(email: string) {
+// Send demo request notification with full form + acquisition context
+export async function sendDemoRequestNotification(demoRequest: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  countryCode?: string | null;
+  company?: string | null;
+  unitsUnderManagement?: string | null;
+  managedOrOwned?: string | null;
+  hqLocation?: string | null;
+  currentTools?: string | null;
+  agreeTerms?: boolean | null;
+  agreeMarketing?: boolean | null;
+  initialOffer?: string | null;
+  landingPage?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
+  firstTouchTs?: Date | string | null;
+  acquisitionContextJson?: unknown;
+  createdAt?: Date | string | null;
+}) {
   try {
     const emailPassword = process.env.EMAIL_PASSWORD;
     if (!emailPassword) {
       console.error("[Email] EMAIL_PASSWORD not configured - cannot send demo request notification");
-      throw new Error("EMAIL_PASSWORD environment variable is not set");
+      return;
     }
+
+    const fullPhone = [demoRequest.countryCode || "", demoRequest.phone].filter(Boolean).join(" ").trim() || demoRequest.phone;
+    const submittedAt = demoRequest.createdAt
+      ? new Date(demoRequest.createdAt).toLocaleString()
+      : new Date().toLocaleString();
+
+    const formSection = `
+      <div class="info-box" style="background: white; padding: 20px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #2563eb;">
+        <h3 style="margin-top: 0; color: #2563eb;">Form Details</h3>
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Name:</span> <span class="value" style="color: #1e293b;">${demoRequest.firstName} ${demoRequest.lastName}</span></div>
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Email:</span> <span class="value" style="color: #1e293b;">${demoRequest.email}</span></div>
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Phone:</span> <span class="value" style="color: #1e293b;">${fullPhone}</span></div>
+        ${demoRequest.company ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Organization:</span> <span class="value" style="color: #1e293b;">${demoRequest.company}</span></div>` : ""}
+        ${demoRequest.unitsUnderManagement ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Units under management:</span> <span class="value" style="color: #1e293b;">${demoRequest.unitsUnderManagement}</span></div>` : ""}
+        ${demoRequest.managedOrOwned ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Managed or owned:</span> <span class="value" style="color: #1e293b;">${demoRequest.managedOrOwned}</span></div>` : ""}
+        ${demoRequest.hqLocation ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">HQ location:</span> <span class="value" style="color: #1e293b;">${demoRequest.hqLocation}</span></div>` : ""}
+        ${demoRequest.currentTools ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Current tools:</span> <span class="value" style="color: #1e293b;">${demoRequest.currentTools}</span></div>` : ""}
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Agreed to terms:</span> <span class="value" style="color: #1e293b;">${demoRequest.agreeTerms ? "Yes" : "No"}</span></div>
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Marketing opt-in:</span> <span class="value" style="color: #1e293b;">${demoRequest.agreeMarketing ? "Yes" : "No"}</span></div>
+        <div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Submitted at:</span> <span class="value" style="color: #1e293b;">${submittedAt}</span></div>
+      </div>`;
+
+    const hasAcquisition = demoRequest.initialOffer || demoRequest.landingPage || demoRequest.utmSource || demoRequest.utmMedium || demoRequest.utmCampaign;
+    const acquisitionSection = hasAcquisition
+      ? `
+      <div class="info-box" style="background: white; padding: 20px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #0ea5e9;">
+        <h3 style="margin-top: 0; color: #0ea5e9;">Acquisition / Source</h3>
+        ${demoRequest.initialOffer ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Offer:</span> <span class="value" style="color: #1e293b;">${demoRequest.initialOffer}</span></div>` : ""}
+        ${demoRequest.landingPage ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">Landing page:</span> <span class="value" style="color: #1e293b;">${demoRequest.landingPage}</span></div>` : ""}
+        ${demoRequest.utmSource ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">UTM source:</span> <span class="value" style="color: #1e293b;">${demoRequest.utmSource}</span></div>` : ""}
+        ${demoRequest.utmMedium ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">UTM medium:</span> <span class="value" style="color: #1e293b;">${demoRequest.utmMedium}</span></div>` : ""}
+        ${demoRequest.utmCampaign ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">UTM campaign:</span> <span class="value" style="color: #1e293b;">${demoRequest.utmCampaign}</span></div>` : ""}
+        ${demoRequest.utmTerm ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">UTM term:</span> <span class="value" style="color: #1e293b;">${demoRequest.utmTerm}</span></div>` : ""}
+        ${demoRequest.utmContent ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">UTM content:</span> <span class="value" style="color: #1e293b;">${demoRequest.utmContent}</span></div>` : ""}
+        ${demoRequest.firstTouchTs ? `<div class="info-row" style="margin: 8px 0; padding: 8px;"><span class="label" style="font-weight: bold; color: #64748b; display: inline-block; width: 180px;">First touch:</span> <span class="value" style="color: #1e293b;">${new Date(demoRequest.firstTouchTs).toLocaleString()}</span></div>` : ""}
+      </div>`
+      : "";
 
     const notificationHtml = `
       <!DOCTYPE html>
@@ -1092,36 +1152,18 @@ export async function sendDemoRequestNotification(email: string) {
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
           .content { background: #f8fafc; padding: 30px; border-radius: 0 0 8px 8px; }
-          .info-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb; }
-          .info-row { margin: 8px 0; padding: 8px; }
-          .label { font-weight: bold; color: #64748b; display: inline-block; width: 120px; }
-          .value { color: #1e293b; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h2>🔔 New Demo Request from Landing Page</h2>
+            <h2>🔔 New Demo Request (Book Demo Form)</h2>
           </div>
           <div class="content">
-            <div class="info-box">
-              <h3 style="margin-top: 0; color: #2563eb;">User Information</h3>
-              <div class="info-row">
-                <span class="label">Email:</span> 
-                <span class="value">${email}</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Source:</span> 
-                <span class="value">Landing Page Popup (after 1 minute)</span>
-              </div>
-              <div class="info-row">
-                <span class="label">Time:</span> 
-                <span class="value">${new Date().toLocaleString()}</span>
-              </div>
-            </div>
-            <p style="color: #64748b; font-size: 14px;">
-              A user has submitted their email address through the demo request popup on the landing page. 
-              Please follow up with them to schedule a demo.
+            ${formSection}
+            ${acquisitionSection}
+            <p style="color: #64748b; font-size: 14px; margin-top: 20px;">
+              Follow up with this lead to schedule their demo.
             </p>
           </div>
         </div>
@@ -1130,16 +1172,16 @@ export async function sendDemoRequestNotification(email: string) {
     `;
 
     await transporter.sendMail({
-      from: '"Lead2Lease" <lead2leaseai@gmail.com>',
-      to: "lead2leaseai@gmail.com",
-      subject: `New Demo Request: ${email}`,
+      from: '"Lead2Lease Notifications" <lead2leaseai@gmail.com>',
+      to: SUPPORT_EMAIL,
+      subject: `New Demo Request: ${demoRequest.firstName} ${demoRequest.lastName} (${demoRequest.email})`,
       html: notificationHtml,
     });
 
-    console.log(`[Email] Demo request notification sent to lead2leaseai@gmail.com for: ${email}`);
+    console.log(`[Email] Demo request notification sent to ${SUPPORT_EMAIL} for: ${demoRequest.email}`);
   } catch (error) {
     console.error("[Email] Error sending demo request notification:", error);
-    throw error;
+    // Don't throw - demo request is already stored; notification is best-effort
   }
 }
 

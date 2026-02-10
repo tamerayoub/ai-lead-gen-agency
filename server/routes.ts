@@ -12607,9 +12607,9 @@ Keep it concise (3-4 paragraphs). Write only the email body, no subject line.`;
         // Don't fail the demo request if prospect creation fails
       }
       
-      // Send email notification to lead2leaseai@gmail.com
+      // Send email notification with full form + acquisition context
       try {
-        await sendDemoRequestNotification(demoRequest.email);
+        await sendDemoRequestNotification(demoRequest);
         console.log("[Demo Request] Email notification sent for:", demoRequest.email);
       } catch (emailError: any) {
         console.error("[Demo Request] Failed to send email notification:", emailError.message);

@@ -1,16 +1,16 @@
 import { useEffect } from "react";
 import "../landing-v4.css";
-import { Gauge, CalendarClock, Rocket, Send, Target } from "lucide-react";
+import { Gauge, CalendarClock, Rocket, Send, Target, Plug, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { AnimatedChatDemo } from "@/components/landing-v4/AnimatedChatDemo";
 import { FacebookBadge } from "@/components/landing-v4/FacebookBadge";
 import { StatCard } from "@/components/landing-v4/StatCard";
 import { Logo } from "@/components/landing-v4/Logo";
+import { IntegrationsMarqueeWithLogos } from "@/components/IntegrationsMarqueeWithLogos";
 import { getLoginUrl, getRegisterUrl } from "@/lib/appUrls";
 import { ensureAcquisitionContextFromLanding } from "@/lib/acquisition";
 import { trackCTAClick, GA_OFFER_KEYS } from "@/lib/analytics";
-import { ArrowRight } from "lucide-react";
 
 const FB_AI_OFFER = GA_OFFER_KEYS["/fb-ai-leasing-agent"];
 
@@ -238,6 +238,25 @@ export default function LandingV4() {
             <p className="mt-4 text-sm text-muted-foreground" data-testid="text-bottom-subtext-v4">
               No credit card required · Cancel anytime
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20 px-6 border-t border-border bg-secondary/20" data-testid="integration-section-v4">
+        <div className="container mx-auto">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 text-primary mb-4">
+              <Plug className="w-7 h-7" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground" data-testid="heading-integration-v4">
+              Integrates with your existing <span className="lv4-text-gradient">systems & tools</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto" data-testid="text-integration-description-v4">
+              Connect with the platforms you already use—listing sites, property management systems, email, calendar, and messaging.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto">
+            <IntegrationsMarqueeWithLogos gradientFrom="from-secondary/20" gradientTo="to-transparent" />
           </div>
         </div>
       </section>

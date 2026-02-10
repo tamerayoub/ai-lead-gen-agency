@@ -67,12 +67,14 @@ function decodeContext(encoded: string): AcquisitionContext | null {
   }
 }
 
-/** Set cookie (30 day expiry) */
+/** Set cookie (30 day expiry). Use domain=lead2lease.ai on marketing so app.lead2lease.ai can read it on register. */
 function setCookie(value: string): void {
   if (typeof document === "undefined") return;
-  const expires = new Date();
-  expires.setDate(expires.getDate() + COOKIE_MAX_AGE_DAYS);
-  document.cookie = `${COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE_DAYS * 86400}; SameSite=Lax`;
+  const hostname = document.location.hostname.toLowerCase();
+  const isMarketing = hostname === "lead2lease.ai" || hostname === "www.lead2lease.ai";
+  const maxAge = COOKIE_MAX_AGE_DAYS * 86400;
+  const base = `${COOKIE_NAME}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+  document.cookie = isMarketing ? `${base}; domain=lead2lease.ai` : base;
 }
 
 /** Get cookie value */
@@ -89,7 +91,26 @@ function getCookie(): string | null {
   return null;
 }
 
-/** Read acquisition context: localStorage first, then cookie */
+/** Build acquisition context from URL search params (e.g. from ?acq_offer=...&acq_landing_page=... on app.lead2lease.ai/register) */
+export function getAcquisitionContextFromSearchParams(search: string): AcquisitionContext | null {
+  const params = new URLSearchParams(search.startsWith("?") ? search : `?${search}`);
+  const offer = params.get("acq_offer");
+  const landing_page = params.get("acq_landing_page");
+  if (!offer || !landing_page) return null;
+  return {
+    offer,
+    landing_page,
+    source: params.get("acq_source") || "direct",
+    medium: params.get("acq_medium") || null,
+    campaign: params.get("acq_campaign") || null,
+    term: params.get("acq_term") || null,
+    content: params.get("acq_content") || null,
+    referrer: null,
+    first_touch_ts: new Date().toISOString(),
+  };
+}
+
+/** Read acquisition context: localStorage first, then cookie, then URL params (for cross-origin from marketing) */
 export function getAcquisitionContext(): AcquisitionContext | null {
   if (typeof window === "undefined") return null;
   try {
@@ -108,6 +129,8 @@ export function getAcquisitionContext(): AcquisitionContext | null {
         return decoded;
       }
     }
+    const fromUrl = getAcquisitionContextFromSearchParams(window.location.search);
+    if (fromUrl) return fromUrl;
   } catch (e) {
     console.warn("[Acquisition] Error reading context:", e);
   }

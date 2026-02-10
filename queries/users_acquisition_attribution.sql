@@ -11,6 +11,7 @@ SELECT
   created_at,
   initial_offer AS offer,
   utm_source AS source,
+  
   utm_medium AS medium,
   utm_campaign AS campaign,
   utm_content AS content,
