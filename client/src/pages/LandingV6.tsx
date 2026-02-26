@@ -15,10 +15,12 @@ import {
   Phone,
   ChevronDown,
   Calendar,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SchedulingDemo from "@/components/v6/SchedulingDemo";
 import VoiceAgentDemo from "@/components/v6/VoiceAgentDemo";
+import ChatDemo from "@/components/v6/ChatDemo";
 
 const BRAND = "Agency";
 
@@ -146,6 +148,19 @@ function V6Header() {
                     <p className="text-xs text-muted-foreground">Auto-book appointments</p>
                   </div>
                 </a>
+                <Link
+                  href="/product/website-chatbot"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
+                  data-testid="v6-nav-chatbot"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Website AI Chatbot</p>
+                    <p className="text-xs text-muted-foreground">Capture leads 24/7</p>
+                  </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -411,7 +426,7 @@ export default function LandingV6() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-20">
             {testimonials.map((t, i) => (
               <motion.div
                 key={t.name}
@@ -434,6 +449,33 @@ export default function LandingV6() {
               </motion.div>
             ))}
           </div>
+
+          {/* Website AI Chatbot Demo */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-md mx-auto pb-8"
+          >
+            <p className="text-center text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wide">
+              Website AI Chatbot — Capture leads while you sleep
+            </p>
+            <ChatDemo />
+            <div className="text-center mt-10">
+              <Link href="/product/website-chatbot">
+                <Button
+                  variant="outline"
+                  data-testid="v6-chatbot-learn-more"
+                  className="text-sm"
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Learn More About Website AI Chatbot
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
         </div>
       </section>
 
