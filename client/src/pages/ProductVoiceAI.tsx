@@ -290,15 +290,6 @@ export default function ProductVoiceAI() {
             ))}
           </div>
 
-          {/* Voice Agent Demo under How It Works */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <VoiceAgentDemo />
-          </motion.div>
         </div>
       </section>
 
