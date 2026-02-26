@@ -378,19 +378,67 @@ export default function LandingV6() {
             ))}
           </div>
 
-          {/* Voice AI Demo animation */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-xl mx-auto"
-          >
-            <p className="text-center text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wide">
-              See the Voice AI in action
-            </p>
-            <VoiceAgentDemo />
-          </motion.div>
+          {/* Voice AI Demo — two-column hero layout */}
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center max-w-6xl mx-auto mt-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="space-y-7"
+            >
+              <div className="inline-flex items-center gap-2 bg-blue-500/5 border border-blue-500/20 rounded-full px-4 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-xs font-medium text-blue-700">AI-Powered Voice Lead Qualification</span>
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+                Turn Every Call Into a{" "}
+                <span className="v6-text-gradient">Qualified Lead</span>
+              </h3>
+              <p className="text-muted-foreground leading-relaxed max-w-md">
+                Our AI voice agents pick up instantly, qualify your callers, and book them straight into your calendar — completely hands-free, 24/7.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {["Free Setup", "No Missed Calls", "24/7 Coverage", "Money-Back Guarantee"].map((item) => (
+                  <div key={item} className="flex items-center gap-2" data-testid={`v6-voice-guarantee-${item.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <ShieldCheck className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  size="lg"
+                  onClick={() => (window.location.href = "/login")}
+                  data-testid="v6-voice-cta"
+                  className="v6-bg-gradient text-white border-0 v6-shadow-glow text-base px-7"
+                >
+                  Get Started Free
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+                <Link href="/product/voice-ai">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    data-testid="v6-voice-learn-more"
+                    className="text-base px-7"
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    Learn More
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+            >
+              <VoiceAgentDemo />
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -450,32 +498,68 @@ export default function LandingV6() {
             ))}
           </div>
 
-          {/* Website AI Chatbot Demo */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="max-w-md mx-auto pb-8"
-          >
-            <p className="text-center text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wide">
-              Website AI Chatbot — Capture leads while you sleep
-            </p>
-            <ChatDemo />
-            <div className="text-center mt-10">
-              <Link href="/product/website-chatbot">
+          {/* Website AI Chatbot Demo — two-column hero layout */}
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center max-w-6xl mx-auto mt-8 pb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+              className="order-2 lg:order-1"
+            >
+              <ChatDemo />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="space-y-7 order-1 lg:order-2"
+            >
+              <div className="inline-flex items-center gap-2 bg-blue-500/5 border border-blue-500/20 rounded-full px-4 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-xs font-medium text-blue-700">AI-Powered Website Lead Generation</span>
+              </div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+                Turn Every Visitor Into a{" "}
+                <span className="v6-text-gradient">Qualified Lead</span>
+              </h3>
+              <p className="text-muted-foreground leading-relaxed max-w-md">
+                Our AI assistant engages your website visitors 24/7, answers their questions, and captures their details — so you never miss a potential customer again.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {["Free Setup", "No Credit Card", "Live in 48h", "Money-Back Guarantee"].map((item) => (
+                  <div key={item} className="flex items-center gap-2" data-testid={`v6-chatbot-guarantee-${item.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <ShieldCheck className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  variant="outline"
-                  data-testid="v6-chatbot-learn-more"
-                  className="text-sm"
+                  size="lg"
+                  onClick={() => (window.location.href = "/login")}
+                  data-testid="v6-chatbot-cta"
+                  className="v6-bg-gradient text-white border-0 v6-shadow-glow text-base px-7"
                 >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Learn More About Website AI Chatbot
+                  Get Setup For Free
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
-              </Link>
-            </div>
-          </motion.div>
+                <Link href="/product/website-chatbot">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    data-testid="v6-chatbot-learn-more"
+                    className="text-base px-7"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Learn More
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
