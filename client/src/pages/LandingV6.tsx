@@ -12,13 +12,13 @@ import {
   CalendarCheck,
   Star,
   Quote,
-  Crown,
+  Phone,
+  ChevronDown,
   Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicHeader } from "@/components/PublicHeader";
 import SchedulingDemo from "@/components/v6/SchedulingDemo";
-import logoBlack from "@/assets/lead2lease-logo-black.svg";
+import VoiceAgentDemo from "@/components/v6/VoiceAgentDemo";
 
 const BRAND = "Agency";
 
@@ -114,7 +114,41 @@ function V6Header() {
         </div>
 
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-          <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
+          <div className="relative group">
+            <button className="flex items-center gap-1 hover:text-foreground transition-colors" data-testid="v6-solutions-nav">
+              Solutions <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="bg-card border border-border rounded-xl shadow-lg p-2 min-w-[200px]">
+                <Link
+                  href="/product/voice-ai"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
+                  data-testid="v6-nav-voice-ai"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Voice AI</p>
+                    <p className="text-xs text-muted-foreground">AI phone agent</p>
+                  </div>
+                </Link>
+                <a
+                  href="#how-it-works"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
+                  data-testid="v6-nav-scheduling"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">AI Scheduling</p>
+                    <p className="text-xs text-muted-foreground">Auto-book appointments</p>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </div>
           <a href="#results" className="hover:text-foreground transition-colors">Results</a>
           <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
         </div>
@@ -303,7 +337,7 @@ export default function LandingV6() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-16">
             {steps.map((item, i) => (
               <motion.div
                 key={item.step}
@@ -328,6 +362,20 @@ export default function LandingV6() {
               </motion.div>
             ))}
           </div>
+
+          {/* Voice AI Demo animation */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="max-w-xl mx-auto"
+          >
+            <p className="text-center text-sm font-medium text-muted-foreground mb-6 uppercase tracking-wide">
+              See the Voice AI in action
+            </p>
+            <VoiceAgentDemo />
+          </motion.div>
         </div>
       </section>
 

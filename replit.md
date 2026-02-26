@@ -28,6 +28,18 @@ Key features include:
 - **Membership-Based Feature Gating:** Implemented subscription-based access control via Founding Partner membership, restricting non-subscribed organizations to basic features.
 - **Showing Reminder Email Scheduler:** Background service to send automated reminder emails to leads before scheduled showings, configurable at property or unit level.
 
+### Landing Page Architecture
+
+Multiple landing page variants exist, each accessible at their own route:
+- **`/` (root) and `/v6`** → LandingV6 ("Agency" brand) — the primary public-facing landing page. Features hero with animated SchedulingDemo, ValueProps (4 cards), HowItWorks (3 steps + VoiceAgentDemo animation), SocialProof, and CTA. Header includes a "Solutions" dropdown.
+- **`/product/voice-ai`** → ProductVoiceAI — dedicated Voice AI product page with hero, VoiceAgentDemo animation, How It Works (3 steps + demo), testimonials, and CTA.
+- **`/landing` and `/fb-integration`** → LandingV5 (dark, Facebook Marketplace sync theme)
+- **`/fb-ai-leasing-agent`** → LandingV4 (blue theme)
+- **`/landing-v1`**, **`/landing-v2`**, **`/landing-v3`** → earlier landing versions
+- **`/whitepaper`** → Whitepaper lead magnet page
+
+V6 components live in `client/src/components/v6/`: SchedulingDemo.tsx, VoiceAgentDemo.tsx. V6-scoped CSS is under `.v6-page` in index.css.
+
 ### System Design Choices
 
 The frontend uses a component-based architecture. The backend API is RESTful with Zod validation. Data storage follows a schema-first approach with an `IStorage` interface. Lead deduplication occurs at the conversation thread level. Email threading uses RFC 822 headers, and an email body cleaning utility removes quoted/forwarded content. Multi-tenant organization management stores the active organization in `users.currentOrgId`. An automatic Gmail scanner imports new messages and creates leads. Public booking endpoints are cross-tenant accessible for listed units, exposing only marketing-safe data.

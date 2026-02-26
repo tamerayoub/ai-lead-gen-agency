@@ -128,6 +128,7 @@ import LandingV3 from "@/pages/LandingV3";
 import LandingV4 from "@/pages/LandingV4";
 import LandingV5 from "@/pages/LandingV5";
 import LandingV6 from "@/pages/LandingV6";
+import ProductVoiceAI from "@/pages/ProductVoiceAI";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import BookDemo from "@/pages/BookDemo";
@@ -271,7 +272,7 @@ function Router() {
     // Marketing domain - show full marketing routes
     return (
       <Switch>
-        <Route path="/" component={LandingV5} />
+        <Route path="/" component={LandingV6} />
         <Route path="/landing" component={LandingV5} />
         <Route path="/fb-integration" component={LandingV5} />
         <Route path="/landing-v1" component={Landing} />
@@ -279,6 +280,7 @@ function Router() {
         <Route path="/landing-v3" component={LandingV3} />
         <Route path="/fb-ai-leasing-agent" component={LandingV4} />
         <Route path="/v6" component={LandingV6} />
+        <Route path="/product/voice-ai" component={ProductVoiceAI} />
         <Route path="/login" component={Login} />
         <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
         <Route path="/product/scheduling" component={ProductScheduling} />
@@ -334,6 +336,7 @@ function Router() {
       <Route path="/landing-v3" component={LandingV3} />
       <Route path="/fb-ai-leasing-agent" component={LandingV4} />
       <Route path="/v6" component={LandingV6} />
+      <Route path="/product/voice-ai" component={ProductVoiceAI} />
       <Route path="/terms-of-service" component={TermsOfService} />
       <Route path="/privacy-notice" component={PrivacyNotice} />
       <Route path="/cookies-policy" component={CookiesPolicy} />
@@ -432,7 +435,7 @@ function useHashLocation(): [string, (to: string) => void] {
 function MarketingRouter() {
   return (
     <Switch>
-      <Route path="/" component={LandingV5} />
+      <Route path="/" component={LandingV6} />
       <Route path="/landing" component={LandingV5} />
       <Route path="/fb-integration" component={LandingV5} />
       <Route path="/landing-v1" component={Landing} />
@@ -440,6 +443,7 @@ function MarketingRouter() {
       <Route path="/landing-v3" component={LandingV3} />
       <Route path="/fb-ai-leasing-agent" component={LandingV4} />
       <Route path="/v6" component={LandingV6} />
+      <Route path="/product/voice-ai" component={ProductVoiceAI} />
       <Route path="/login" component={Login} />
       <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
       <Route path="/product/scheduling" component={ProductScheduling} />
