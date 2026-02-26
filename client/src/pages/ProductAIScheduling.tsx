@@ -1,85 +1,113 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import {
-  Phone,
   Zap,
-  Shield,
-  TrendingUp,
+  ArrowRight,
   CheckCircle2,
   Star,
-  ArrowRight,
-  Users,
-  BarChart3,
   Calendar,
-  ChevronDown,
+  Clock,
+  Users,
+  BellRing,
+  RefreshCw,
+  ShieldCheck,
+  Phone,
   MessageSquare,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import VoiceAgentDemo from "@/components/v6/VoiceAgentDemo";
+import SchedulingDemo from "@/components/v6/SchedulingDemo";
 
 const BRAND = "Agency";
 
-const guarantees = [
-  { icon: Zap, text: "Setup Done For You" },
-  { icon: Phone, text: "24/7 AI Calling" },
-  { icon: Shield, text: "Free to Get Started" },
-  { icon: TrendingUp, text: "No Results? Money Back" },
+const valueProps = [
+  {
+    icon: Calendar,
+    title: "Done-For-You Setup",
+    description: "We configure and integrate your AI scheduling system end-to-end — no technical work required on your end.",
+  },
+  {
+    icon: Clock,
+    title: "Books 24/7 Automatically",
+    description: "Leads book themselves any time of day or night. Your calendar fills up while you focus on your business.",
+  },
+  {
+    icon: RefreshCw,
+    title: "Real-Time Calendar Sync",
+    description: "Two-way sync with Google and Outlook ensures zero double-bookings and always up-to-date availability.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "No Results? Money Back",
+    description: "If you don't see measurable improvements in bookings, we'll refund you in full. No questions asked.",
+  },
 ];
 
 const stats = [
-  { value: "2,400+", label: "Leads Qualified" },
-  { value: "340%", label: "Avg ROI Increase" },
-  { value: "98%", label: "Client Satisfaction" },
-  { value: "50+", label: "Businesses Served" },
-];
-
-const testimonials = [
-  {
-    name: "James Carter",
-    role: "CEO, TechFlow",
-    text: "We saw a 400% increase in qualified leads within the first month. The AI voice agent handles calls so naturally our prospects can't tell the difference.",
-    rating: 5,
-  },
-  {
-    name: "Sarah Mitchell",
-    role: "Founder, GrowthLab",
-    text: "Setup was done completely for us — we didn't lift a finger. Now our pipeline is overflowing with high-quality leads on autopilot.",
-    rating: 5,
-  },
-  {
-    name: "David Park",
-    role: "VP Sales, ScaleUp",
-    text: "The money-back guarantee gave us confidence to try it. Three months in and we've 5x'd our outbound conversions.",
-    rating: 5,
-  },
+  { value: "113%", label: "More Appointments Set" },
+  { value: "62%", label: "More Tours Year-Over-Year" },
+  { value: "150%", label: "Faster Time to Tour" },
+  { value: "24/7", label: "Always Available" },
 ];
 
 const steps = [
   {
     step: "01",
-    icon: Users,
-    title: "We Set It Up For You",
-    desc: "Share your ideal customer profile. Our team builds your custom AI voice agent, scripts, and targeting — at no cost.",
+    icon: Phone,
+    title: "Lead Reaches Out",
+    desc: "A prospect calls, texts, or fills out a form. Our AI immediately engages them and checks your real-time availability.",
   },
   {
     step: "02",
-    icon: Phone,
-    title: "AI Calls & Qualifies",
-    desc: "Your AI agent makes natural-sounding calls 24/7, qualifying leads and booking meetings directly on your calendar.",
+    icon: Calendar,
+    title: "AI Qualifies & Books",
+    desc: "The AI asks the right questions, qualifies the lead, and slots them into the perfect opening on your calendar.",
   },
   {
     step: "03",
-    icon: BarChart3,
-    title: "You Close Deals",
-    desc: "Show up to pre-qualified meetings ready to close. Track everything in your real-time dashboard.",
+    icon: BellRing,
+    title: "You Show Up & Close",
+    desc: "You get a notification with all lead details. They get a confirmation and reminder. Everyone wins.",
   },
 ];
 
-function VoiceAIHeader() {
+const features = [
+  "Back-to-back showing batches",
+  "Group showing support",
+  "Travel time buffers",
+  "Open house scheduler",
+  "Multi-agent assignment",
+  "Auto-distribute showings",
+  "Tenant notifications",
+  "Conflict prevention",
+];
+
+const testimonials = [
+  {
+    name: "James Patterson",
+    role: "Owner, Patterson Services",
+    text: "We went from missing 40% of calls to booking every single one. Revenue jumped 35% in the first month alone.",
+    stars: 5,
+  },
+  {
+    name: "Maria Gonzalez",
+    role: "Manager, Bright Solutions Co.",
+    text: "The AI books appointments better than my front desk ever did. Our team can finally focus on the actual work.",
+    stars: 5,
+  },
+  {
+    name: "David Chen",
+    role: "Owner, Chen & Associates",
+    text: "Setup was completely hands-off. Within 48 hours the AI was filling my calendar. I didn't touch a thing.",
+    stars: 5,
+  },
+];
+
+function SchedulingHeader() {
   return (
     <nav
       className="v6-page fixed top-0 left-0 right-0 z-50 border-b border-border/50 v6-glass"
-      data-testid="voice-ai-header"
+      data-testid="scheduling-header"
     >
       <div className="container mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2">
@@ -91,15 +119,18 @@ function VoiceAIHeader() {
 
         <div className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
           <div className="relative group">
-            <button className="flex items-center gap-1 hover:text-foreground transition-colors" data-testid="solutions-nav">
+            <button
+              className="flex items-center gap-1 hover:text-foreground transition-colors"
+              data-testid="scheduling-solutions-nav"
+            >
               Solutions <ChevronDown className="w-3.5 h-3.5" />
             </button>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-              <div className="bg-card border border-border rounded-xl shadow-lg p-2 min-w-[200px]">
+            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="bg-card border border-border rounded-xl shadow-lg p-2 min-w-[220px]">
                 <Link
                   href="/product/voice-ai"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
-                  data-testid="nav-voice-ai"
+                  data-testid="scheduling-nav-voice-ai"
                 >
                   <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                     <Phone className="w-3.5 h-3.5 text-blue-600" />
@@ -112,7 +143,7 @@ function VoiceAIHeader() {
                 <Link
                   href="/product/ai-scheduling"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
-                  data-testid="nav-scheduling"
+                  data-testid="scheduling-nav-scheduling"
                 >
                   <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                     <Calendar className="w-3.5 h-3.5 text-blue-600" />
@@ -125,7 +156,7 @@ function VoiceAIHeader() {
                 <Link
                   href="/product/website-chatbot"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
-                  data-testid="nav-chatbot"
+                  data-testid="scheduling-nav-chatbot"
                 >
                   <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
                     <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
@@ -144,7 +175,7 @@ function VoiceAIHeader() {
 
         <Button
           onClick={() => (window.location.href = "/login")}
-          data-testid="voice-ai-header-cta"
+          data-testid="scheduling-header-cta"
           className="v6-page v6-bg-gradient text-white border-0"
         >
           Get Started
@@ -154,13 +185,13 @@ function VoiceAIHeader() {
   );
 }
 
-export default function ProductVoiceAI() {
+export default function ProductAIScheduling() {
   return (
-    <div className="v6-page min-h-screen bg-background text-foreground" data-testid="product-voice-ai">
-      <VoiceAIHeader />
+    <div className="v6-page min-h-screen bg-background text-foreground" data-testid="product-ai-scheduling">
+      <SchedulingHeader />
 
       {/* Hero */}
-      <section className="pt-28 pb-16 lg:pt-36 lg:pb-24" data-testid="voice-ai-hero">
+      <section className="pt-28 pb-16 lg:pt-36 lg:pb-24 overflow-hidden" data-testid="scheduling-hero">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             <motion.div
@@ -171,24 +202,27 @@ export default function ProductVoiceAI() {
             >
               <div className="inline-flex items-center gap-2 bg-blue-500/5 border border-blue-500/20 rounded-full px-4 py-1.5">
                 <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <span className="text-xs font-medium text-blue-700">AI-Powered Voice Lead Qualification</span>
+                <span className="text-xs font-medium text-blue-700">AI-Powered Appointment Scheduling</span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight">
-                Turn Every Call Into a{" "}
-                <span className="v6-text-gradient">Qualified Lead</span>
+                Fill Your Calendar{" "}
+                <span className="v6-text-gradient">on Autopilot</span>
               </h1>
 
               <p className="text-lg text-muted-foreground max-w-md leading-relaxed">
-                Our AI voice agents call, qualify, and book meetings with your ideal
-                prospects — completely done for you with zero effort on your end.
+                Our AI scheduling system qualifies leads, checks your real-time availability, and books appointments automatically — 24/7, zero effort on your end.
               </p>
 
               <div className="grid grid-cols-2 gap-3">
-                {guarantees.map((g) => (
-                  <div key={g.text} className="flex items-center gap-2" data-testid={`voice-ai-guarantee-${g.text.toLowerCase().replace(/\s+/g, '-')}`}>
+                {["Free Setup", "Zero Double-Bookings", "Live in 48h", "Money-Back Guarantee"].map((item) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-2"
+                    data-testid={`scheduling-guarantee-${item.toLowerCase().replace(/\s+/g, '-')}`}
+                  >
                     <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm font-medium text-foreground">{g.text}</span>
+                    <span className="text-sm font-medium text-foreground">{item}</span>
                   </div>
                 ))}
               </div>
@@ -197,7 +231,7 @@ export default function ProductVoiceAI() {
                 <Button
                   size="lg"
                   onClick={() => (window.location.href = "/login")}
-                  data-testid="voice-ai-hero-cta"
+                  data-testid="scheduling-hero-cta"
                   className="v6-bg-gradient text-white border-0 v6-shadow-glow text-base px-8"
                 >
                   Get Started Free
@@ -207,7 +241,7 @@ export default function ProductVoiceAI() {
                   <Button
                     size="lg"
                     variant="outline"
-                    data-testid="voice-ai-hero-demo"
+                    data-testid="scheduling-hero-demo"
                     className="text-base px-8"
                   >
                     <Calendar className="w-4 h-4 mr-2" />
@@ -222,14 +256,14 @@ export default function ProductVoiceAI() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2 }}
             >
-              <VoiceAgentDemo />
+              <SchedulingDemo />
             </motion.div>
           </div>
         </div>
       </section>
 
       {/* Stats */}
-      <section className="py-12 border-y border-border bg-muted/30" data-testid="voice-ai-stats">
+      <section className="py-12 border-y border-border bg-muted/30" data-testid="scheduling-stats">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((s, i) => (
@@ -240,18 +274,19 @@ export default function ProductVoiceAI() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className="text-center"
-                data-testid={`voice-ai-stat-${i}`}
+                data-testid={`scheduling-stat-${i}`}
               >
                 <p className="text-3xl lg:text-4xl font-bold v6-text-gradient">{s.value}</p>
                 <p className="text-sm text-muted-foreground mt-1">{s.label}</p>
               </motion.div>
             ))}
           </div>
+          <p className="text-center text-xs text-muted-foreground mt-6">Based on market research across our client base</p>
         </div>
       </section>
 
       {/* How It Works */}
-      <section className="py-20 lg:py-28" data-testid="voice-ai-how-it-works" id="how-it-works">
+      <section className="py-20 lg:py-28" data-testid="scheduling-how-it-works" id="how-it-works">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -263,11 +298,11 @@ export default function ProductVoiceAI() {
               How It <span className="v6-text-gradient">Works</span>
             </h2>
             <p className="text-muted-foreground text-lg">
-              Three simple steps to flood your pipeline with qualified leads.
+              Three simple steps to a fully booked calendar — completely hands-free.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="grid md:grid-cols-3 gap-8">
             {steps.map((item, i) => (
               <motion.div
                 key={item.step}
@@ -276,7 +311,7 @@ export default function ProductVoiceAI() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className="relative bg-card border border-border rounded-2xl p-8 shadow-sm"
-                data-testid={`voice-ai-step-${i}`}
+                data-testid={`scheduling-step-${i}`}
               >
                 <span className="text-6xl font-bold text-blue-500/5 absolute top-4 right-6 select-none">
                   {item.step}
@@ -289,12 +324,83 @@ export default function ProductVoiceAI() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
 
+      {/* Value Props */}
+      <section className="py-20 lg:py-28 bg-muted/30" data-testid="scheduling-value-props">
+        <div className="container mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-2xl mx-auto mb-14"
+          >
+            <p className="text-sm font-semibold tracking-widest uppercase text-blue-600 mb-3">Why Agency</p>
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+              Zero Risk.{" "}
+              <span className="v6-text-gradient">Maximum Bookings.</span>
+            </h2>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {valueProps.map((item, i) => (
+              <motion.div
+                key={item.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="bg-card border border-border rounded-2xl p-6 text-center"
+                data-testid={`scheduling-value-${i}`}
+              >
+                <div className="w-14 h-14 rounded-2xl v6-bg-gradient flex items-center justify-center mx-auto mb-5">
+                  <item.icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-2">{item.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Feature Grid */}
+      <section className="py-20 lg:py-28" data-testid="scheduling-features">
+        <div className="container mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-2xl mx-auto mb-14"
+          >
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+              Everything You Need to{" "}
+              <span className="v6-text-gradient">Scale Bookings</span>
+            </h2>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {features.map((feature, i) => (
+              <motion.div
+                key={feature}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3"
+                data-testid={`scheduling-feature-${i}`}
+              >
+                <CheckCircle2 className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                <span className="text-sm font-medium text-foreground">{feature}</span>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 lg:py-28 bg-muted/30" data-testid="voice-ai-testimonials">
+      <section className="py-20 lg:py-28 bg-muted/30" data-testid="scheduling-testimonials">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -302,12 +408,10 @@ export default function ProductVoiceAI() {
             viewport={{ once: true }}
             className="text-center max-w-2xl mx-auto mb-16"
           >
-            <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
-              Trusted by Growing Businesses
+            <p className="text-sm font-semibold tracking-widest uppercase text-blue-600 mb-3">Trusted By Businesses</p>
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+              Real Results From Real Clients
             </h2>
-            <p className="text-muted-foreground text-lg">
-              Join 50+ companies already scaling their outbound with AI.
-            </p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -319,10 +423,10 @@ export default function ProductVoiceAI() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
                 className="bg-card border border-border rounded-2xl p-8 shadow-sm"
-                data-testid={`voice-ai-testimonial-${i}`}
+                data-testid={`scheduling-testimonial-${i}`}
               >
                 <div className="flex gap-1 mb-4">
-                  {Array.from({ length: t.rating }).map((_, j) => (
+                  {Array.from({ length: t.stars }).map((_, j) => (
                     <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
@@ -338,43 +442,42 @@ export default function ProductVoiceAI() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 lg:py-28" data-testid="voice-ai-cta" id="cta">
+      <section className="py-20 lg:py-28" data-testid="scheduling-cta">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="relative rounded-3xl v6-bg-gradient p-12 lg:p-20 text-center overflow-hidden"
+            className="relative max-w-3xl mx-auto rounded-3xl v6-bg-gradient p-12 lg:p-16 text-center overflow-hidden"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(210_100%_70%/0.3),transparent_60%)]" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
             <div className="relative z-10">
-              <h2 className="text-3xl lg:text-5xl font-bold text-white mb-4 leading-tight">
-                Ready to 10x Your Qualified Leads?
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-4">
+                Ready to Fill Your Calendar Automatically?
               </h2>
               <p className="text-white/75 text-lg mb-8 max-w-lg mx-auto">
-                Get your AI voice agent set up for free. No technical skills needed —
-                we handle everything. No results? Full money back.
+                Get your AI scheduling system set up and running — completely free to start.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  onClick={() => (window.location.href = "/login")}
-                  data-testid="voice-ai-cta-btn"
-                  className="text-base px-8 font-semibold"
-                >
-                  Start For Free
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-6">
-                {["Setup Done For You", "100% Free Trial", "Money-Back Guarantee"].map((item) => (
-                  <div key={item} className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-white/70" />
-                    <span className="text-sm text-white/70">{item}</span>
+              <div className="flex flex-wrap justify-center gap-4 mb-8">
+                {["Free setup", "Live in 48 hours", "Money-back guarantee", "No credit card"].map((b) => (
+                  <div key={b} className="flex items-center gap-2 text-white/85 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-green-300 flex-shrink-0" />
+                    <span>{b}</span>
                   </div>
                 ))}
               </div>
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => (window.location.href = "/login")}
+                data-testid="scheduling-cta-btn"
+                className="text-base px-8 font-semibold"
+              >
+                Get Started Free
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+              <p className="text-xs text-white/50 mt-4">No credit card required • Cancel anytime</p>
             </div>
           </motion.div>
         </div>
@@ -390,10 +493,10 @@ export default function ProductVoiceAI() {
             <span className="font-bold text-sm text-foreground">{BRAND}</span>
           </Link>
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
-            <Link href="/product/voice-ai" className="hover:text-foreground transition-colors">Voice AI</Link>
             <Link href="/product/ai-scheduling" className="hover:text-foreground transition-colors">AI Scheduling</Link>
+            <Link href="/product/voice-ai" className="hover:text-foreground transition-colors">Voice AI</Link>
+            <Link href="/product/website-chatbot" className="hover:text-foreground transition-colors">Website Chatbot</Link>
             <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
-            <Link href="/book-demo" className="hover:text-foreground transition-colors">Book Demo</Link>
           </div>
           <p className="text-xs text-muted-foreground">
             © {new Date().getFullYear()} {BRAND}. All rights reserved.

@@ -135,7 +135,7 @@ function ChatbotHeader() {
                   </div>
                 </Link>
                 <Link
-                  href="/v6"
+                  href="/product/ai-scheduling"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
                   data-testid="chatbot-nav-scheduling"
                 >
@@ -455,7 +455,7 @@ export default function ProductWebsiteChatbot() {
           <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-muted-foreground">
             <Link href="/product/website-chatbot" className="hover:text-foreground transition-colors">Website Chatbot</Link>
             <Link href="/product/voice-ai" className="hover:text-foreground transition-colors">Voice AI</Link>
-            <Link href="/v6" className="hover:text-foreground transition-colors">AI Scheduling</Link>
+            <Link href="/product/ai-scheduling" className="hover:text-foreground transition-colors">AI Scheduling</Link>
             <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
           </div>
           <p className="text-xs text-muted-foreground">

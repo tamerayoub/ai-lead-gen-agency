@@ -135,8 +135,8 @@ function V6Header() {
                     <p className="text-xs text-muted-foreground">AI phone agent</p>
                   </div>
                 </Link>
-                <a
-                  href="#how-it-works"
+                <Link
+                  href="/product/ai-scheduling"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"
                   data-testid="v6-nav-scheduling"
                 >
@@ -147,7 +147,7 @@ function V6Header() {
                     <p className="text-sm font-medium text-foreground">AI Scheduling</p>
                     <p className="text-xs text-muted-foreground">Auto-book appointments</p>
                   </div>
-                </a>
+                </Link>
                 <Link
                   href="/product/website-chatbot"
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors"

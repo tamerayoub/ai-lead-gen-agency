@@ -32,7 +32,8 @@ Key features include:
 
 Multiple landing page variants exist, each accessible at their own route:
 - **`/` (root) and `/v6`** → LandingV6 ("Agency" brand) — the primary public-facing landing page. Features hero with animated SchedulingDemo, ValueProps (4 cards), HowItWorks (3 steps + VoiceAgentDemo animation), SocialProof, and CTA. Header includes a "Solutions" dropdown.
-- **`/product/voice-ai`** → ProductVoiceAI — dedicated Voice AI product page with hero, VoiceAgentDemo animation, How It Works (3 steps + demo), testimonials, and CTA.
+- **`/product/voice-ai`** → ProductVoiceAI — dedicated Voice AI product page with hero, VoiceAgentDemo animation, How It Works (3 steps), testimonials, and CTA.
+- **`/product/ai-scheduling`** → ProductAIScheduling — Agency-branded AI Scheduling product page with hero, SchedulingDemo animation, How It Works (3 steps), value props, feature grid, testimonials, and CTA.
 - **`/landing` and `/fb-integration`** → LandingV5 (dark, Facebook Marketplace sync theme)
 - **`/fb-ai-leasing-agent`** → LandingV4 (blue theme)
 - **`/landing-v1`**, **`/landing-v2`**, **`/landing-v3`** → earlier landing versions
