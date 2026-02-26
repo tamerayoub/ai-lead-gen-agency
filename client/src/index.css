@@ -574,4 +574,57 @@
       -webkit-backdrop-filter: blur(12px) saturate(150%);
     }
   }
+
+  /* ===== LandingV6 utilities ===== */
+  .v6-page {
+    --v6-primary: hsl(210 100% 40%);
+    --v6-primary-foreground: hsl(0 0% 100%);
+    --v6-hero-gradient: linear-gradient(135deg, hsl(210 100% 40%), hsl(210 100% 55%));
+    --v6-hero-gradient-subtle: linear-gradient(135deg, hsl(210 60% 96%), hsl(210 80% 92%));
+    --v6-glow: 0 8px 32px -4px hsl(210 100% 50% / 0.25);
+    --v6-glow-strong: 0 12px 48px -8px hsl(210 100% 50% / 0.4);
+    --v6-text-gradient: linear-gradient(135deg, hsl(210 100% 30%), hsl(210 100% 50%));
+    --v6-glass: hsl(0 0% 100% / 0.85);
+  }
+
+  .v6-page .v6-text-gradient {
+    background: var(--v6-text-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .v6-page .v6-bg-gradient {
+    background: var(--v6-hero-gradient);
+  }
+
+  .v6-page .v6-bg-gradient-subtle {
+    background: var(--v6-hero-gradient-subtle);
+  }
+
+  .v6-page .v6-shadow-glow {
+    box-shadow: var(--v6-glow);
+  }
+
+  .v6-page .v6-shadow-glow-strong {
+    box-shadow: var(--v6-glow-strong);
+  }
+
+  .v6-page .v6-glass {
+    background: var(--v6-glass);
+    backdrop-filter: blur(12px);
+  }
+
+  @keyframes v6-ring {
+    0%, 100% { transform: rotate(0deg); }
+    10% { transform: rotate(-15deg); }
+    20% { transform: rotate(15deg); }
+    30% { transform: rotate(-10deg); }
+    40% { transform: rotate(10deg); }
+    50% { transform: rotate(0deg); }
+  }
+
+  .v6-ring {
+    animation: v6-ring 0.6s ease-in-out;
+  }
 }

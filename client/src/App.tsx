@@ -127,6 +127,7 @@ import LandingV2 from "@/pages/LandingV2";
 import LandingV3 from "@/pages/LandingV3";
 import LandingV4 from "@/pages/LandingV4";
 import LandingV5 from "@/pages/LandingV5";
+import LandingV6 from "@/pages/LandingV6";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import BookDemo from "@/pages/BookDemo";
@@ -277,6 +278,7 @@ function Router() {
         <Route path="/landing-v2" component={LandingV2} />
         <Route path="/landing-v3" component={LandingV3} />
         <Route path="/fb-ai-leasing-agent" component={LandingV4} />
+        <Route path="/v6" component={LandingV6} />
         <Route path="/login" component={Login} />
         <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
         <Route path="/product/scheduling" component={ProductScheduling} />
@@ -331,6 +333,7 @@ function Router() {
       <Route path="/landing-v2" component={LandingV2} />
       <Route path="/landing-v3" component={LandingV3} />
       <Route path="/fb-ai-leasing-agent" component={LandingV4} />
+      <Route path="/v6" component={LandingV6} />
       <Route path="/terms-of-service" component={TermsOfService} />
       <Route path="/privacy-notice" component={PrivacyNotice} />
       <Route path="/cookies-policy" component={CookiesPolicy} />
@@ -436,6 +439,7 @@ function MarketingRouter() {
       <Route path="/landing-v2" component={LandingV2} />
       <Route path="/landing-v3" component={LandingV3} />
       <Route path="/fb-ai-leasing-agent" component={LandingV4} />
+      <Route path="/v6" component={LandingV6} />
       <Route path="/login" component={Login} />
       <Route path="/product/ai-leasing-agent" component={ProductAIAgent} />
       <Route path="/product/scheduling" component={ProductScheduling} />
